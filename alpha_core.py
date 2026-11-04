@@ -126,11 +126,12 @@ div[data-testid="stVerticalBlock"] > div {
     50%, 100% { opacity: 0.25; }
 }
 
-/* SPACE 1999 SEASON 1 TOP DIAGNOSTIC INSERT STRIP */
 .alpha-1999-strip {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
     background: #070a10;
     border: 1px solid #263248;
     border-left: 8px solid #ffb703;
@@ -138,43 +139,26 @@ div[data-testid="stVerticalBlock"] > div {
     padding: 5px 12px;
     margin-bottom: 6px;
     font-family: 'Michroma', 'Orbitron', sans-serif;
-    font-size: 0.62rem;
-    letter-spacing: 0.14em;
+    font-size: 0.60rem;
+    letter-spacing: 0.12em;
     color: #fef08a;
     text-transform: uppercase;
 }
 .alpha-pill-amber {
-    background: #ffb703;
-    color: #000000;
-    font-weight: 900;
-    padding: 2px 8px;
-    border-radius: 1px;
-    font-size: 0.58rem;
-    letter-spacing: 0.12em;
+    background: #ffb703; color: #000000; font-weight: 900; padding: 2px 7px;
+    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
     box-shadow: 0 0 10px rgba(255, 183, 3, 0.7);
 }
 .alpha-pill-white {
-    background: #f8fafc;
-    color: #000000;
-    font-weight: 900;
-    padding: 2px 8px;
-    border-radius: 1px;
-    font-size: 0.58rem;
-    letter-spacing: 0.12em;
-    box-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
+    background: #f8fafc; color: #000000; font-weight: 900; padding: 2px 7px;
+    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
 }
 .alpha-pill-red {
-    background: #ff2a54;
-    color: #ffffff;
-    font-weight: 900;
-    padding: 2px 8px;
-    border-radius: 1px;
-    font-size: 0.58rem;
-    letter-spacing: 0.12em;
+    background: #ff2a54; color: #ffffff; font-weight: 900; padding: 2px 7px;
+    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
     animation: alphaBlink 1.6s infinite;
 }
 
-/* WAFER DIGITAL TUBES */
 .wafer-housing {
     display: inline-flex; align-items: center; background: #070401;
     border: 1.5px solid #522d09; border-radius: 3px; padding: 2px 5px; gap: 2px;
@@ -189,7 +173,6 @@ div[data-testid="stVerticalBlock"] > div {
 .wafer-digit { position: relative; font-family: 'Share Tech Mono', monospace; font-size: 1.12rem; font-weight: 700; color: #fef08a; text-shadow: 0 0 6px #f59e0b; }
 .wafer-unit { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: #f59e0b; margin-left: 3px; font-weight: 700; }
 
-/* MAIN MISSION HEADER DECK */
 .apex-deck {
     background: linear-gradient(180deg, #0e131d 0%, #05080f 100%);
     border: 1.5px solid #283750;
@@ -204,24 +187,16 @@ div[data-testid="stVerticalBlock"] > div {
     flex-wrap: wrap;
     gap: 10px;
 }
-.apex-title {
-    font-family: 'Michroma', 'Orbitron', sans-serif;
-    font-size: 0.98rem;
-    font-weight: 900;
-    letter-spacing: 0.12em;
-    color: #ffffff;
-}
+.apex-title { font-family: 'Michroma', 'Orbitron', sans-serif; font-size: 0.96rem; font-weight: 900; letter-spacing: 0.11em; color: #ffffff; }
 .apex-title span { color: #ffb703; text-shadow: 0 0 12px rgba(255, 183, 3, 0.65); }
-.apex-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.70rem; color: #38bdf8; letter-spacing: 0.06em; margin-top: 4px; }
+.apex-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.68rem; color: #38bdf8; letter-spacing: 0.05em; margin-top: 4px; }
 
-/* WEATHER & LUNAR TELEMETRY STRIP */
 .meteo-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
 .meteo-box {
     background: #060a12; border: 1px solid #1e293b; border-left: 3px solid #ffb703;
     border-radius: 3px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center;
 }
 
-/* TRUE 216px GEOMETRIC SQUARES WITH EMBEDDED TOTEMS */
 div.stButton > button[kind="primary"] {
     background-image: 
         linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.08) 50%, transparent 65%),
@@ -309,7 +284,6 @@ div[class*="st-key-sq_PURPLE_"] button[kind="primary"] {
     border-left: 6px solid #a855f7 !important; border-top: 2px solid #a855f7aa !important;
 }
 
-/* THE 5 INTERNAL ROWS + CLOSE BUTTON */
 div.stButton > button[kind="secondary"] {
     background: #0b1523 !important;
     color: #e2e8f0 !important;
@@ -318,8 +292,8 @@ div.stButton > button[kind="secondary"] {
     border-radius: 3px !important;
     font-family: 'JetBrains Mono', monospace !important;
     font-weight: 600 !important;
-    font-size: 0.74rem !important;
-    padding: 0px 10px !important;
+    font-size: 0.72rem !important;
+    padding: 0px 8px !important;
     height: 32px !important;
     min-height: 32px !important;
     max-height: 32px !important;
@@ -327,13 +301,19 @@ div.stButton > button[kind="secondary"] {
     text-align: left !important;
     justify-content: flex-start !important;
 }
+div.stButton > button[kind="secondary"] div,
+div.stButton > button[kind="secondary"] span,
+div.stButton > button[kind="secondary"] p {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: nowrap !important;
+}
 div.stButton > button[kind="secondary"]:hover {
     background: #1c2b42 !important;
     border-color: #ffb703 !important;
     color: #ffffff !important;
 }
 
-/* RIGHT TOWER */
 .right-tower {
     background: linear-gradient(180deg, #0d131f 0%, #060a11 100%);
     border: 1px solid #263854; border-top: 3px solid #ffb703;
@@ -379,6 +359,9 @@ div.stButton > button[kind="secondary"]:hover {
     div.stButton > button[kind="primary"] div, div.stButton > button[kind="primary"] span, div.stButton > button[kind="primary"] p {
         font-size: 0.62rem !important; letter-spacing: 0.02em !important; line-height: 1.25 !important;
     }
+    div.stButton > button[kind="secondary"] {
+        font-size: 0.58rem !important; padding: 0px 4px !important; height: 26px !important; min-height: 26px !important; max-height: 26px !important;
+    }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -392,8 +375,8 @@ st.markdown(totem_css_rules, unsafe_allow_html=True)
 # ==============================================================================
 # 4. SESSION STATE INITIALIZATION
 # ==============================================================================
-if "init_alpha_1999" not in st.session_state:
-    st.session_state.init_alpha_1999 = True
+if "init_alpha_1999_v2" not in st.session_state:
+    st.session_state.init_alpha_1999_v2 = True
     st.session_state.expanded_sq_id = None
     st.session_state.opened_sq_id = None
     st.session_state.opened_row_num = None
@@ -410,7 +393,6 @@ sys_time_str = now_dt.strftime("%H:%M")
 wafer_clock = render_wafer_number(sys_time_str)
 wafer_sol = render_wafer_number("1999")
 
-# Inserto autentico Stagione 1: Tasti retroilluminati Giallo Ambra / Bianco Latte / Allarme
 st.markdown(
     "<div class='alpha-1999-strip'>"
     "<div><span class='alpha-pill-amber'>MOONBASE ALPHA</span> &nbsp;MAIN MISSION // COMPUTER X5-7 // COMMANDER KOENIG</div>"
@@ -467,44 +449,44 @@ base_squares = [
         "id": "SQ01", "theme": "AMBER", "totem": "EAGLE",
         "title": "01\nFRONT OFFICE",
         "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Launch Boschetto PMS", "2. Check-In / Arrivals", "3. Room Rack Status", "4. Shift Handover", "5. Night Audit"]
+        "rows": ["1. Launch Boschetto", "2. Check-In / Pax", "3. Room Rack", "4. Shift Log", "5. Night Audit"]
     },
     {
         "id": "SQ02", "theme": "EMERALD", "totem": "QUEEN",
         "title": "02\nLAZERS F&B",
         "url": "https://bemask-sovereign-lazers.streamlit.app",
-        "rows": ["1. Launch Lazers F&B", "2. Bar & Sommelier", "3. Restaurant Margin", "4. Menu Engineering", "5. Inventory Sync"]
+        "rows": ["1. Launch Lazers", "2. Bar & Sommelier", "3. Rest. Margin", "4. Menu Matrix", "5. Stock Sync"]
     },
     {
         "id": "SQ03", "theme": "CYAN", "totem": "BISHOP",
         "title": "03\nHOUSEKEEPING",
         "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Floor Status Grid", "2. Priority Rooms", "3. Linen & Minibar", "4. Staff Assignment", "5. Inspection Log"]
+        "rows": ["1. Floor Status", "2. Priority Rooms", "3. Linen & Minibar", "4. Staff Roster", "5. Inspect Log"]
     },
     {
         "id": "SQ04", "theme": "PURPLE", "totem": "COMMLOCK",
         "title": "04\nCONCIERGE",
         "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Guest Commlock", "2. Beach & Umb. Map", "3. E-Bike & Tours", "4. VIP Transfers", "5. Local Events"]
+        "rows": ["1. Guest Commlock", "2. Beach & Umb.", "3. E-Bike & Tours", "4. VIP Transfers", "5. Local Events"]
     },
     {
         "id": "SQ05", "theme": "CYAN", "totem": "KNIGHT",
         "title": "05\nS.K.A. TECH",
         "url": "https://sovereign-kinetic-architecture.streamlit.app",
-        "rows": ["1. Launch S.K.A. Core", "2. HACCP Telemetry", "3. Energy & Boilers", "4. Maintenance Tickets", "5. Safety Shields"]
+        "rows": ["1. Launch S.K.A.", "2. HACCP Probes", "3. Energy & HVAC", "4. Tech Tickets", "5. Safety Shield"]
     },
     {
         "id": "SQ06", "theme": "RED", "totem": "ROOK",
         "title": "06\nSOVEREIGN APEX",
         "url": "https://sovereign-apex.streamlit.app",
-        "rows": ["1. Launch Sovereign Apex", "2. 7 Tiers x 24 Bands", "3. Fast Quote Engine", "4. Waterfall Floor", "5. PMS CSV Bridge"]
+        "rows": ["1. Launch Apex", "2. 7x24 Matrix", "3. Fast Quote", "4. Waterfall", "5. PMS Bridge"]
     }
 ]
 
 all_squares = base_squares + st.session_state.custom_squares
 
 # ==============================================================================
-# 7. CHESSBOARD + SPACE: 1999 SOUND SYNTHESIZER & QR DOCK
+# 7. CHESSBOARD + EMS-1975 SYNTHESIZER WITH AUTOMATIC TOUCH AUDIO HOOK
 # ==============================================================================
 if st.session_state.opened_sq_id is None:
     col_grid, col_tower = st.columns([2.85, 1.05], gap="small")
@@ -537,29 +519,27 @@ if st.session_state.opened_sq_id is None:
                                 st.rerun()
 
     with col_tower:
-        # SINTETIZZATORE AUDIO AUTENTICO "MOONBASE ALPHA 1975" (WEB AUDIO API)
+        # SINTETIZZATORE ANALOGICO EMS VCS3 "MOONBASE ALPHA 1975" + TOUCH HOOK SU TUTTI I QUADRATI
         sound_console_html = """
         <div style="background:#080c14;border:1.5px solid #ffb703;border-top:4px solid #ffb703;border-radius:4px;padding:8px;font-family:monospace;color:#fff;">
             <div style="font-size:10px;font-weight:900;color:#ffb703;letter-spacing:1.5px;margin-bottom:6px;border-bottom:1px solid #263248;padding-bottom:4px;display:flex;justify-content:space-between;">
-                <span>ALPHA COMPUTER AUDIO</span>
-                <span id="st-led" style="color:#00ff9d;">STANDBY</span>
+                <span>ALPHA EMS-1975 SYNTH</span>
+                <span id="st-led" style="color:#00ff9d;">TOUCH ARMED</span>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;">
-                <button onclick="toggleTelemetry()" id="btn-tel" style="background:#ffb703;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
-                    ▶ TELEMETRY LOOP
+                <button onclick="playComputerBurst()" id="btn-tel" style="background:#ffb703;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
+                    ▶ X5-7 DATA BURST
                 </button>
-                <button onclick="playCommlock()" style="background:#e2e8f0;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
-                    ◈ COMMLOCK BEEP
+                <button onclick="playCommlock1975()" style="background:#e2e8f0;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
+                    ◈ COMMLOCK 1975
                 </button>
             </div>
-            <button onclick="playRedAlert()" style="width:100%;background:#ff2a54;color:#fff;border:none;padding:6px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:1px;">
-                ▲ MOONBASE RED ALERT
+            <button onclick="playAlphaKlaxon()" style="width:100%;background:#ff2a54;color:#fff;border:none;padding:6px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:1px;">
+                ▲ ALPHA KLAXON SIREN
             </button>
         </div>
         <script>
         let audioCtx = null;
-        let telInterval = null;
-        let isPlayingTel = false;
 
         function initCtx() {
             if (!audioCtx) {
@@ -570,85 +550,176 @@ if st.session_state.opened_sq_id is None:
             }
         }
 
-        function singleAlphaBlip() {
+        function createAnalogChain() {
+            const now = audioCtx.currentTime;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(1650, now);
+            filter.Q.setValueAtTime(3.2, now);
+
+            const delay = audioCtx.createDelay();
+            delay.delayTime.setValueAtTime(0.065, now);
+            const fb = audioCtx.createGain();
+            fb.gain.setValueAtTime(0.28, now);
+
+            filter.connect(audioCtx.destination);
+            filter.connect(delay);
+            delay.connect(fb);
+            fb.connect(delay);
+            delay.connect(audioCtx.destination);
+            return filter;
+        }
+
+        // Suono rapido Commlock/Computer al tocco di QUALSIASI quadrato o riga (Mobile + Desktop)
+        function playTouchPulse() {
+            try {
+                initCtx();
+                const now = audioCtx.currentTime;
+                const bus = createAnalogChain();
+                const freqs = [1480, 1960, 2350];
+                freqs.forEach((f, idx) => {
+                    const t = now + (idx * 0.045);
+                    const o1 = audioCtx.createOscillator();
+                    const o2 = audioCtx.createOscillator();
+                    const env = audioCtx.createGain();
+                    o1.type = 'sine';
+                    o2.type = 'triangle';
+                    o1.frequency.setValueAtTime(f, t);
+                    o2.frequency.setValueAtTime(f * 1.414, t);
+                    env.gain.setValueAtTime(0.001, t);
+                    env.gain.linearRampToValueAtTime(0.075, t + 0.005);
+                    env.gain.exponentialRampToValueAtTime(0.001, t + 0.042);
+                    o1.connect(env); o2.connect(env); env.connect(bus);
+                    o1.start(t); o2.start(t);
+                    o1.stop(t + 0.044); o2.stop(t + 0.044);
+                });
+            } catch (e) {}
+        }
+
+        // Aggancia il suono al touch/click di tutti i bottoni della pagina Streamlit
+        try {
+            const parentDoc = window.parent.document;
+            if (!parentDoc.alphaTouchBound) {
+                parentDoc.alphaTouchBound = true;
+                parentDoc.addEventListener('pointerdown', (ev) => {
+                    const btn = ev.target.closest('button');
+                    if (btn) {
+                        playTouchPulse();
+                    }
+                }, true);
+            }
+        } catch (e) {}
+
+        function playComputerBurst() {
+            initCtx();
+            const led = document.getElementById('st-led');
+            led.innerText = 'COMPUTING...';
+            led.style.color = '#00f0ff';
+
+            const now = audioCtx.currentTime;
+            const bus = createAnalogChain();
+
+            const hum = audioCtx.createOscillator();
+            const humGain = audioCtx.createGain();
+            hum.type = 'sawtooth';
+            hum.frequency.setValueAtTime(110, now);
+            humGain.gain.setValueAtTime(0.025, now);
+            humGain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+            hum.connect(humGain);
+            humGain.connect(audioCtx.destination);
+            hum.start(now);
+            hum.stop(now + 1.26);
+
+            const steps = 24;
+            const stepTime = 0.046;
+            const alphaFreqs = [1180, 1420, 1680, 1930, 2240, 2580, 1310, 2890, 1540];
+
+            for (let i = 0; i < steps; i++) {
+                if (Math.random() < 0.14) continue;
+                const t = now + (i * stepTime);
+                const osc = audioCtx.createOscillator();
+                const mod = audioCtx.createOscillator();
+                const modGain = audioCtx.createGain();
+                const env = audioCtx.createGain();
+
+                const baseF = alphaFreqs[Math.floor(Math.random() * alphaFreqs.length)];
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(baseF, t);
+
+                mod.type = 'triangle';
+                mod.frequency.setValueAtTime(baseF * 1.414, t);
+                modGain.gain.setValueAtTime(320, t);
+
+                mod.connect(modGain);
+                modGain.connect(osc.frequency);
+
+                env.gain.setValueAtTime(0.001, t);
+                env.gain.linearRampToValueAtTime(0.09, t + 0.004);
+                env.gain.exponentialRampToValueAtTime(0.002, t + stepTime - 0.004);
+
+                osc.connect(env);
+                env.connect(bus);
+
+                osc.start(t); mod.start(t);
+                osc.stop(t + stepTime); mod.stop(t + stepTime);
+            }
+
+            setTimeout(() => {
+                led.innerText = 'TOUCH ARMED';
+                led.style.color = '#00ff9d';
+            }, 1250);
+        }
+
+        function playCommlock1975() {
             initCtx();
             const now = audioCtx.currentTime;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            // Space 1999 Main Computer frequencies (classic 1975 modular bleeps)
-            const freqs = [980, 1240, 1480, 1760, 2093, 2349, 2637, 1108, 1567];
-            const f = freqs[Math.floor(Math.random() * freqs.length)];
-            osc.type = Math.random() > 0.35 ? 'square' : 'triangle';
-            osc.frequency.setValueAtTime(f, now);
-
-            gain.gain.setValueAtTime(0.06, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.055);
-
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(now);
-            osc.stop(now + 0.06);
-        }
-
-        function toggleTelemetry() {
-            initCtx();
-            const btn = document.getElementById('btn-tel');
-            const led = document.getElementById('st-led');
-            if (!isPlayingTel) {
-                isPlayingTel = true;
-                btn.innerText = '■ STOP TELEMETRY';
-                btn.style.background = '#00f0ff';
-                led.innerText = 'ACTIVE 1999';
-                led.style.color = '#00f0ff';
-                telInterval = setInterval(() => {
-                    singleAlphaBlip();
-                    if (Math.random() > 0.45) {
-                        setTimeout(singleAlphaBlip, 65);
-                    }
-                }, 135);
-            } else {
-                isPlayingTel = false;
-                clearInterval(telInterval);
-                btn.innerText = '▶ TELEMETRY LOOP';
-                btn.style.background = '#ffb703';
-                led.innerText = 'STANDBY';
-                led.style.color = '#00ff9d';
-            }
-        }
-
-        function playCommlock() {
-            initCtx();
-            const notes = [1975, 2637, 1975, 3135];
-            notes.forEach((n, idx) => {
-                const now = audioCtx.currentTime + (idx * 0.075);
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(n, now);
-                gain.gain.setValueAtTime(0.11, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.065);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.07);
+            const bus = createAnalogChain();
+            const pattern = [
+                {t: 0.00, f1: 1480, f2: 2110, d: 0.11},
+                {t: 0.13, f1: 1960, f2: 2790, d: 0.18},
+                {t: 0.34, f1: 1480, f2: 2110, d: 0.11},
+                {t: 0.47, f1: 2350, f2: 3320, d: 0.24}
+            ];
+            pattern.forEach(p => {
+                const start = now + p.t;
+                const o1 = audioCtx.createOscillator();
+                const o2 = audioCtx.createOscillator();
+                const env = audioCtx.createGain();
+                o1.type = 'sine'; o2.type = 'sine';
+                o1.frequency.setValueAtTime(p.f1, start);
+                o2.frequency.setValueAtTime(p.f2, start);
+                env.gain.setValueAtTime(0.001, start);
+                env.gain.linearRampToValueAtTime(0.08, start + 0.008);
+                env.gain.exponentialRampToValueAtTime(0.001, start + p.d);
+                o1.connect(env); o2.connect(env); env.connect(bus);
+                o1.start(start); o2.start(start);
+                o1.stop(start + p.d + 0.01); o2.stop(start + p.d + 0.01);
             });
         }
 
-        function playRedAlert() {
+        function playAlphaKlaxon() {
             initCtx();
-            for (let i = 0; i < 3; i++) {
-                const start = audioCtx.currentTime + (i * 0.38);
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(440, start);
-                osc.frequency.linearRampToValueAtTime(880, start + 0.28);
-                gain.gain.setValueAtTime(0.09, start);
-                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.34);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(start);
-                osc.stop(start + 0.35);
+            const now = audioCtx.currentTime;
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(1350, now);
+            filter.Q.setValueAtTime(4.0, now);
+            filter.connect(audioCtx.destination);
+
+            for (let i = 0; i < 4; i++) {
+                const t = now + (i * 0.28);
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const env = audioCtx.createGain();
+                const fBase = (i % 2 === 0) ? 585 : 440;
+                osc1.type = 'sawtooth'; osc2.type = 'square';
+                osc1.frequency.setValueAtTime(fBase, t);
+                osc2.frequency.setValueAtTime(fBase * 1.008, t);
+                env.gain.setValueAtTime(0.08, t);
+                env.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
+                osc1.connect(env); osc2.connect(env); env.connect(filter);
+                osc1.start(t); osc2.start(t);
+                osc1.stop(t + 0.26); osc2.stop(t + 0.26);
             }
         }
         </script>
@@ -657,10 +728,11 @@ if st.session_state.opened_sq_id is None:
 
         qr_sel = st.selectbox(
             "QR TARGET MODULE:",
-            ["06 SOVEREIGN APEX", "01 BOSCHETTO PMS", "05 S.K.A. TECH", "02 LAZERS F&B"],
+            ["00 ALPHA MAIN MISSION", "06 SOVEREIGN APEX", "01 BOSCHETTO PMS", "05 S.K.A. TECH", "02 LAZERS F&B"],
             label_visibility="collapsed"
         )
         qr_map = {
+            "00 ALPHA MAIN MISSION": "https://alpha-main-mission.streamlit.app",
             "06 SOVEREIGN APEX": "https://sovereign-apex.streamlit.app",
             "01 BOSCHETTO PMS": "https://boschetto.streamlit.app",
             "05 S.K.A. TECH": "https://sovereign-kinetic-architecture.streamlit.app",
