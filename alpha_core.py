@@ -6,7 +6,7 @@ import json
 from datetime import datetime, timezone, timedelta
 
 # ==============================================================================
-# 1. PAGE CONFIG — MOONBASE A.L.P.H.A. // MAIN MISSION COMMAND (1975 EDITION)
+# 1. PAGE CONFIG — MOONBASE A.L.P.H.A. // MAIN MISSION COMMAND (30-NODE MATRIX)
 # ==============================================================================
 st.set_page_config(
     page_title="BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION",
@@ -66,11 +66,11 @@ def fetch_alpha_weather(lat=42.922, lon=10.758):
 TOTEM_LIBRARY = {
     "EAGLE": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='6,34 16,28 16,38' fill='none' stroke='%23ffb703' stroke-width='2.2'/><rect x='16' y='27' width='32' height='10' fill='none' stroke='%23ffffff' stroke-width='2'/><line x1='22' y1='27' x2='28' y2='37' stroke='%23ffb703' stroke-width='1.8'/><line x1='28' y1='27' x2='34' y2='37' stroke='%23ffb703' stroke-width='1.8'/><line x1='34' y1='27' x2='40' y2='37' stroke='%23ffb703' stroke-width='1.8'/><rect x='48' y='29' width='8' height='6' fill='none' stroke='%23ff2a54' stroke-width='2'/><rect x='18' y='39' width='8' height='5' fill='none' stroke='%2300f0ff' stroke-width='2'/><rect x='38' y='39' width='8' height='5' fill='none' stroke='%2300f0ff' stroke-width='2'/></svg>",
     "ROOK": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polyline points='16,22 16,12 23,12 23,17 29,17 29,12 35,12 35,17 41,17 41,12 48,12 48,22' fill='none' stroke='%23ff2a54' stroke-width='2.5'/><rect x='20' y='22' width='24' height='26' fill='none' stroke='%23ffffff' stroke-width='2.2'/><rect x='14' y='48' width='36' height='6' fill='none' stroke='%23ff2a54' stroke-width='2.5'/></svg>",
-    "QUEEN": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='14,46 10,20 23,32 32,14 41,32 54,20 50,46' fill='none' stroke='%23ffb703' stroke-width='2.5'/><circle cx='32' cy='10' r='2.5' fill='%23ffffff'/><rect x='14' y='49' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
+    "QUEEN": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='14,46 10,20 23,32 32,14 41,32 54,20 50,46' fill='none' stroke='%2300ff9d' stroke-width='2.5'/><circle cx='32' cy='10' r='2.5' fill='%23ffffff'/><rect x='14' y='49' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
     "BISHOP": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M32 12 C19 22, 19 39, 24 47 L40 47 C45 39, 45 22, 32 12 Z' fill='none' stroke='%2300f0ff' stroke-width='2.5'/><line x1='26' y1='28' x2='37' y2='20' stroke='%23ffffff' stroke-width='2.5'/><circle cx='32' cy='8' r='2.2' fill='%23ffffff'/><rect x='18' y='50' width='28' height='5' fill='none' stroke='%2300f0ff' stroke-width='2.2'/></svg>",
-    "KNIGHT": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M18 48 L22 30 L15 27 L21 15 L35 10 L47 19 L40 31 L46 48 Z' fill='none' stroke='%2300ff9d' stroke-width='2.5'/><circle cx='29' cy='19' r='2.2' fill='%23ffffff'/><rect x='14' y='50' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
-    "KING": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><line x1='32' y1='6' x2='32' y2='18' stroke='%23ffffff' stroke-width='2.8'/><line x1='26' y1='12' x2='38' y2='12' stroke='%23ffffff' stroke-width='2.8'/><polygon points='16,46 14,24 25,31 32,20 39,31 50,24 48,46' fill='none' stroke='%23a855f7' stroke-width='2.5'/><rect x='15' y='49' width='34' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
-    "COMMLOCK": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='18' y='8' width='28' height='48' rx='3' fill='none' stroke='%23ffb703' stroke-width='2.5'/><rect x='22' y='13' width='20' height='15' fill='none' stroke='%2300f0ff' stroke-width='2'/><circle cx='26' cy='36' r='2.2' fill='%23ffffff'/><circle cx='32' cy='36' r='2.2' fill='%23ffffff'/><circle cx='38' cy='36' r='2.2' fill='%23ff2a54'/><rect x='23' y='44' width='18' height='6' fill='none' stroke='%23ffffff' stroke-width='1.8'/></svg>"
+    "KNIGHT": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M18 48 L22 30 L15 27 L21 15 L35 10 L47 19 L40 31 L46 48 Z' fill='none' stroke='%23ffb703' stroke-width='2.5'/><circle cx='29' cy='19' r='2.2' fill='%23ffffff'/><rect x='14' y='50' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
+    "KING": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><line x1='32' y1='6' x2='32' y2='18' stroke='%23ffffff' stroke-width='2.8'/><line x1='26' y1='12' x2='38' y2='12' stroke='%23ffffff' stroke-width='2.8'/><polygon points='16,46 14,24 25,31 32,20 39,31 50,24 48,46' fill='none' stroke='%23ff2a54' stroke-width='2.5'/><rect x='15' y='49' width='34' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
+    "COMMLOCK": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='18' y='8' width='28' height='48' rx='3' fill='none' stroke='%23a855f7' stroke-width='2.5'/><rect x='22' y='13' width='20' height='15' fill='none' stroke='%2300f0ff' stroke-width='2'/><circle cx='26' cy='36' r='2.2' fill='%23ffffff'/><circle cx='32' cy='36' r='2.2' fill='%23ffffff'/><circle cx='38' cy='36' r='2.2' fill='%23ff2a54'/><rect x='23' y='44' width='18' height='6' fill='none' stroke='%23ffffff' stroke-width='1.8'/></svg>"
 }
 
 # ==============================================================================
@@ -242,11 +242,11 @@ div.stButton > button[kind="primary"] div,
 div.stButton > button[kind="primary"] span,
 div.stButton > button[kind="primary"] p {
     font-family: 'Orbitron', sans-serif !important;
-    font-size: 0.96rem !important;
+    font-size: 0.94rem !important;
     font-weight: 800 !important;
     color: #ffffff !important;
     letter-spacing: 0.04em !important;
-    line-height: 1.38 !important;
+    line-height: 1.35 !important;
     white-space: pre-line !important;
     overflow: visible !important;
     text-overflow: clip !important;
@@ -292,7 +292,7 @@ div.stButton > button[kind="secondary"] {
     border-radius: 3px !important;
     font-family: 'JetBrains Mono', monospace !important;
     font-weight: 600 !important;
-    font-size: 0.72rem !important;
+    font-size: 0.70rem !important;
     padding: 0px 8px !important;
     height: 32px !important;
     min-height: 32px !important;
@@ -357,10 +357,10 @@ div.stButton > button[kind="secondary"]:hover {
     div.stButton > button[kind="primary"] { height: 122px !important; min-height: 122px !important; max-height: 122px !important; padding: 6px 2px !important; }
     div.stButton > button[kind="primary"]::before { width: 34px !important; height: 34px !important; margin-bottom: 5px !important; }
     div.stButton > button[kind="primary"] div, div.stButton > button[kind="primary"] span, div.stButton > button[kind="primary"] p {
-        font-size: 0.62rem !important; letter-spacing: 0.02em !important; line-height: 1.25 !important;
+        font-size: 0.58rem !important; letter-spacing: 0.01em !important; line-height: 1.22 !important;
     }
     div.stButton > button[kind="secondary"] {
-        font-size: 0.58rem !important; padding: 0px 4px !important; height: 26px !important; min-height: 26px !important; max-height: 26px !important;
+        font-size: 0.54rem !important; padding: 0px 3px !important; height: 26px !important; min-height: 26px !important; max-height: 26px !important;
     }
 }
 </style>
@@ -375,8 +375,8 @@ st.markdown(totem_css_rules, unsafe_allow_html=True)
 # ==============================================================================
 # 4. SESSION STATE INITIALIZATION
 # ==============================================================================
-if "init_alpha_1999_v2" not in st.session_state:
-    st.session_state.init_alpha_1999_v2 = True
+if "init_alpha_30nodes" not in st.session_state:
+    st.session_state.init_alpha_30nodes = True
     st.session_state.expanded_sq_id = None
     st.session_state.opened_sq_id = None
     st.session_state.opened_row_num = None
@@ -391,15 +391,15 @@ sys_date_str = f"{days_list[now_dt.weekday()]} {now_dt.strftime('%d/%m/%Y')}"
 sys_time_str = now_dt.strftime("%H:%M")
 
 wafer_clock = render_wafer_number(sys_time_str)
-wafer_sol = render_wafer_number("1999")
+wafer_sol = render_wafer_number("30", "ND")
 
 st.markdown(
     "<div class='alpha-1999-strip'>"
-    "<div><span class='alpha-pill-amber'>MOONBASE ALPHA</span> &nbsp;MAIN MISSION // COMPUTER X5-7 // COMMANDER KOENIG</div>"
+    "<div><span class='alpha-pill-amber'>MOONBASE ALPHA</span> &nbsp;MAIN MISSION // 30-NODE COMMAND MATRIX // KOENIG</div>"
     "<div style='display:flex;gap:8px;align-items:center;'>"
-    "<span class='alpha-pill-white'>EAGLE FLEET: READY</span>"
-    "<span class='alpha-pill-amber'>GRAVITY SHIELDS: ON</span>"
-    "<span class='alpha-pill-red'>TELEMETRY LIVE</span>"
+    "<span class='alpha-pill-white'>6 SECTORS x 5 MODULES</span>"
+    "<span class='alpha-pill-amber'>OPEX & CAPEX SPLIT</span>"
+    "<span class='alpha-pill-red'>30 CHANNELS LIVE</span>"
     "</div></div>",
     unsafe_allow_html=True
 )
@@ -421,10 +421,10 @@ header_html = (
     f"<div class='apex-deck'>"
     f"<div style='display:flex;align-items:center;gap:12px;'>{eagle_header_svg}"
     f"<div><div class='apex-title'>BEMASK - <span>A.L.P.H.A. MAIN MISSION</span></div>"
-    f"<div class='apex-sub'>SPACE: 1999 ARCHIVE | DATE: <b style='color:#ffb703;'>{sys_date_str}</b> | CENTRAL HUB</div></div></div>"
+    f"<div class='apex-sub'>SPACE: 1999 COMMAND | DATE: <b style='color:#ffb703;'>{sys_date_str}</b> | 30 MICRO-MODULES</div></div></div>"
     f"<div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>"
     f"<div style='display:flex;align-items:center;gap:6px;'><span style='font-family:Share Tech Mono,monospace;font-size:0.72rem;color:#ffb703;'>ALPHA TIME:</span>{wafer_clock}</div>"
-    f"<div style='display:flex;align-items:center;gap:6px;'><span style='font-family:Share Tech Mono,monospace;font-size:0.72rem;color:#00f0ff;'>SECTOR:</span>{wafer_sol}</div>"
+    f"<div style='display:flex;align-items:center;gap:6px;'><span style='font-family:Share Tech Mono,monospace;font-size:0.72rem;color:#00f0ff;'>MATRIX:</span>{wafer_sol}</div>"
     f"</div></div>"
 )
 st.markdown(header_html, unsafe_allow_html=True)
@@ -442,44 +442,74 @@ m_html += "</div>"
 st.markdown(m_html, unsafe_allow_html=True)
 
 # ==============================================================================
-# 6. THE 6 COMMAND SQUARES OF MOONBASE A.L.P.H.A.
+# 6. THE 6 SECTORS x 5 ROWS = 30 COMMAND BUTTONS OF MOONBASE A.L.P.H.A.
 # ==============================================================================
 base_squares = [
     {
         "id": "SQ01", "theme": "AMBER", "totem": "EAGLE",
-        "title": "01\nFRONT OFFICE",
-        "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Launch Boschetto", "2. Check-In / Pax", "3. Room Rack", "4. Shift Log", "5. Night Audit"]
+        "title": "01\nFRONT & APEX",
+        "rows": [
+            {"lbl": "1. Sovereign Apex", "url": "https://sovereign-apex.streamlit.app", "desc": "7 Room Tiers x 24 Yield Bands Dynamic Pricing Engine"},
+            {"lbl": "2. Boschetto PMS", "url": "https://boschetto.streamlit.app", "desc": "Front Desk Arrivals, Departures, Room Rack & Guest Ledger"},
+            {"lbl": "3. Fast Quote & Grp", "url": "https://sovereign-apex.streamlit.app/?module=quote", "desc": "Instant Multi-Room & Group Quotation Calculator"},
+            {"lbl": "4. Night Audit Safe", "url": "https://boschetto.streamlit.app/?module=audit", "desc": "End-of-Day Cash Closure, City Tax & Shift Handover"},
+            {"lbl": "5. FO Supplies Buy", "url": "https://boschetto.streamlit.app/?module=fo_supply", "desc": "Front Office Hardware, Keycards, Stationery & Toner Procurement"}
+        ]
     },
     {
         "id": "SQ02", "theme": "EMERALD", "totem": "QUEEN",
-        "title": "02\nLAZERS F&B",
-        "url": "https://bemask-sovereign-lazers.streamlit.app",
-        "rows": ["1. Launch Lazers", "2. Bar & Sommelier", "3. Rest. Margin", "4. Menu Matrix", "5. Stock Sync"]
+        "title": "02\nLAZERS BEV",
+        "rows": [
+            {"lbl": "1. Mixology & Pour", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=mixology", "desc": "Cocktail Recipe Pour Cost (ml), Drink Margins & Bar List"},
+            {"lbl": "2. Wine & Sommelier", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=wine", "desc": "Wine Cellar Rotation, Bottle Mark-up & Pairing Matrix"},
+            {"lbl": "3. Bar Consumables", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev_opex", "desc": "OPEX Purchasing: Spirits, Beer Kegs, Coffee, Garnish & Disposables"},
+            {"lbl": "4. Bar Equipment", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev_capex", "desc": "CAPEX Purchasing: Glassware, Crystal, Shakers, Blenders & Breakage"},
+            {"lbl": "5. Minibar & Kiosk", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=minibar", "desc": "Room Minibar Restocking & Pool/Beach Liquid Kiosks"}
+        ]
     },
     {
         "id": "SQ03", "theme": "CYAN", "totem": "BISHOP",
-        "title": "03\nHOUSEKEEPING",
-        "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Floor Status", "2. Priority Rooms", "3. Linen & Minibar", "4. Staff Roster", "5. Inspect Log"]
+        "title": "03\nLAZERS FOOD",
+        "rows": [
+            {"lbl": "1. Kitchen FoodCost", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=foodcost", "desc": "Dish Recipes, Grammage, Yield Waste % & Kasavana Matrix"},
+            {"lbl": "2. Board BB/HB/FB", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=boards", "desc": "Real Buffet & Pension Meal Cost Synced with Sovereign Apex"},
+            {"lbl": "3. Food Consumables", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=food_opex", "desc": "OPEX Purchasing: Fresh/Dry Food, Vacuum Bags, Foil & Kitchen Chemicals"},
+            {"lbl": "4. Food Equipment", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=food_capex", "desc": "CAPEX Purchasing: Porcelain Plates, Cutlery, Cookware & Table Linen"},
+            {"lbl": "5. Banquet & Events", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=banquet", "desc": "Gala Dinners, Buffet Events & Special Catering Operations"}
+        ]
     },
     {
         "id": "SQ04", "theme": "PURPLE", "totem": "COMMLOCK",
-        "title": "04\nCONCIERGE",
-        "url": "https://boschetto.streamlit.app",
-        "rows": ["1. Guest Commlock", "2. Beach & Umb.", "3. E-Bike & Tours", "4. VIP Transfers", "5. Local Events"]
+        "title": "04\nBEACH & POOL",
+        "rows": [
+            {"lbl": "1. Beach Rows 1-4", "url": "https://boschetto.streamlit.app/?module=beach_map", "desc": "Interactive Umbrella Grid: 1st Row VIP, 2nd Row, 3rd Row & Standard"},
+            {"lbl": "2. Package & Upgrd", "url": "https://sovereign-apex.streamlit.app/?module=beach_yield", "desc": "Included vs Excluded Arrangement Rules & 1st/2nd Row Upgrade Supplements"},
+            {"lbl": "3. Pool & Cabanas", "url": "https://boschetto.streamlit.app/?module=pool_map", "desc": "Waterfront Sunbeds, VIP Bali Beds & External Day-Use Passes"},
+            {"lbl": "4. Lido Consumables", "url": "https://boschetto.streamlit.app/?module=beach_opex", "desc": "OPEX Purchasing: Beach Towels, Wristbands, Sunscreen & Pool Chlorine"},
+            {"lbl": "5. Lido Hardware", "url": "https://boschetto.streamlit.app/?module=beach_capex", "desc": "CAPEX Purchasing: Sunbeds, Umbrellas, Deckchairs, Gazebos & Walkways"}
+        ]
     },
     {
-        "id": "SQ05", "theme": "CYAN", "totem": "KNIGHT",
-        "title": "05\nS.K.A. TECH",
-        "url": "https://sovereign-kinetic-architecture.streamlit.app",
-        "rows": ["1. Launch S.K.A.", "2. HACCP Probes", "3. Energy & HVAC", "4. Tech Tickets", "5. Safety Shield"]
+        "id": "SQ05", "theme": "RED", "totem": "KING",
+        "title": "05\nSPA & AYURVEDA",
+        "rows": [
+            {"lbl": "1. Massage & Tibet", "url": "https://boschetto.streamlit.app/?module=spa_cabins", "desc": "Cabin Matrix: Massages, Ayurveda, Five Tibetans & Pirate Detox Specials"},
+            {"lbl": "2. Sauna & Steam", "url": "https://boschetto.streamlit.app/?module=thermae", "desc": "Wet Zone Slot Quotas: Finnish Sauna, Turkish Bath, Hydro & Private Spa"},
+            {"lbl": "3. Spa Pass & Pack", "url": "https://sovereign-apex.streamlit.app/?module=spa_yield", "desc": "Suite Included Spa Credits, Dynamic Off-Peak Pricing & Day-Spa Vouchers"},
+            {"lbl": "4. Spa Oils & Retail", "url": "https://boschetto.streamlit.app/?module=spa_opex", "desc": "OPEX & Boutique: Warm Massage Oils, Essential Oils, Muds & Retail Creams"},
+            {"lbl": "5. Spa Equipment", "url": "https://boschetto.streamlit.app/?module=spa_capex", "desc": "CAPEX Purchasing: Massage Tables, Hot Stones, Steamers, Robes & Slippers"}
+        ]
     },
     {
-        "id": "SQ06", "theme": "RED", "totem": "ROOK",
-        "title": "06\nSOVEREIGN APEX",
-        "url": "https://sovereign-apex.streamlit.app",
-        "rows": ["1. Launch Apex", "2. 7x24 Matrix", "3. Fast Quote", "4. Waterfall", "5. PMS Bridge"]
+        "id": "SQ06", "theme": "AMBER", "totem": "KNIGHT",
+        "title": "06\nS.K.A. & ROOMS",
+        "rows": [
+            {"lbl": "1. Housekeeping", "url": "https://boschetto.streamlit.app/?module=hk", "desc": "Floor Room Status (Clean/Dirty/Priority), Maids Roster & Inspections"},
+            {"lbl": "2. Room Consumables", "url": "https://boschetto.streamlit.app/?module=hk_opex", "desc": "OPEX Purchasing: Courtesy Amenities, Cleaning Chemicals, Paper & Linen"},
+            {"lbl": "3. S.K.A. Tech Core", "url": "https://sovereign-kinetic-architecture.streamlit.app", "desc": "Facility Maintenance Tickets, Boilers, HVAC & Electrical Shields"},
+            {"lbl": "4. HACCP Telemetry", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=haccp", "desc": "24/7 Temperature Probes: Kitchen Fridges, Pool Water & Spa Steamers"},
+            {"lbl": "5. Tech Hardware", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=tech_capex", "desc": "CAPEX Purchasing: Spare Parts, Pumps, LED Bulbs, Filters & Tools"}
+        ]
     }
 ]
 
@@ -505,7 +535,8 @@ if st.session_state.opened_sq_id is None:
                     t_icon = sq.get("totem", "EAGLE")
                     with cols[c_i]:
                         if st.session_state.expanded_sq_id == sid:
-                            for r_num, r_txt in enumerate(sq["rows"], 1):
+                            for r_num, r_obj in enumerate(sq["rows"], 1):
+                                r_txt = r_obj["lbl"] if isinstance(r_obj, dict) else r_obj
                                 if st.button(r_txt, key=f"r5_{sid}_{r_num}", type="secondary", use_container_width=True):
                                     st.session_state.opened_sq_id = sid
                                     st.session_state.opened_row_num = r_num
@@ -519,7 +550,6 @@ if st.session_state.opened_sq_id is None:
                                 st.rerun()
 
     with col_tower:
-        # SINTETIZZATORE ANALOGICO EMS VCS3 "MOONBASE ALPHA 1975" + TOUCH HOOK SU TUTTI I QUADRATI
         sound_console_html = """
         <div style="background:#080c14;border:1.5px solid #ffb703;border-top:4px solid #ffb703;border-radius:4px;padding:8px;font-family:monospace;color:#fff;">
             <div style="font-size:10px;font-weight:900;color:#ffb703;letter-spacing:1.5px;margin-bottom:6px;border-bottom:1px solid #263248;padding-bottom:4px;display:flex;justify-content:space-between;">
@@ -570,7 +600,6 @@ if st.session_state.opened_sq_id is None:
             return filter;
         }
 
-        // Suono rapido Commlock/Computer al tocco di QUALSIASI quadrato o riga (Mobile + Desktop)
         function playTouchPulse() {
             try {
                 initCtx();
@@ -582,8 +611,7 @@ if st.session_state.opened_sq_id is None:
                     const o1 = audioCtx.createOscillator();
                     const o2 = audioCtx.createOscillator();
                     const env = audioCtx.createGain();
-                    o1.type = 'sine';
-                    o2.type = 'triangle';
+                    o1.type = 'sine'; o2.type = 'triangle';
                     o1.frequency.setValueAtTime(f, t);
                     o2.frequency.setValueAtTime(f * 1.414, t);
                     env.gain.setValueAtTime(0.001, t);
@@ -596,7 +624,6 @@ if st.session_state.opened_sq_id is None:
             } catch (e) {}
         }
 
-        // Aggancia il suono al touch/click di tutti i bottoni della pagina Streamlit
         try {
             const parentDoc = window.parent.document;
             if (!parentDoc.alphaTouchBound) {
@@ -728,15 +755,25 @@ if st.session_state.opened_sq_id is None:
 
         qr_sel = st.selectbox(
             "QR TARGET MODULE:",
-            ["00 ALPHA MAIN MISSION", "06 SOVEREIGN APEX", "01 BOSCHETTO PMS", "05 S.K.A. TECH", "02 LAZERS F&B"],
+            [
+                "00 ALPHA MAIN MISSION",
+                "01 SOVEREIGN APEX",
+                "02 LAZERS BEVERAGE",
+                "03 LAZERS FOOD",
+                "04 BEACH & POOL",
+                "05 SPA & AYURVEDA",
+                "06 S.K.A. & ROOMS"
+            ],
             label_visibility="collapsed"
         )
         qr_map = {
             "00 ALPHA MAIN MISSION": "https://alpha-main-mission.streamlit.app",
-            "06 SOVEREIGN APEX": "https://sovereign-apex.streamlit.app",
-            "01 BOSCHETTO PMS": "https://boschetto.streamlit.app",
-            "05 S.K.A. TECH": "https://sovereign-kinetic-architecture.streamlit.app",
-            "02 LAZERS F&B": "https://bemask-sovereign-lazers.streamlit.app"
+            "01 SOVEREIGN APEX": "https://sovereign-apex.streamlit.app",
+            "02 LAZERS BEVERAGE": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev",
+            "03 LAZERS FOOD": "https://bemask-sovereign-lazers.streamlit.app/?sub=food",
+            "04 BEACH & POOL": "https://boschetto.streamlit.app/?module=beach",
+            "05 SPA & AYURVEDA": "https://boschetto.streamlit.app/?module=spa",
+            "06 S.K.A. & ROOMS": "https://sovereign-kinetic-architecture.streamlit.app"
         }
         target_qr_url = qr_map[qr_sel]
         encoded_url = urllib.parse.quote(target_qr_url, safe="")
@@ -754,30 +791,18 @@ if st.session_state.opened_sq_id is None:
         )
         st.markdown(tower_html, unsafe_allow_html=True)
 
-        with st.expander("+ ADD EAGLE NODE"):
-            new_idx = len(all_squares) + 1
-            new_t1 = st.text_input("Sector Number", value=f"0{new_idx}")
-            new_t2 = st.text_input("Sector Name", value="EAGLE HANGAR")
-            new_totem = st.selectbox("Select Totem", ["EAGLE", "COMMLOCK", "ROOK", "KNIGHT", "QUEEN", "BISHOP", "KING"])
-            new_th = st.selectbox("Color", ["AMBER", "CYAN", "EMERALD", "RED", "PURPLE"])
-            if st.button("DEPLOY SECTOR", use_container_width=True):
-                st.session_state.custom_squares.append({
-                    "id": f"SQ0{new_idx}", "theme": new_th, "totem": new_totem,
-                    "title": f"{new_t1}\n{new_t2}", "url": "https://sovereign-apex.streamlit.app",
-                    "rows": ["1. Launch Sector", "2. Telemetry", "3. Crew Log", "4. Config", "5. Sync"]
-                })
-                st.rerun()
-
 # ==============================================================================
-# 8. INTERNAL SECTOR VIEW & DIRECT LAUNCH BRIDGE
+# 8. INTERNAL 30-BUTTON LAUNCH BRIDGE & TELEMETRY BRIEFING
 # ==============================================================================
 else:
     sid = st.session_state.opened_sq_id
     r_num = st.session_state.opened_row_num
     sq_obj = next(x for x in all_squares if x["id"] == sid)
     clean_name = sq_obj["title"].replace("\n", " - ")
-    row_label = sq_obj["rows"][r_num - 1]
-    target_url = sq_obj.get("url", "https://sovereign-apex.streamlit.app")
+    row_obj = sq_obj["rows"][r_num - 1]
+    row_label = row_obj["lbl"]
+    target_url = row_obj["url"]
+    row_desc = row_obj["desc"]
 
     if st.button(f"⬅ RETURN TO MAIN MISSION ({clean_name})", type="secondary", use_container_width=True):
         st.session_state.opened_sq_id = None
@@ -787,10 +812,11 @@ else:
     st.markdown(f"#### {clean_name} // {row_label}")
     st.markdown(
         f"<div style='background:#080d18;border:1.5px solid #ffb703;border-left:6px solid #ffb703;padding:18px;border-radius:4px;margin-top:10px;'>"
-        f"<div style='font-family:Michroma,Orbitron,sans-serif;font-size:0.85rem;color:#ffb703;'>DIRECT HYPER-BRIDGE READY</div>"
-        f"<div style='font-family:Share Tech Mono,monospace;font-size:0.8rem;color:#e2e8f0;margin:8px 0 14px 0;'>Target Module: <b>{target_url}</b></div>"
+        f"<div style='font-family:Michroma,Orbitron,sans-serif;font-size:0.85rem;color:#ffb703;'>DIRECT HYPER-BRIDGE // NODE {sid}-R0{r_num}</div>"
+        f"<div style='font-family:Inter,sans-serif;font-size:0.92rem;color:#ffffff;font-weight:700;margin-top:8px;'>{row_desc}</div>"
+        f"<div style='font-family:Share Tech Mono,monospace;font-size:0.78rem;color:#38bdf8;margin:6px 0 16px 0;'>Target Endpoint: <b>{target_url}</b></div>"
         f"<a href='{target_url}' target='_blank' style='display:inline-block;background:#ffb703;color:#000;font-family:Orbitron,sans-serif;font-weight:900;padding:10px 20px;border-radius:3px;text-decoration:none;letter-spacing:0.08em;'>"
-        f"🚀 OPEN {clean_name} IN FULL SCREEN</a>"
+        f"🚀 LAUNCH {row_label.upper()} MODULE</a>"
         f"</div>",
         unsafe_allow_html=True
     )
