@@ -1,452 +1,9 @@
-import streamlit as st
-import streamlit.components.v1 as components
-import urllib.request
-import urllib.parse
-import json
-from datetime import datetime, timezone, timedelta
-
 # ==============================================================================
-# 1. PAGE CONFIG — MOONBASE A.L.P.H.A. // MAIN MISSION COMMAND (30-NODE MATRIX)
-# ==============================================================================
-st.set_page_config(
-    page_title="BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
-
-def get_italy_now():
-    return datetime.now(timezone(timedelta(hours=1)))
-
-def render_wafer_number(val_str, unit=""):
-    offsets = {"0": "1px", "1": "-1px", "2": "1px", "3": "-1px", "4": "1px", "5": "-1px", "6": "1px", "7": "-1px", "8": "1px", "9": "-1px", ".": "0px", "%": "0px", ":": "0px"}
-    html = "<div class='wafer-housing'>"
-    for ch in str(val_str):
-        y_off = offsets.get(ch, "0px")
-        html += f"<span class='wafer-tube'><span class='wafer-ghost'>8</span><span class='wafer-digit' style='transform:translateY({y_off});'>{ch}</span></span>"
-    if unit:
-        html += f"<span class='wafer-unit'>{unit}</span>"
-    html += "</div>"
-    return html
-
-@st.cache_data(ttl=1800)
-def fetch_alpha_weather(lat=42.922, lon=10.758):
-    url = (
-        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
-        f"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max"
-        f"&timezone=Europe%2FRome&forecast_days=5"
-    )
-    days_en = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=4) as response:
-            data = json.loads(response.read().decode())
-            daily = data["daily"]
-            forecast = []
-            for i in range(5):
-                dt_obj = datetime.strptime(daily["time"][i], "%Y-%m-%d")
-                day_lbl = "SOL 00" if i == 0 else f"{days_en[dt_obj.weekday()]} {dt_obj.strftime('%d/%m')}"
-                tmax = round(daily["temperature_2m_max"][i])
-                rain_p = daily["precipitation_probability_max"][i]
-                status = "NOMINAL ORBIT" if rain_p < 35 else "SOLAR STORM"
-                col = "#ffb703" if rain_p < 35 else "#ff2a54"
-                forecast.append({"day": day_lbl, "tmax": tmax, "rain": rain_p, "hint": status, "col": col})
-            return forecast
-    except Exception:
-        return [
-            {"day": "SOL 00", "tmax": 18, "rain": 20, "hint": "NOMINAL ORBIT", "col": "#ffb703"},
-            {"day": "THU 05/11", "tmax": 19, "rain": 30, "hint": "NOMINAL ORBIT", "col": "#ffb703"},
-            {"day": "FRI 06/11", "tmax": 14, "rain": 60, "hint": "SOLAR STORM", "col": "#ff2a54"},
-            {"day": "SAT 07/11", "tmax": 17, "rain": 25, "hint": "NOMINAL ORBIT", "col": "#ffb703"},
-            {"day": "SUN 08/11", "tmax": 17, "rain": 15, "hint": "NOMINAL ORBIT", "col": "#ffb703"}
-        ]
-
-# ==============================================================================
-# 2. SPACE: 1999 SEASON 1 + CHESS TOTEM SVG ARSENAL
-# ==============================================================================
-TOTEM_LIBRARY = {
-    "EAGLE": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='6,34 16,28 16,38' fill='none' stroke='%23ffb703' stroke-width='2.2'/><rect x='16' y='27' width='32' height='10' fill='none' stroke='%23ffffff' stroke-width='2'/><line x1='22' y1='27' x2='28' y2='37' stroke='%23ffb703' stroke-width='1.8'/><line x1='28' y1='27' x2='34' y2='37' stroke='%23ffb703' stroke-width='1.8'/><line x1='34' y1='27' x2='40' y2='37' stroke='%23ffb703' stroke-width='1.8'/><rect x='48' y='29' width='8' height='6' fill='none' stroke='%23ff2a54' stroke-width='2'/><rect x='18' y='39' width='8' height='5' fill='none' stroke='%2300f0ff' stroke-width='2'/><rect x='38' y='39' width='8' height='5' fill='none' stroke='%2300f0ff' stroke-width='2'/></svg>",
-    "ROOK": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polyline points='16,22 16,12 23,12 23,17 29,17 29,12 35,12 35,17 41,17 41,12 48,12 48,22' fill='none' stroke='%23ff2a54' stroke-width='2.5'/><rect x='20' y='22' width='24' height='26' fill='none' stroke='%23ffffff' stroke-width='2.2'/><rect x='14' y='48' width='36' height='6' fill='none' stroke='%23ff2a54' stroke-width='2.5'/></svg>",
-    "QUEEN": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><polygon points='14,46 10,20 23,32 32,14 41,32 54,20 50,46' fill='none' stroke='%2300ff9d' stroke-width='2.5'/><circle cx='32' cy='10' r='2.5' fill='%23ffffff'/><rect x='14' y='49' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
-    "BISHOP": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M32 12 C19 22, 19 39, 24 47 L40 47 C45 39, 45 22, 32 12 Z' fill='none' stroke='%2300f0ff' stroke-width='2.5'/><line x1='26' y1='28' x2='37' y2='20' stroke='%23ffffff' stroke-width='2.5'/><circle cx='32' cy='8' r='2.2' fill='%23ffffff'/><rect x='18' y='50' width='28' height='5' fill='none' stroke='%2300f0ff' stroke-width='2.2'/></svg>",
-    "KNIGHT": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><path d='M18 48 L22 30 L15 27 L21 15 L35 10 L47 19 L40 31 L46 48 Z' fill='none' stroke='%23ffb703' stroke-width='2.5'/><circle cx='29' cy='19' r='2.2' fill='%23ffffff'/><rect x='14' y='50' width='36' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
-    "KING": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><line x1='32' y1='6' x2='32' y2='18' stroke='%23ffffff' stroke-width='2.8'/><line x1='26' y1='12' x2='38' y2='12' stroke='%23ffffff' stroke-width='2.8'/><polygon points='16,46 14,24 25,31 32,20 39,31 50,24 48,46' fill='none' stroke='%23ff2a54' stroke-width='2.5'/><rect x='15' y='49' width='34' height='5' fill='none' stroke='%23ffffff' stroke-width='2.2'/></svg>",
-    "COMMLOCK": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect x='18' y='8' width='28' height='48' rx='3' fill='none' stroke='%23a855f7' stroke-width='2.5'/><rect x='22' y='13' width='20' height='15' fill='none' stroke='%2300f0ff' stroke-width='2'/><circle cx='26' cy='36' r='2.2' fill='%23ffffff'/><circle cx='32' cy='36' r='2.2' fill='%23ffffff'/><circle cx='38' cy='36' r='2.2' fill='%23ff2a54'/><rect x='23' y='44' width='18' height='6' fill='none' stroke='%23ffffff' stroke-width='1.8'/></svg>"
-}
-
-# ==============================================================================
-# 3. CSS MASTER BLUEPRINT — SPACE: 1999 SEASON 1 + CYBERPUNK CHESSBOARD
-# ==============================================================================
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=JetBrains+Mono:wght@500;600;700&family=Michroma&family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
-
-header[data-testid="stHeader"], div[data-testid="stToolbar"], div[data-testid="stDecoration"], #MainMenu, footer {
-    display: none !important; visibility: hidden !important; height: 0 !important;
-}
-
-.stApp {
-    background-color: #030508 !important;
-    background-image: 
-        radial-gradient(circle at 50% 0%, rgba(255, 183, 3, 0.08) 0%, transparent 62%),
-        linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px) !important;
-    background-size: 100% 100%, 36px 36px, 36px 36px !important;
-    color: #e2e8f0 !important;
-    font-family: 'Inter', sans-serif !important;
-}
-
-.block-container {
-    padding-top: 0.7rem !important;
-    padding-bottom: 2.5rem !important;
-    max-width: 1080px !important;
-}
-
-div[data-testid="stVerticalBlock"] > div {
-    gap: 0.25rem !important;
-}
-
-@keyframes holographicSweep {
-    0% { background-position: -220% 0, 0 0; }
-    100% { background-position: 220% 0, 0 0; }
-}
-
-@keyframes totemFloat {
-    0%, 100% {
-        filter: drop-shadow(0 0 6px rgba(255, 183, 3, 0.85)) drop-shadow(0 0 12px rgba(0, 240, 255, 0.4));
-        transform: translateY(0px) scale(1);
-    }
-    50% {
-        filter: drop-shadow(0 0 12px rgba(0, 240, 255, 0.95)) drop-shadow(0 0 20px rgba(255, 42, 84, 0.6));
-        transform: translateY(-3px) scale(1.05);
-    }
-}
-
-@keyframes alphaBlink {
-    0%, 49% { opacity: 1; }
-    50%, 100% { opacity: 0.25; }
-}
-
-.alpha-1999-strip {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 6px;
-    background: #070a10;
-    border: 1px solid #263248;
-    border-left: 8px solid #ffb703;
-    border-right: 8px solid #ff5500;
-    padding: 5px 12px;
-    margin-bottom: 6px;
-    font-family: 'Michroma', 'Orbitron', sans-serif;
-    font-size: 0.60rem;
-    letter-spacing: 0.12em;
-    color: #fef08a;
-    text-transform: uppercase;
-}
-.alpha-pill-amber {
-    background: #ffb703; color: #000000; font-weight: 900; padding: 2px 7px;
-    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
-    box-shadow: 0 0 10px rgba(255, 183, 3, 0.7);
-}
-.alpha-pill-white {
-    background: #f8fafc; color: #000000; font-weight: 900; padding: 2px 7px;
-    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
-}
-.alpha-pill-red {
-    background: #ff2a54; color: #ffffff; font-weight: 900; padding: 2px 7px;
-    border-radius: 1px; font-size: 0.56rem; letter-spacing: 0.1em;
-    animation: alphaBlink 1.6s infinite;
-}
-
-.wafer-housing {
-    display: inline-flex; align-items: center; background: #070401;
-    border: 1.5px solid #522d09; border-radius: 3px; padding: 2px 5px; gap: 2px;
-}
-.wafer-tube {
-    position: relative; width: 17px; height: 25px;
-    background: radial-gradient(circle, rgba(251, 191, 36, 0.12) 0%, rgba(8, 5, 2, 0.96) 80%);
-    border: 1px solid #3b2006; border-radius: 2px;
-    display: inline-flex; align-items: center; justify-content: center;
-}
-.wafer-ghost { position: absolute; font-family: 'Share Tech Mono', monospace; font-size: 1.12rem; color: rgba(245, 158, 11, 0.03); }
-.wafer-digit { position: relative; font-family: 'Share Tech Mono', monospace; font-size: 1.12rem; font-weight: 700; color: #fef08a; text-shadow: 0 0 6px #f59e0b; }
-.wafer-unit { font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; color: #f59e0b; margin-left: 3px; font-weight: 700; }
-
-.apex-deck {
-    background: linear-gradient(180deg, #0e131d 0%, #05080f 100%);
-    border: 1.5px solid #283750;
-    border-top: 3px solid #ffb703;
-    border-bottom: 2px solid #00f0ff;
-    border-radius: 4px;
-    padding: 10px 16px;
-    margin-bottom: 8px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.apex-title { font-family: 'Michroma', 'Orbitron', sans-serif; font-size: 0.96rem; font-weight: 900; letter-spacing: 0.11em; color: #ffffff; }
-.apex-title span { color: #ffb703; text-shadow: 0 0 12px rgba(255, 183, 3, 0.65); }
-.apex-sub { font-family: 'Share Tech Mono', monospace; font-size: 0.68rem; color: #38bdf8; letter-spacing: 0.05em; margin-top: 4px; }
-
-.meteo-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
-.meteo-box {
-    background: #060a12; border: 1px solid #1e293b; border-left: 3px solid #ffb703;
-    border-radius: 3px; padding: 5px 8px; display: flex; justify-content: space-between; align-items: center;
-}
-
-div.stButton > button[kind="primary"] {
-    background-image: 
-        linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, 0.08) 50%, transparent 65%),
-        linear-gradient(145deg, #1b0a14 0%, #0a101d 100%) !important;
-    background-size: 240% 100%, 100% 100% !important;
-    animation: holographicSweep 5.5s infinite linear !important;
-    border: 1px solid #1e293b !important;
-    border-left: 6px solid #ff2a54 !important;
-    border-top: 2px solid #ff2a54aa !important;
-    border-radius: 4px !important;
-    height: 216px !important;
-    min-height: 216px !important;
-    max-height: 216px !important;
-    width: 100% !important;
-    padding: 10px 6px !important;
-    display: flex !important;
-    flex-direction: column !important;
-    justify-content: center !important;
-    align-items: center !important;
-    text-align: center !important;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.75), inset 0 0 18px rgba(255, 42, 84, 0.12) !important;
-    margin: 0 !important;
-    position: relative !important;
-}
-div.stButton > button[kind="primary"]::before {
-    content: "";
-    display: block;
-    width: 52px;
-    height: 52px;
-    margin-bottom: 8px;
-    background-size: contain;
-    background-repeat: no-repeat;
-    background-position: center;
-    animation: totemFloat 4.2s ease-in-out infinite;
-    flex-shrink: 0;
-}
-div.stButton > button[kind="primary"]:hover {
-    filter: brightness(1.3) !important;
-    border-color: #ffffff !important;
-    transform: translateY(-2px) !important;
-}
-div.stButton > button[kind="primary"] div,
-div.stButton > button[kind="primary"] span,
-div.stButton > button[kind="primary"] p {
-    font-family: 'Orbitron', sans-serif !important;
-    font-size: 0.94rem !important;
-    font-weight: 800 !important;
-    color: #ffffff !important;
-    letter-spacing: 0.04em !important;
-    line-height: 1.35 !important;
-    white-space: pre-line !important;
-    overflow: visible !important;
-    text-overflow: clip !important;
-    word-break: keep-all !important;
-    overflow-wrap: normal !important;
-    text-align: center !important;
-    text-transform: uppercase !important;
-    text-shadow: 0 0 10px rgba(255, 255, 255, 0.35) !important;
-    margin: 0 !important;
-    max-width: 100% !important;
-}
-
-div[class*="st-key-sq_CYAN_"] button[kind="primary"] {
-    background-image: 
-        linear-gradient(115deg, transparent 35%, rgba(0, 240, 255, 0.10) 50%, transparent 65%),
-        linear-gradient(145deg, #061b2b 0%, #09101d 100%) !important;
-    border-left: 6px solid #00f0ff !important; border-top: 2px solid #00f0ffaa !important;
-}
-div[class*="st-key-sq_AMBER_"] button[kind="primary"] {
-    background-image: 
-        linear-gradient(115deg, transparent 35%, rgba(255, 183, 3, 0.12) 50%, transparent 65%),
-        linear-gradient(145deg, #241705 0%, #09101d 100%) !important;
-    border-left: 6px solid #ffb703 !important; border-top: 2px solid #ffb703aa !important;
-}
-div[class*="st-key-sq_EMERALD_"] button[kind="primary"] {
-    background-image: 
-        linear-gradient(115deg, transparent 35%, rgba(0, 255, 157, 0.10) 50%, transparent 65%),
-        linear-gradient(145deg, #052017 0%, #09101d 100%) !important;
-    border-left: 6px solid #00ff9d !important; border-top: 2px solid #00ff9daa !important;
-}
-div[class*="st-key-sq_PURPLE_"] button[kind="primary"] {
-    background-image: 
-        linear-gradient(115deg, transparent 35%, rgba(168, 85, 247, 0.12) 50%, transparent 65%),
-        linear-gradient(145deg, #190d2e 0%, #09101d 100%) !important;
-    border-left: 6px solid #a855f7 !important; border-top: 2px solid #a855f7aa !important;
-}
-
-div.stButton > button[kind="secondary"] {
-    background: #0b1523 !important;
-    color: #e2e8f0 !important;
-    border: 1px solid #1e3a5f !important;
-    border-left: 4px solid #ffb703 !important;
-    border-radius: 3px !important;
-    font-family: 'JetBrains Mono', monospace !important;
-    font-weight: 600 !important;
-    font-size: 0.70rem !important;
-    padding: 0px 8px !important;
-    height: 32px !important;
-    min-height: 32px !important;
-    max-height: 32px !important;
-    margin: 0 !important;
-    text-align: left !important;
-    justify-content: flex-start !important;
-}
-div.stButton > button[kind="secondary"] div,
-div.stButton > button[kind="secondary"] span,
-div.stButton > button[kind="secondary"] p {
-    overflow: visible !important;
-    text-overflow: clip !important;
-    white-space: nowrap !important;
-}
-div.stButton > button[kind="secondary"]:hover {
-    background: #1c2b42 !important;
-    border-color: #ffb703 !important;
-    color: #ffffff !important;
-}
-
-.right-tower {
-    background: linear-gradient(180deg, #0d131f 0%, #060a11 100%);
-    border: 1px solid #263854; border-top: 3px solid #ffb703;
-    border-radius: 4px; padding: 10px;
-}
-.tower-header {
-    font-family: 'Michroma', 'Orbitron', monospace; font-size: 0.64rem; font-weight: 800;
-    color: #ffb703; letter-spacing: 0.1em; border-bottom: 1px solid #1e293b;
-    padding-bottom: 5px; margin-bottom: 8px;
-}
-.qr-holo-box {
-    background: #040811;
-    border: 1.5px solid #ffb70388;
-    border-radius: 4px;
-    padding: 8px 6px;
-    text-align: center;
-    margin-top: 4px;
-}
-.qr-holo-box img {
-    border: 2px solid #ffb703;
-    border-radius: 3px;
-    padding: 3px;
-    background: #060b14;
-}
-
-@media (max-width: 768px) {
-    .block-container { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-    .meteo-strip { grid-template-columns: repeat(2, 1fr); }
-    div[data-testid="stHorizontalBlock"] { display: flex !important; flex-direction: column !important; gap: 10px !important; }
-    div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
-    div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-        width: 100% !important; min-width: 100% !important; max-width: 100% !important; flex: 1 1 100% !important;
-    }
-    div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] {
-        display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; gap: 6px !important;
-    }
-    div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"],
-    div[data-testid="stHorizontalBlock"] div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
-        flex: 1 1 calc(33.33% - 4px) !important; min-width: calc(33.33% - 4px) !important; max-width: calc(33.33% - 4px) !important;
-    }
-    div.stButton > button[kind="primary"] { height: 122px !important; min-height: 122px !important; max-height: 122px !important; padding: 6px 2px !important; }
-    div.stButton > button[kind="primary"]::before { width: 34px !important; height: 34px !important; margin-bottom: 5px !important; }
-    div.stButton > button[kind="primary"] div, div.stButton > button[kind="primary"] span, div.stButton > button[kind="primary"] p {
-        font-size: 0.58rem !important; letter-spacing: 0.01em !important; line-height: 1.22 !important;
-    }
-    div.stButton > button[kind="secondary"] {
-        font-size: 0.54rem !important; padding: 0px 3px !important; height: 26px !important; min-height: 26px !important; max-height: 26px !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
-totem_css_rules = "<style>"
-for t_key, t_uri in TOTEM_LIBRARY.items():
-    totem_css_rules += f'div[class*="st-key-sq_"][class*="_{t_key}_"] button[kind="primary"]::before {{ background-image: url("{t_uri}") !important; }}\n'
-totem_css_rules += "</style>"
-st.markdown(totem_css_rules, unsafe_allow_html=True)
-
-# ==============================================================================
-# 4. SESSION STATE INITIALIZATION
-# ==============================================================================
-if "init_alpha_30nodes" not in st.session_state:
-    st.session_state.init_alpha_30nodes = True
-    st.session_state.expanded_sq_id = None
-    st.session_state.opened_sq_id = None
-    st.session_state.opened_row_num = None
-    st.session_state.custom_squares = []
-
-# ==============================================================================
-# 5. SPACE: 1999 SEASON 1 DIAGNOSTIC STRIP & MAIN MISSION HEADER
-# ==============================================================================
-now_dt = get_italy_now()
-days_list = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]
-sys_date_str = f"{days_list[now_dt.weekday()]} {now_dt.strftime('%d/%m/%Y')}"
-sys_time_str = now_dt.strftime("%H:%M")
-
-wafer_clock = render_wafer_number(sys_time_str)
-wafer_sol = render_wafer_number("30", "ND")
-
-st.markdown(
-    "<div class='alpha-1999-strip'>"
-    "<div><span class='alpha-pill-amber'>MOONBASE ALPHA</span> &nbsp;MAIN MISSION // 30-NODE COMMAND MATRIX // KOENIG</div>"
-    "<div style='display:flex;gap:8px;align-items:center;'>"
-    "<span class='alpha-pill-white'>6 SECTORS x 5 MODULES</span>"
-    "<span class='alpha-pill-amber'>OPEX & CAPEX SPLIT</span>"
-    "<span class='alpha-pill-red'>30 CHANNELS LIVE</span>"
-    "</div></div>",
-    unsafe_allow_html=True
-)
-
-eagle_header_svg = (
-    "<svg viewBox='0 0 80 48' width='56' height='36' style='animation:totemFloat 4s ease-in-out infinite;'>"
-    "<polygon points='4,26 18,18 18,32' fill='none' stroke='#ffb703' stroke-width='2.2'/>"
-    "<rect x='18' y='17' width='42' height='14' fill='none' stroke='#ffffff' stroke-width='2'/>"
-    "<line x1='25' y1='17' x2='33' y2='31' stroke='#ffb703' stroke-width='1.8'/>"
-    "<line x1='33' y1='17' x2='41' y2='31' stroke='#ffb703' stroke-width='1.8'/>"
-    "<line x1='41' y1='17' x2='49' y2='31' stroke='#ffb703' stroke-width='1.8'/>"
-    "<rect x='60' y='20' width='12' height='8' fill='none' stroke='#ff2a54' stroke-width='2.2'/>"
-    "<rect x='20' y='33' width='10' height='6' fill='none' stroke='#00f0ff' stroke-width='2'/>"
-    "<rect x='48' y='33' width='10' height='6' fill='none' stroke='#00f0ff' stroke-width='2'/>"
-    "</svg>"
-)
-
-header_html = (
-    f"<div class='apex-deck'>"
-    f"<div style='display:flex;align-items:center;gap:12px;'>{eagle_header_svg}"
-    f"<div><div class='apex-title'>BEMASK - <span>A.L.P.H.A. MAIN MISSION</span></div>"
-    f"<div class='apex-sub'>SPACE: 1999 COMMAND | DATE: <b style='color:#ffb703;'>{sys_date_str}</b> | 30 MICRO-MODULES</div></div></div>"
-    f"<div style='display:flex;align-items:center;gap:14px;flex-wrap:wrap;'>"
-    f"<div style='display:flex;align-items:center;gap:6px;'><span style='font-family:Share Tech Mono,monospace;font-size:0.72rem;color:#ffb703;'>ALPHA TIME:</span>{wafer_clock}</div>"
-    f"<div style='display:flex;align-items:center;gap:6px;'><span style='font-family:Share Tech Mono,monospace;font-size:0.72rem;color:#00f0ff;'>MATRIX:</span>{wafer_sol}</div>"
-    f"</div></div>"
-)
-st.markdown(header_html, unsafe_allow_html=True)
-
-forecast_5d = fetch_alpha_weather()
-m_html = "<div class='meteo-strip'>"
-for d in forecast_5d:
-    m_html += (
-        f"<div class='meteo-box' style='border-left-color:{d['col']};'>"
-        f"<div><div style='font-family:Orbitron,monospace;font-size:0.65rem;font-weight:800;color:#fff;'>{d['day']} · {d['tmax']}°C</div>"
-        f"<div style='font-family:JetBrains Mono,monospace;font-size:0.58rem;color:{d['col']};font-weight:700;'>{d['hint']}</div></div>"
-        f"<div style='font-family:Share Tech Mono,monospace;font-size:0.65rem;color:#94a3b8;'>{d['rain']}%</div></div>"
-    )
-m_html += "</div>"
-st.markdown(m_html, unsafe_allow_html=True)
-
-# ==============================================================================
-# 6. THE 6 SECTORS x 5 ROWS = 30 COMMAND BUTTONS OF MOONBASE A.L.P.H.A.
+# 6. THE 9 VECTORS x 5 ROWS = 1 TO 2^9 (512 STATES / 45 CHANNELS) OF MOONBASE A.L.P.H.A.
 # ==============================================================================
 base_squares = [
     {
-        "id": "SQ01", "theme": "AMBER", "totem": "EAGLE",
+        "id": "SQ01", "bit": 0, "short": "B1 FRONT", "theme": "AMBER", "totem": "EAGLE",
         "title": "01\nFRONT & APEX",
         "rows": [
             {"lbl": "1. Sovereign Apex", "url": "https://sovereign-apex.streamlit.app", "desc": "7 Room Tiers x 24 Yield Bands Dynamic Pricing Engine"},
@@ -457,29 +14,29 @@ base_squares = [
         ]
     },
     {
-        "id": "SQ02", "theme": "EMERALD", "totem": "QUEEN",
+        "id": "SQ02", "bit": 1, "short": "B2 BEV", "theme": "EMERALD", "totem": "QUEEN",
         "title": "02\nLAZERS BEV",
         "rows": [
-            {"lbl": "1. Mixology & Pour", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=mixology", "desc": "Cocktail Recipe Pour Cost (ml), Drink Margins & Bar List"},
-            {"lbl": "2. Wine & Sommelier", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=wine", "desc": "Wine Cellar Rotation, Bottle Mark-up & Pairing Matrix"},
-            {"lbl": "3. Bar Consumables", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev_opex", "desc": "OPEX Purchasing: Spirits, Beer Kegs, Coffee, Garnish & Disposables"},
-            {"lbl": "4. Bar Equipment", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev_capex", "desc": "CAPEX Purchasing: Glassware, Crystal, Shakers, Blenders & Breakage"},
-            {"lbl": "5. Minibar & Kiosk", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=minibar", "desc": "Room Minibar Restocking & Pool/Beach Liquid Kiosks"}
+            {"lbl": "1. Mixology & Pour", "url": "https://bemask-lazers.streamlit.app/?sub=mixology", "desc": "Cocktail Recipe Pour Cost (ml), Drink Margins & Bar List"},
+            {"lbl": "2. Wine & Sommelier", "url": "https://bemask-lazers.streamlit.app/?sub=wine", "desc": "Wine Cellar Rotation, Bottle Mark-up & Pairing Matrix"},
+            {"lbl": "3. Bar Consumables", "url": "https://bemask-lazers.streamlit.app/?sub=bev_opex", "desc": "OPEX Purchasing: Spirits, Beer Kegs, Coffee, Garnish & Disposables"},
+            {"lbl": "4. Bar Equipment", "url": "https://bemask-lazers.streamlit.app/?sub=bev_capex", "desc": "CAPEX Purchasing: Glassware, Crystal, Shakers, Blenders & Breakage"},
+            {"lbl": "5. Minibar & Kiosk", "url": "https://bemask-lazers.streamlit.app/?sub=minibar", "desc": "Room Minibar Restocking & Pool/Beach Liquid Kiosks"}
         ]
     },
     {
-        "id": "SQ03", "theme": "CYAN", "totem": "BISHOP",
+        "id": "SQ03", "bit": 2, "short": "B3 FOOD", "theme": "CYAN", "totem": "BISHOP",
         "title": "03\nLAZERS FOOD",
         "rows": [
-            {"lbl": "1. Kitchen FoodCost", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=foodcost", "desc": "Dish Recipes, Grammage, Yield Waste % & Kasavana Matrix"},
-            {"lbl": "2. Board BB/HB/FB", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=boards", "desc": "Real Buffet & Pension Meal Cost Synced with Sovereign Apex"},
-            {"lbl": "3. Food Consumables", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=food_opex", "desc": "OPEX Purchasing: Fresh/Dry Food, Vacuum Bags, Foil & Kitchen Chemicals"},
-            {"lbl": "4. Food Equipment", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=food_capex", "desc": "CAPEX Purchasing: Porcelain Plates, Cutlery, Cookware & Table Linen"},
-            {"lbl": "5. Banquet & Events", "url": "https://bemask-sovereign-lazers.streamlit.app/?sub=banquet", "desc": "Gala Dinners, Buffet Events & Special Catering Operations"}
+            {"lbl": "1. Kitchen FoodCost", "url": "https://bemask-lazers.streamlit.app/?sub=foodcost", "desc": "Dish Recipes, Grammage, Yield Waste % & Kasavana Matrix"},
+            {"lbl": "2. Board BB/HB/FB", "url": "https://bemask-lazers.streamlit.app/?sub=boards", "desc": "Real Buffet & Pension Meal Cost Synced with Sovereign Apex"},
+            {"lbl": "3. Food Consumables", "url": "https://bemask-lazers.streamlit.app/?sub=food_opex", "desc": "OPEX Purchasing: Fresh/Dry Food, Vacuum Bags, Foil & Kitchen Chemicals"},
+            {"lbl": "4. Food Equipment", "url": "https://bemask-lazers.streamlit.app/?sub=food_capex", "desc": "CAPEX Purchasing: Porcelain Plates, Cutlery, Cookware & Table Linen"},
+            {"lbl": "5. Banquet & Events", "url": "https://bemask-lazers.streamlit.app/?sub=banquet", "desc": "Gala Dinners, Buffet Events & Special Catering Operations"}
         ]
     },
     {
-        "id": "SQ04", "theme": "PURPLE", "totem": "COMMLOCK",
+        "id": "SQ04", "bit": 3, "short": "B4 BEACH", "theme": "PURPLE", "totem": "COMMLOCK",
         "title": "04\nBEACH & POOL",
         "rows": [
             {"lbl": "1. Beach Rows 1-4", "url": "https://boschetto.streamlit.app/?module=beach_map", "desc": "Interactive Umbrella Grid: 1st Row VIP, 2nd Row, 3rd Row & Standard"},
@@ -490,7 +47,7 @@ base_squares = [
         ]
     },
     {
-        "id": "SQ05", "theme": "RED", "totem": "KING",
+        "id": "SQ05", "bit": 4, "short": "B5 SPA", "theme": "RED", "totem": "KING",
         "title": "05\nSPA & AYURVEDA",
         "rows": [
             {"lbl": "1. Massage & Tibet", "url": "https://boschetto.streamlit.app/?module=spa_cabins", "desc": "Cabin Matrix: Massages, Ayurveda, Five Tibetans & Pirate Detox Specials"},
@@ -501,7 +58,7 @@ base_squares = [
         ]
     },
     {
-        "id": "SQ06", "theme": "AMBER", "totem": "KNIGHT",
+        "id": "SQ06", "bit": 5, "short": "B6 SKA", "theme": "AMBER", "totem": "KNIGHT",
         "title": "06\nS.K.A. & ROOMS",
         "rows": [
             {"lbl": "1. Housekeeping", "url": "https://boschetto.streamlit.app/?module=hk", "desc": "Floor Room Status (Clean/Dirty/Priority), Maids Roster & Inspections"},
@@ -510,10 +67,80 @@ base_squares = [
             {"lbl": "4. HACCP Telemetry", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=haccp", "desc": "24/7 Temperature Probes: Kitchen Fridges, Pool Water & Spa Steamers"},
             {"lbl": "5. Tech Hardware", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=tech_capex", "desc": "CAPEX Purchasing: Spare Parts, Pumps, LED Bulbs, Filters & Tools"}
         ]
+    },
+    {
+        "id": "SQ07", "bit": 6, "short": "B7 ROP", "theme": "EMERALD", "totem": "ROOK",
+        "title": "07\nPUNTO ACQUISTO",
+        "rows": [
+            {"lbl": "1. Soglia Riordino ROP", "url": "https://bemask-lazers.streamlit.app/?sub=rop", "desc": "Calcolo Automatico Punto Acquisto: (Consumo x Lead Time) + Scudo 96h"},
+            {"lbl": "2. Scudo Autonomia 96h", "url": "https://bemask-lazers.streamlit.app/?sub=shield96", "desc": "Copertura Dispensa Emergenza per Ospiti In-House + Staff Alloggiato"},
+            {"lbl": "3. Lead Time Fornitori", "url": "https://bemask-lazers.streamlit.app/?sub=vendors", "desc": "Mappa Consegne, Giorni Critici e Semaforo Riordino Immediato"},
+            {"lbl": "4. Fatture XML & Rese", "url": "https://bemask-lazers.streamlit.app/?sub=xml", "desc": "Controllo Prezzi Acquisto, Peso Sgocciolato e Sfridi Carni/Pesce"},
+            {"lbl": "5. Ordine Rapido", "url": "https://bemask-lazers.streamlit.app/?sub=order", "desc": "Generazione Lista Acquisto Certificata per Economato e Cucina"}
+        ]
+    },
+    {
+        "id": "SQ08", "bit": 7, "short": "B8 ASL", "theme": "CYAN", "totem": "QUEEN",
+        "title": "08\nHACCP & ASL",
+        "rows": [
+            {"lbl": "1. Registro Temperature", "url": "https://ska-boschetto.streamlit.app/?sub=asl", "desc": "Certificazione Giornaliera Celle -18°C, Frigo +4°C e Vetrine Buffet"},
+            {"lbl": "2. Firme PIN Brigata", "url": "https://ska-boschetto.streamlit.app/?sub=pins", "desc": "Validazione Operatori in Turno con Codice PIN Personale a 4 Cifre"},
+            {"lbl": "3. Lotti & Abbattimento", "url": "https://ska-boschetto.streamlit.app/?sub=lots", "desc": "Tracciabilità Materie Prime, Cicli Abbattitore e Scadenze"},
+            {"lbl": "4. Piano Sanificazione", "url": "https://ska-boschetto.streamlit.app/?sub=clean", "desc": "Check-list Pulizia Cappa, Linee Cucina, Pasticceria e Bar"},
+            {"lbl": "5. Stampa Ufficiale ASL", "url": "https://ska-boschetto.streamlit.app/?sub=print_asl", "desc": "Esportazione Immediata Registro HTML/CSV Pronto per Ispezione"}
+        ]
+    },
+    {
+        "id": "SQ09", "bit": 8, "short": "B9 GOP", "theme": "RED", "totem": "EAGLE",
+        "title": "09\nMULTI-P.IVA & GOP",
+        "rows": [
+            {"lbl": "1. Split Multi-P.IVA", "url": "https://bemask-lazers.streamlit.app/?sub=piva", "desc": "Ripartizione Automatica Ricavi e Costi tra Società Gestione e F&B"},
+            {"lbl": "2. Floor Pasto HB/FB", "url": "https://bemask-lazers.streamlit.app/?sub=floor", "desc": "Scorporo Industriale Costo Vivo Pasto + Brigata su Sovereign Zero"},
+            {"lbl": "3. Semaforo Zero-Fee", "url": "https://bemask-lazers.streamlit.app/?sub=thefork", "desc": "Blocco Automatico Portali Esterni a Sala Satura per Risparmio Commissioni"},
+            {"lbl": "4. MOL & GOPPAR Live", "url": "https://sovereign-apex.streamlit.app/?module=goppar", "desc": "Margine Operativo Lordo Giornaliero Consolidato Camere + Ristorante"},
+            {"lbl": "5. Export Revisore", "url": "https://sovereign-apex.streamlit.app/?module=audit_export", "desc": "Report Direzionale Completo per Proprietà e Studio Commercialista"}
+        ]
     }
 ]
 
-all_squares = base_squares + st.session_state.custom_squares
+if "active_bits_9" not in st.session_state:
+    # Di default accende i primi 6 settori storici, espandibili da 1 fino a 9 (2^9 = 512 stati)
+    st.session_state.active_bits_9 = [True, True, True, True, True, True, False, False, False]
+if "alpha_visitors" not in st.session_state:
+    st.session_state.alpha_visitors = 34
+
+state_code_512 = sum((1 << i) for i, b in enumerate(st.session_state.active_bits_9) if b)
+bin_str_9 = "".join(["1" if b else "0" for b in st.session_state.active_bits_9])
+active_base = [sq for i, sq in enumerate(base_squares) if st.session_state.active_bits_9[i]]
+if not active_base:
+    st.session_state.active_bits_9[0] = True
+    active_base = [base_squares[0]]
+
+all_squares = active_base + st.session_state.custom_squares
+active_channels = len(all_squares) * 5
+
+with st.expander(f"⚡ SCALABLE ARCHITECTURE 1 → 2⁹ // STATE #{state_code_512}/512 | SIGNATURE: {bin_str_9} ({active_channels} CHANNELS LIVE) | VISITORS: {st.session_state.alpha_visitors}", expanded=False):
+    b_cols = st.columns(9)
+    for i, sq_item in enumerate(base_squares):
+        with b_cols[i]:
+            t_val = st.toggle(sq_item["short"], value=st.session_state.active_bits_9[i], key=f"b9_sw_{i}")
+            if t_val != st.session_state.active_bits_9[i]:
+                st.session_state.active_bits_9[i] = t_val
+                st.session_state.expanded_sq_id = None
+                st.rerun()
+    pr1, pr2, pr3 = st.columns(3)
+    if pr1.button("1️⃣ SINGLE NODE (2⁰ = 1 MODULE)", type="secondary", use_container_width=True):
+        st.session_state.active_bits_9 = [True] + [False]*8
+        st.session_state.expanded_sq_id = None
+        st.rerun()
+    if pr2.button("6️⃣ CLASSIC ALPHA (6 SECTORS = 30 CHANNELS)", type="secondary", use_container_width=True):
+        st.session_state.active_bits_9 = [True]*6 + [False]*3
+        st.session_state.expanded_sq_id = None
+        st.rerun()
+    if pr3.button("9️⃣ FULL MATRIX 2⁹ (STATE #511 = 45 CHANNELS)", type="secondary", use_container_width=True):
+        st.session_state.active_bits_9 = [True]*9
+        st.session_state.expanded_sq_id = None
+        st.rerun()
 
 # ==============================================================================
 # 7. CHESSBOARD + EMS-1975 SYNTHESIZER WITH AUTOMATIC TOUCH AUDIO HOOK
@@ -523,11 +150,12 @@ if st.session_state.opened_sq_id is None:
 
     with col_grid:
         tot_sq = len(all_squares)
-        rows_count = (tot_sq + 2) // 3
+        cols_per_row = 1 if tot_sq == 1 else (2 if tot_sq in [2, 4] else 3)
+        rows_count = (tot_sq + cols_per_row - 1) // cols_per_row
         for r_i in range(rows_count):
-            cols = st.columns(3, gap="small")
-            for c_i in range(3):
-                idx = r_i * 3 + c_i
+            cols = st.columns(cols_per_row, gap="small")
+            for c_i in range(cols_per_row):
+                idx = r_i * cols_per_row + c_i
                 if idx < tot_sq:
                     sq = all_squares[idx]
                     sid = sq["id"]
@@ -762,18 +390,24 @@ if st.session_state.opened_sq_id is None:
                 "03 LAZERS FOOD",
                 "04 BEACH & POOL",
                 "05 SPA & AYURVEDA",
-                "06 S.K.A. & ROOMS"
+                "06 S.K.A. & ROOMS",
+                "07 PUNTO ACQUISTO (ROP)",
+                "08 HACCP & ASL REGISTRY",
+                "09 MULTI-P.IVA & GOPPAR"
             ],
             label_visibility="collapsed"
         )
         qr_map = {
             "00 ALPHA MAIN MISSION": "https://alpha-main-mission.streamlit.app",
             "01 SOVEREIGN APEX": "https://sovereign-apex.streamlit.app",
-            "02 LAZERS BEVERAGE": "https://bemask-sovereign-lazers.streamlit.app/?sub=bev",
-            "03 LAZERS FOOD": "https://bemask-sovereign-lazers.streamlit.app/?sub=food",
+            "02 LAZERS BEVERAGE": "https://bemask-lazers.streamlit.app/?sub=bev",
+            "03 LAZERS FOOD": "https://bemask-lazers.streamlit.app/?sub=food",
             "04 BEACH & POOL": "https://boschetto.streamlit.app/?module=beach",
             "05 SPA & AYURVEDA": "https://boschetto.streamlit.app/?module=spa",
-            "06 S.K.A. & ROOMS": "https://sovereign-kinetic-architecture.streamlit.app"
+            "06 S.K.A. & ROOMS": "https://sovereign-kinetic-architecture.streamlit.app",
+            "07 PUNTO ACQUISTO (ROP)": "https://bemask-lazers.streamlit.app/?sub=rop",
+            "08 HACCP & ASL REGISTRY": "https://ska-boschetto.streamlit.app/?sub=asl",
+            "09 MULTI-P.IVA & GOPPAR": "https://bemask-lazers.streamlit.app/?sub=piva"
         }
         target_qr_url = qr_map[qr_sel]
         encoded_url = urllib.parse.quote(target_qr_url, safe="")
@@ -785,14 +419,15 @@ if st.session_state.opened_sq_id is None:
             f"<div class='qr-holo-box'>"
             f"<img src='{qr_img_src}' width='115' height='115' alt='QR Access'/>"
             f"<div style='font-family:Orbitron,monospace;font-size:0.62rem;font-weight:800;color:#ffb703;margin-top:5px;'>{qr_sel}</div>"
-            f"<div style='font-family:Share Tech Mono,monospace;font-size:0.54rem;color:#94a3b8;'>{target_qr_url.replace('https://', '')}</div>"
+            f"<div style='font-family:Share Tech Mono,monospace;font-size:0.54rem;color:#00ff9d;'>STATE #{state_code_512}/512 | VISITORS: {st.session_state.alpha_visitors}</div>"
+            f"<div style='font-family:Share Tech Mono,monospace;font-size:0.52rem;color:#94a3b8;'>{target_qr_url.replace('https://', '')}</div>"
             f"</div>"
             f"</div>"
         )
         st.markdown(tower_html, unsafe_allow_html=True)
 
 # ==============================================================================
-# 8. INTERNAL 30-BUTTON LAUNCH BRIDGE & TELEMETRY BRIEFING
+# 8. INTERNAL 45-BUTTON LAUNCH BRIDGE & TELEMETRY BRIEFING
 # ==============================================================================
 else:
     sid = st.session_state.opened_sq_id
@@ -812,7 +447,7 @@ else:
     st.markdown(f"#### {clean_name} // {row_label}")
     st.markdown(
         f"<div style='background:#080d18;border:1.5px solid #ffb703;border-left:6px solid #ffb703;padding:18px;border-radius:4px;margin-top:10px;'>"
-        f"<div style='font-family:Michroma,Orbitron,sans-serif;font-size:0.85rem;color:#ffb703;'>DIRECT HYPER-BRIDGE // NODE {sid}-R0{r_num}</div>"
+        f"<div style='font-family:Michroma,Orbitron,sans-serif;font-size:0.85rem;color:#ffb703;'>DIRECT HYPER-BRIDGE // NODE {sid}-R0{r_num} (STATE #{state_code_512}/512)</div>"
         f"<div style='font-family:Inter,sans-serif;font-size:0.92rem;color:#ffffff;font-weight:700;margin-top:8px;'>{row_desc}</div>"
         f"<div style='font-family:Share Tech Mono,monospace;font-size:0.78rem;color:#38bdf8;margin:6px 0 16px 0;'>Target Endpoint: <b>{target_url}</b></div>"
         f"<a href='{target_url}' target='_blank' style='display:inline-block;background:#ffb703;color:#000;font-family:Orbitron,sans-serif;font-weight:900;padding:10px 20px;border-radius:3px;text-decoration:none;letter-spacing:0.08em;'>"
