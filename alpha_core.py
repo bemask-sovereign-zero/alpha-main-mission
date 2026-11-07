@@ -3,11 +3,9 @@ import json
 from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
-import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (MONUMENTAL CORE 1 -> 2^9)
-# Space: 1999 Command Matrix | 512 Binary States | EMS-1975 Synth | QR Commlock
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (CLEAN MATRIX + BOTTOM DRAWER)
 # ==============================================================================
 
 st.set_page_config(
@@ -16,17 +14,15 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# --- 1. BLINDAGGIO TOTALE SESSION STATE (Anti-AttributeError & Anti-KeyError) ---
+# --- 1. INIZIALIZZAZIONE STATO ---
 def init_monumental_state():
     defaults = {
         "active_bits_9": [True, True, True, True, True, True, False, False, False],
         "custom_squares": [],
-        "expanded_node": None,
+        "active_sector": None,
         "selected_sub": None,
         "pin_code": "9999",
         "visitors_log": 34,
-        "last_access": datetime.now().strftime("%H:%M"),
-        "synth_mode": "READY",
         "rop_cons_gg": 45,
         "rop_lead_gg": 2,
         "rop_stock": 490,
@@ -38,7 +34,7 @@ def init_monumental_state():
 
 init_monumental_state()
 
-# --- 2. ICONE VETTORIALI NEON SVG (Identiche alla tua foto sul tablet) ---
+# --- 2. ICONE VETTORIALI NEON SVG ---
 SVG_ICONS = {
     "01": """<svg width="46" height="32" viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
              <path d="M6 22L18 14H46L58 22L46 26H18L6 22Z" stroke="#F59E0B" stroke-width="2.5" fill="#2A1C08"/>
@@ -144,7 +140,7 @@ WEATHER_5_DAYS = [
     {"day": "WED 11/11 · 21°C", "status": "NOMINAL ORBIT", "pct": "22%", "border": "#38BDF8", "text_col": "#F59E0B"},
 ]
 
-# --- 4. SINTETIZZATORE AUDIO REALE WEBAUDIO (EMS SYNTHI 1975) ---
+# --- 4. SINTETIZZATORE AUDIO WEBAUDIO (EMS SYNTHI 1975) ---
 def play_ems_synth(effect_type):
     js_code = f"""
     <script>
@@ -193,7 +189,7 @@ def play_ems_synth(effect_type):
     """
     components.html(js_code, height=0)
 
-# --- 5. CSS MONUMENTALE MOONBASE A.L.P.H.A. ---
+# --- 5. CSS MONUMENTALE PULITO (ZERO BOTTONI SOTTO LE PIASTRELLE) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
@@ -202,7 +198,6 @@ st.markdown("""
 header[data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 0.7rem; max-width: 96%; }
 
-/* TOP KOENIG STRIP */
 .koenig-strip {
     background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
     padding: 8px 14px; margin-bottom: 10px; border-radius: 2px;
@@ -211,7 +206,6 @@ header[data-testid="stHeader"] { background: transparent; }
 .badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; }
 .badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; }
 
-/* MAIN ALPHA MISSION BAR */
 .mission-bar {
     background: linear-gradient(90deg, #161C24 0%, #192530 100%);
     border: 1px solid #2D3D4E; border-left: 4px solid #38BDF8;
@@ -228,7 +222,6 @@ header[data-testid="stHeader"] { background: transparent; }
     box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
 }
 
-/* WEATHER STRIP */
 .weather-card {
     background-color: #161A22; border: 1px solid #2B3340;
     padding: 8px 12px; border-radius: 2px; margin-bottom: 10px;
@@ -236,22 +229,38 @@ header[data-testid="stHeader"] { background: transparent; }
 .w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.6px; }
 .w-status { font-size: 9px; font-weight: 800; margin-top: 3px; letter-spacing: 0.8px; }
 
-/* KINETIC MONOLITH TILES (IDENTICHE ALLA FOTO TABLET) */
+/* PIASTRELLE PULITE COME NELLA TUA FOTO SUL TABLET */
 .alpha-tile {
-    height: 195px; border-radius: 3px; padding: 18px;
+    height: 215px; border-radius: 3px; padding: 18px;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; position: relative; transition: all 0.24s ease;
-    margin-bottom: -10px;
-}
-.alpha-tile:hover {
-    transform: translateY(-4px) scale(1.01);
-    filter: brightness(1.14);
+    text-align: center; position: relative; transition: all 0.22s ease;
+    margin-bottom: 14px; pointer-events: none;
 }
 .tile-code { font-size: 11px; font-weight: 800; color: #E2E8F0; margin-top: 12px; letter-spacing: 1.5px; }
-.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.2px; margin-top: 3px; }
-.tile-kpi { font-size: 9px; font-family: 'Share Tech Mono', monospace; color: #CBD5E1; margin-top: 8px; opacity: 0.9; }
+.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.2px; margin-top: 4px; }
 
-/* BOTTONI TATTICI SOTTO LE PIASTRELLE E NELLA FISARMONICA */
+/* OVERLAY TRASPARENTE SUL QUADRATO (NIENTE BOTTONI SOTTO!) */
+div[class*="st-key-tile_click_"] {
+    margin-top: -229px !important;
+    margin-bottom: 14px !important;
+    position: relative;
+    z-index: 10;
+}
+div[class*="st-key-tile_click_"] > div > button {
+    height: 215px !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    color: transparent !important;
+    box-shadow: none !important;
+}
+div[class*="st-key-tile_click_"] > div > button:hover {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border: 1px solid rgba(255, 255, 255, 0.35) !important;
+    box-shadow: 0 0 22px rgba(245, 158, 11, 0.25) !important;
+}
+
+/* STILE BOTTONI NORMALI (SYNTH E SOTTOMENU IN BASSO) */
 div.stButton > button {
     background-color: #1A212B !important; color: #F8FAFC !important;
     border: 1px solid #2F3E50 !important; border-radius: 2px !important;
@@ -261,10 +270,9 @@ div.stButton > button {
 }
 div.stButton > button:hover {
     border-color: #F59E0B !important; color: #F59E0B !important;
-    box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important;
 }
 
-/* PANNELLO DESTRO: EMS-1975 SYNTH + QR COMMLOCK */
 .ems-panel {
     background-color: #161A22; border: 2px solid #F59E0B;
     padding: 12px; border-radius: 3px; margin-bottom: 10px;
@@ -272,6 +280,10 @@ div.stButton > button:hover {
 .commlock-panel {
     background-color: #161A22; border: 1px solid #F59E0B;
     padding: 14px; border-radius: 3px; text-align: center;
+}
+.bottom-drawer {
+    background: linear-gradient(180deg, #161D26 0%, #11151C 100%);
+    padding: 18px; border-radius: 3px; margin-top: 8px; margin-bottom: 16px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -290,7 +302,7 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 7. RENDER TOP KOENIG BAR + ALPHA HEADER + STRISCIA METEO 5 GIORNI ---
+# --- 7. TOP KOENIG BAR + ALPHA HEADER + METEO 5 GIORNI ---
 st.markdown(f"""
 <div class="koenig-strip">
     <div>
@@ -303,8 +315,7 @@ st.markdown(f"""
         <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
         <span class="badge-amber">OPEX & CAPEX SPLIT</span>
         <span class="badge-red">{total_micro_modules} CHANNELS LIVE</span>
-        <span class="badge-white">SCALABILITY: 1 → 2⁹ (STATE #{binary_state_num}/512)</span>
-        <span class="badge-white">VISITORS: {st.session_state['visitors_log']}</span>
+        <span class="badge-white">1 → 2⁹ (STATE #{binary_state_num}/512)</span>
     </div>
 </div>
 
@@ -313,7 +324,7 @@ st.markdown(f"""
         <div>{SVG_ICONS["01"]}</div>
         <div>
             <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
-            <div class="mission-sub">SPACE: 1999 COMMAND | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
+            <div class="mission-sub">SPACE: 1999 COMMAND | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES</div>
         </div>
     </div>
     <div class="nixie-group">
@@ -335,101 +346,90 @@ for idx, w in enumerate(WEATHER_5_DAYS):
         </div>
         """, unsafe_allow_html=True)
 
-# --- 8. SELETTORE SCALABILITÀ 1 -> 2^9 (DA 1 SINGOLO MODULO A 9 SETTORI) ---
-with st.expander(f"🎛️ MATRICE MODULARE 1 → 2⁹ (Stato #{binary_state_num}/512 — Attiva da 1 a 9 Settori o Aggiungi Nodi)", expanded=False):
+# --- 8. SELETTORE SCALABILITÀ 1 -> 2^9 (DISCRETO E CHIUDIBILE) ---
+with st.expander(f"🎛️ SCALABILITÀ ARCHITETTURA 1 → 2⁹ (Stato #{binary_state_num}/512 — Configura da 1 a 9 Settori)", expanded=False):
     sw_cols = st.columns(9)
     for i, vec in enumerate(BASE_VECTORS):
         with sw_cols[i]:
             toggled = st.toggle(vec["short"], value=st.session_state["active_bits_9"][i], key=f"tg_{i}")
             if toggled != st.session_state["active_bits_9"][i]:
                 st.session_state["active_bits_9"][i] = toggled
-                st.session_state["expanded_node"] = None
+                st.session_state["active_sector"] = None
+                st.session_state["selected_sub"] = None
                 st.rerun()
 
-    pr1, pr2, pr3 = st.columns(3)
-    if pr1.button("⚡ 1 NODO SINGOLO (2⁰ — B&B / Bar)", use_container_width=True):
-        st.session_state["active_bits_9"] = [True] + [False]*8
-        st.rerun()
-    if pr2.button("🛸 6 SETTORI (30 Nodi — Assetto Tablet)", use_container_width=True):
-        st.session_state["active_bits_9"] = [True, True, True, True, True, True, False, False, False]
-        st.rerun()
-    if pr3.button("🔥 9 SETTORI COMPLETI (2⁹ = 512 Stati — Full Resort)", use_container_width=True):
-        st.session_state["active_bits_9"] = [True]*9
-        st.rerun()
-
-# --- 9. CORPO CENTRALE: MATRICE CINETICA (SINISTRA) + SYNTH & QR COMMLOCK (DESTRA) ---
+# --- 9. PLANCIA PRINCIPALE PULITA (SENZA BOTTONI SOTTO I QUADRATI) ---
 col_left, col_right = st.columns([3.25, 1.15])
 
 with col_left:
-    # Se l'utente ha cliccato una delle 5 righe interne, apre la Consolle Operativa (es. Punto Acquisto ROP)
-    if st.session_state["selected_sub"] is not None:
-        sec_obj, sub_label = st.session_state["selected_sub"]
-        b_back1, b_back2 = st.columns(2)
-        if b_back1.button(f"← TORNA ALLE 5 RIGHE DI {sec_obj['name']}", use_container_width=True):
-            st.session_state["selected_sub"] = None
-            st.rerun()
-        if b_back2.button("TORNA ALLA MATRICE PRINCIPALE", use_container_width=True):
-            st.session_state["selected_sub"] = None
-            st.session_state["expanded_node"] = None
-            st.rerun()
+    n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
+    for r in range(0, n_sectors, n_cols):
+        row_cols = st.columns(n_cols)
+        for c in range(n_cols):
+            if r + c < n_sectors:
+                sq = all_squares[r + c]
+                code = sq["code"]
+                svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
+                is_selected = (st.session_state["active_sector"] == code)
+                border_w = "3px" if is_selected else "1.5px"
 
-        st.markdown(f"""
-        <div style="background:#161C24; border:1px solid {sec_obj['border']}; border-left:5px solid {sec_obj['border']}; padding:18px; margin:10px 0;">
-            <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono';">SETTORE {sec_obj['code']} // CONSOLLE ESECUTIVA</div>
-            <div style="font-size:20px; font-weight:900; margin:4px 0;">{sec_obj['name']} — {sub_label}</div>
-            <div style="font-size:12px; color:#38BDF8; font-family:'Share Tech Mono';">{sec_obj['kpi']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        # Calcolatore Punto Acquisto (ROP) + Scudo 96h sempre disponibile dentro i moduli
-        c_rop1, c_rop2, c_rop3 = st.columns(3)
-        st.session_state["rop_cons_gg"] = c_rop1.number_input("Consumo Giornaliero (Porzioni/Unità)", 1, 1000, st.session_state["rop_cons_gg"])
-        st.session_state["rop_lead_gg"] = c_rop2.number_input("Giorni Consegna Fornitore (Lead Time)", 1, 30, st.session_state["rop_lead_gg"])
-        st.session_state["rop_stock"] = c_rop3.number_input("Giacenza Attuale in Casa", 0, 5000, st.session_state["rop_stock"])
-
-        scorta_sicurezza_96h = st.session_state["bocche_96h"] * 4
-        punto_acquisto_rop = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + scorta_sicurezza_96h
-        delta_stock = st.session_state["rop_stock"] - punto_acquisto_rop
-
-        if delta_stock >= 0:
-            st.success(f"🟢 PUNTO ACQUISTO (ROP): Soglia {punto_acquisto_rop} u. | Giacenza {st.session_state['rop_stock']} u. (+{delta_stock} u. sopra Scudo 96h)")
-        else:
-            st.error(f"🔴 ALLERTA PUNTO ACQUISTO (ROP): Soglia {punto_acquisto_rop} u. | Ordinare subito {abs(delta_stock)} unità al fornitore!")
-
-        st.link_button(f"🚀 TELEPORT DIRETTO A {sec_obj['name']}", sec_obj["url"], use_container_width=True)
-
-    else:
-        # Griglia adattiva: 1 colonna se 1 solo modulo, 2 colonne se 2 o 4 moduli, altrimenti 3 colonne (come nella foto!)
-        n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
-        for r in range(0, n_sectors, n_cols):
-            row_cols = st.columns(n_cols)
-            for c in range(n_cols):
-                if r + c < n_sectors:
-                    sq = all_squares[r + c]
-                    code = sq["code"]
-                    svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
-                    with row_cols[c]:
-                        # Se la piastrella è cliccata, si apre a fisarmonica nelle 5 righe + X CHIUDI (Stile Boschetto Pro)
-                        if st.session_state["expanded_node"] == code:
-                            for sub_item in sq["subs"]:
-                                if st.button(sub_item, key=f"sub_{code}_{sub_item}", use_container_width=True):
-                                    st.session_state["selected_sub"] = (sq, sub_item)
-                                    st.rerun()
-                            if st.button(f"✖ CHIUDI {sq['name']}", key=f"close_{code}", use_container_width=True):
-                                st.session_state["expanded_node"] = None
-                                st.rerun()
+                with row_cols[c]:
+                    st.markdown(f"""
+                    <div class="alpha-tile" style="background: {sq['bg_grad']}; border: {border_w} solid {sq['border']}; border-left: 5px solid {sq['border']}; box-shadow: inset 0 0 26px {sq['glow']};">
+                        <div>{svg_icon}</div>
+                        <div class="tile-code">{code}</div>
+                        <div class="tile-name">{sq['name']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    # Superficie touch trasparente sovrapposta al quadrato (zero bottoni visibili sotto!)
+                    if st.button(" ", key=f"tile_click_{code}", use_container_width=True):
+                        if st.session_state["active_sector"] == code:
+                            st.session_state["active_sector"] = None
+                            st.session_state["selected_sub"] = None
                         else:
-                            st.markdown(f"""
-                            <div class="alpha-tile" style="background: {sq['bg_grad']}; border: 1.5px solid {sq['border']}; border-left: 4px solid {sq['border']}; box-shadow: inset 0 0 24px {sq['glow']};">
-                                <div>{svg_icon}</div>
-                                <div class="tile-code">{code}</div>
-                                <div class="tile-name">{sq['name']}</div>
-                                <div class="tile-kpi">{sq['kpi']}</div>
-                            </div>
-                            """, unsafe_allow_html=True)
-                            if st.button(f"APRI {code} // {sq['name']}", key=f"btn_open_{code}", use_container_width=True):
-                                st.session_state["expanded_node"] = code
-                                st.rerun()
+                            st.session_state["active_sector"] = code
+                            st.session_state["selected_sub"] = sq["subs"][0]
+                        st.rerun()
+
+    # --- 10. CASSETTO SOTTOMENU CHE SI APRE SOLO SOTTO LA PLANCIA ---
+    if st.session_state["active_sector"] is not None:
+        sec_obj = next((s for s in all_squares if s["code"] == st.session_state["active_sector"]), None)
+        if sec_obj:
+            st.markdown(f"""
+            <div class="bottom-drawer" style="border: 1px solid {sec_obj['border']}; border-left: 5px solid {sec_obj['border']};">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <span style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono';">SETTORE {sec_obj['code']} ATTIVO // SOTTOMENU OPERATIVO</span>
+                        <div style="font-size:18px; font-weight:900; color:#FFF; margin-top:2px;">{sec_obj['name']} — <span style="color:#38BDF8; font-size:13px; font-family:'Share Tech Mono';">{sec_obj['kpi']}</span></div>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # I 5 Sottomenu + Tasto Chiudi allineati orizzontalmente sotto la griglia
+            sub_cols = st.columns(6)
+            for idx_s, sub_label in enumerate(sec_obj["subs"]):
+                with sub_cols[idx_s]:
+                    if st.button(sub_label, key=f"bsub_{sec_obj['code']}_{idx_s}", use_container_width=True):
+                        st.session_state["selected_sub"] = sub_label
+                        st.rerun()
+            with sub_cols[5]:
+                if st.button("✖ CHIUDI PANNELLO", key="close_bottom_drawer", use_container_width=True):
+                    st.session_state["active_sector"] = None
+                    st.session_state["selected_sub"] = None
+                    st.rerun()
+
+            # Dettaglio del sottomenu selezionato (sempre qui sotto)
+            if st.session_state["selected_sub"]:
+                st.markdown(f"##### ⚡ {sec_obj['name']} // {st.session_state['selected_sub']}")
+                c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.2, 1.4])
+                st.session_state["rop_cons_gg"] = c1.number_input("Consumo Giorno (u.)", 1, 1000, st.session_state["rop_cons_gg"])
+                st.session_state["rop_lead_gg"] = c2.number_input("Lead Time (gg)", 1, 30, st.session_state["rop_lead_gg"])
+                st.session_state["rop_stock"] = c3.number_input("Giacenza Casa", 0, 5000, st.session_state["rop_stock"])
+                rop_val = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + (st.session_state["bocche_96h"] * 4)
+                with c4:
+                    st.metric("PUNTO ACQUISTO (ROP 96H)", f"{rop_val} u.", f"{st.session_state['rop_stock'] - rop_val} u. margine")
+                st.link_button(f"🚀 APRI MODULO DEDICATO ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
 
 with col_right:
     st.markdown("""
@@ -450,7 +450,7 @@ with col_right:
         if st.button("◈ COMMLOCK\n1975", use_container_width=True):
             play_ems_synth("commlock")
             st.session_state["visitors_log"] += 1
-            st.toast("📡 Commlock 1975: Visitatore Registrato")
+            st.toast("📡 Commlock 1975 Sincronizzato")
 
     if st.button("▲ ALPHA KLAXON SIREN", use_container_width=True):
         play_ems_synth("klaxon")
