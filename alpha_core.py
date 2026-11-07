@@ -2,461 +2,482 @@ import os
 import json
 from datetime import datetime
 import streamlit as st
+import streamlit.components.v1 as components
+import pandas as pd
 
 # ==============================================================================
-# 6. THE 9 VECTORS x 5 ROWS = 1 TO 2^9 (512 STATES / 45 CHANNELS) OF MOONBASE A.L.P.H.A.
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (MONUMENTAL CORE 1 -> 2^9)
+# Space: 1999 Command Matrix | 512 Binary States | EMS-1975 Synth | QR Commlock
 # ==============================================================================
-base_squares = [
+
+st.set_page_config(
+    page_title="BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+# --- 1. BLINDAGGIO TOTALE SESSION STATE (Anti-AttributeError & Anti-KeyError) ---
+def init_monumental_state():
+    defaults = {
+        "active_bits_9": [True, True, True, True, True, True, False, False, False],
+        "custom_squares": [],
+        "expanded_node": None,
+        "selected_sub": None,
+        "pin_code": "9999",
+        "visitors_log": 34,
+        "last_access": datetime.now().strftime("%H:%M"),
+        "synth_mode": "READY",
+        "rop_cons_gg": 45,
+        "rop_lead_gg": 2,
+        "rop_stock": 490,
+        "bocche_96h": 137
+    }
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
+
+init_monumental_state()
+
+# --- 2. ICONE VETTORIALI NEON SVG (Identiche alla tua foto sul tablet) ---
+SVG_ICONS = {
+    "01": """<svg width="46" height="32" viewBox="0 0 64 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M6 22L18 14H46L58 22L46 26H18L6 22Z" stroke="#F59E0B" stroke-width="2.5" fill="#2A1C08"/>
+             <rect x="24" y="16" width="16" height="8" stroke="#38BDF8" stroke-width="2" fill="#06B6D4"/>
+             <path d="M2 20L12 16V24L2 20Z" fill="#EF4444"/><path d="M62 20L52 16V24L62 20Z" fill="#10B981"/>
+             </svg>""",
+    "02": """<svg width="42" height="36" viewBox="0 0 48 42" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M6 34L10 12L19 22L24 8L29 22L38 12L42 34H6Z" stroke="#10B981" stroke-width="2.5" fill="rgba(16,185,129,0.18)"/>
+             <line x1="6" y1="38" x2="42" y2="38" stroke="#34D399" stroke-width="3"/>
+             </svg>""",
+    "03": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M18 6H26V13L31 19V38H13V19L18 13V6Z" stroke="#38BDF8" stroke-width="2.5" fill="rgba(56,189,248,0.18)"/>
+             <rect x="16" y="23" width="12" height="9" stroke="#E0F2FE" stroke-width="1.8"/>
+             </svg>""",
+    "04": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <rect x="14" y="6" width="16" height="32" rx="2" stroke="#A855F7" stroke-width="2.5" fill="rgba(168,85,247,0.18)"/>
+             <rect x="17" y="10" width="10" height="8" stroke="#38BDF8" stroke-width="2"/>
+             <line x1="17" y1="26" x2="27" y2="26" stroke="#F59E0B" stroke-width="2.5"/>
+             </svg>""",
+    "05": """<svg width="42" height="38" viewBox="0 0 48 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M24 6V14M20 10H28" stroke="#F43F5E" stroke-width="2.5"/>
+             <path d="M8 36L12 18L20 25L24 15L28 25L36 18L40 36H8Z" stroke="#F43F5E" stroke-width="2.5" fill="rgba(244,63,94,0.18)"/>
+             </svg>""",
+    "06": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M12 36H32L29 22L31 14H13L15 22L12 36Z" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/>
+             <circle cx="22" cy="10" r="4" stroke="#FDE047" stroke-width="2"/>
+             </svg>""",
+    "07": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <rect x="8" y="10" width="28" height="24" stroke="#10B981" stroke-width="2.5" fill="rgba(16,185,129,0.18)"/>
+             <path d="M14 22L20 28L30 16" stroke="#34D399" stroke-width="3"/>
+             </svg>""",
+    "08": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <path d="M22 6L36 12V22C36 31 22 38 22 38C22 38 8 31 8 22V12L22 6Z" stroke="#06B6D4" stroke-width="2.5" fill="rgba(6,182,212,0.18)"/>
+             </svg>""",
+    "09": """<svg width="38" height="38" viewBox="0 0 44 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+             <polygon points="24,4 10,24 22,24 20,40 34,20 22,20" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.22)"/>
+             </svg>"""
+}
+
+# --- 3. ARCHITETTURA DEI 9 VETTORI PRIMARI (1 -> 2^9 = 512 STATI) ---
+BASE_VECTORS = [
     {
-        "id": "SQ01", "bit": 0, "short": "B1 FRONT", "theme": "AMBER", "totem": "EAGLE",
-        "title": "01\nFRONT & APEX",
-        "rows": [
-            {"lbl": "1. Sovereign Apex", "url": "https://sovereign-apex.streamlit.app", "desc": "7 Room Tiers x 24 Yield Bands Dynamic Pricing Engine"},
-            {"lbl": "2. Boschetto PMS", "url": "https://boschetto.streamlit.app", "desc": "Front Desk Arrivals, Departures, Room Rack & Guest Ledger"},
-            {"lbl": "3. Fast Quote & Grp", "url": "https://sovereign-apex.streamlit.app/?module=quote", "desc": "Instant Multi-Room & Group Quotation Calculator"},
-            {"lbl": "4. Night Audit Safe", "url": "https://boschetto.streamlit.app/?module=audit", "desc": "End-of-Day Cash Closure, City Tax & Shift Handover"},
-            {"lbl": "5. FO Supplies Buy", "url": "https://boschetto.streamlit.app/?module=fo_supply", "desc": "Front Office Hardware, Keycards, Stationery & Toner Procurement"}
-        ]
+        "bit": 0, "code": "01", "short": "01 FRONT", "name": "FRONT & APEX",
+        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #3D2B14 0%, #14161D 78%)",
+        "kpi": "OCC: 88% | ADR: € 165 | REVPAR: € 145", "url": "https://bemask-sovereign-zero.streamlit.app",
+        "subs": ["1. Dynamic Pricing & Matrix", "2. Controllo Allotment & OTA", "3. Check-in & Upselling", "4. Forecast 30 Giorni", "5. Registro Cassa Front"]
     },
     {
-        "id": "SQ02", "bit": 1, "short": "B2 BEV", "theme": "EMERALD", "totem": "QUEEN",
-        "title": "02\nLAZERS BEV",
-        "rows": [
-            {"lbl": "1. Mixology & Pour", "url": "https://bemask-lazers.streamlit.app/?sub=mixology", "desc": "Cocktail Recipe Pour Cost (ml), Drink Margins & Bar List"},
-            {"lbl": "2. Wine & Sommelier", "url": "https://bemask-lazers.streamlit.app/?sub=wine", "desc": "Wine Cellar Rotation, Bottle Mark-up & Pairing Matrix"},
-            {"lbl": "3. Bar Consumables", "url": "https://bemask-lazers.streamlit.app/?sub=bev_opex", "desc": "OPEX Purchasing: Spirits, Beer Kegs, Coffee, Garnish & Disposables"},
-            {"lbl": "4. Bar Equipment", "url": "https://bemask-lazers.streamlit.app/?sub=bev_capex", "desc": "CAPEX Purchasing: Glassware, Crystal, Shakers, Blenders & Breakage"},
-            {"lbl": "5. Minibar & Kiosk", "url": "https://bemask-lazers.streamlit.app/?sub=minibar", "desc": "Room Minibar Restocking & Pool/Beach Liquid Kiosks"}
-        ]
+        "bit": 1, "code": "02", "short": "02 BEV", "name": "LAZERS BEV",
+        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #113A32 0%, #12181F 78%)",
+        "kpi": "POURING: 21% | MARGINE CANTINA: +79%", "url": "https://bemask-lazers.streamlit.app",
+        "subs": ["1. Pouring Calici & Vini", "2. Spinta Aperitivi Meteo", "3. Margine Bottiglie", "4. Usura Cristalleria", "5. Inventario Cantina Live"]
     },
     {
-        "id": "SQ03", "bit": 2, "short": "B3 FOOD", "theme": "CYAN", "totem": "BISHOP",
-        "title": "03\nLAZERS FOOD",
-        "rows": [
-            {"lbl": "1. Kitchen FoodCost", "url": "https://bemask-lazers.streamlit.app/?sub=foodcost", "desc": "Dish Recipes, Grammage, Yield Waste % & Kasavana Matrix"},
-            {"lbl": "2. Board BB/HB/FB", "url": "https://bemask-lazers.streamlit.app/?sub=boards", "desc": "Real Buffet & Pension Meal Cost Synced with Sovereign Apex"},
-            {"lbl": "3. Food Consumables", "url": "https://bemask-lazers.streamlit.app/?sub=food_opex", "desc": "OPEX Purchasing: Fresh/Dry Food, Vacuum Bags, Foil & Kitchen Chemicals"},
-            {"lbl": "4. Food Equipment", "url": "https://bemask-lazers.streamlit.app/?sub=food_capex", "desc": "CAPEX Purchasing: Porcelain Plates, Cutlery, Cookware & Table Linen"},
-            {"lbl": "5. Banquet & Events", "url": "https://bemask-lazers.streamlit.app/?sub=banquet", "desc": "Gala Dinners, Buffet Events & Special Catering Operations"}
-        ]
+        "bit": 2, "code": "03", "short": "03 FOOD", "name": "LAZERS FOOD",
+        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #13334C 0%, #121720 78%)",
+        "kpi": "COPERTI: 84/105 | FOOD COST: 28.5%", "url": "https://bemask-lazers.streamlit.app",
+        "subs": ["1. Capienza Sala & Cucina", "2. Scorporo Quote HB / FB", "3. Sfridi & Rese Carni", "4. Semaforo TheFork Zero-Fee", "5. Floor Industriale Pasto"]
     },
     {
-        "id": "SQ04", "bit": 3, "short": "B4 BEACH", "theme": "PURPLE", "totem": "COMMLOCK",
-        "title": "04\nBEACH & POOL",
-        "rows": [
-            {"lbl": "1. Beach Rows 1-4", "url": "https://boschetto.streamlit.app/?module=beach_map", "desc": "Interactive Umbrella Grid: 1st Row VIP, 2nd Row, 3rd Row & Standard"},
-            {"lbl": "2. Package & Upgrd", "url": "https://sovereign-apex.streamlit.app/?module=beach_yield", "desc": "Included vs Excluded Arrangement Rules & 1st/2nd Row Upgrade Supplements"},
-            {"lbl": "3. Pool & Cabanas", "url": "https://boschetto.streamlit.app/?module=pool_map", "desc": "Waterfront Sunbeds, VIP Bali Beds & External Day-Use Passes"},
-            {"lbl": "4. Lido Consumables", "url": "https://boschetto.streamlit.app/?module=beach_opex", "desc": "OPEX Purchasing: Beach Towels, Wristbands, Sunscreen & Pool Chlorine"},
-            {"lbl": "5. Lido Hardware", "url": "https://boschetto.streamlit.app/?module=beach_capex", "desc": "CAPEX Purchasing: Sunbeds, Umbrellas, Deckchairs, Gazebos & Walkways"}
-        ]
+        "bit": 3, "code": "04", "short": "04 BEACH", "name": "BEACH & POOL",
+        "border": "#A855F7", "glow": "rgba(168, 85, 247, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #2B244D 0%, #141522 78%)",
+        "kpi": "SATURAZIONE LIDO: 92% | VENTO: 11 KT", "url": "https://ska-boschetto.streamlit.app",
+        "subs": ["1. Mappa Ombrelloni & Cabine", "2. Soglia Vento Grounding", "3. Light Lunch all'Ombrellone", "4. Presidio Bagnini", "5. Chiusura Cassa Lido"]
     },
     {
-        "id": "SQ05", "bit": 4, "short": "B5 SPA", "theme": "RED", "totem": "KING",
-        "title": "05\nSPA & AYURVEDA",
-        "rows": [
-            {"lbl": "1. Massage & Tibet", "url": "https://boschetto.streamlit.app/?module=spa_cabins", "desc": "Cabin Matrix: Massages, Ayurveda, Five Tibetans & Pirate Detox Specials"},
-            {"lbl": "2. Sauna & Steam", "url": "https://boschetto.streamlit.app/?module=thermae", "desc": "Wet Zone Slot Quotas: Finnish Sauna, Turkish Bath, Hydro & Private Spa"},
-            {"lbl": "3. Spa Pass & Pack", "url": "https://sovereign-apex.streamlit.app/?module=spa_yield", "desc": "Suite Included Spa Credits, Dynamic Off-Peak Pricing & Day-Spa Vouchers"},
-            {"lbl": "4. Spa Oils & Retail", "url": "https://boschetto.streamlit.app/?module=spa_opex", "desc": "OPEX & Boutique: Warm Massage Oils, Essential Oils, Muds & Retail Creams"},
-            {"lbl": "5. Spa Equipment", "url": "https://boschetto.streamlit.app/?module=spa_capex", "desc": "CAPEX Purchasing: Massage Tables, Hot Stones, Steamers, Robes & Slippers"}
-        ]
+        "bit": 4, "code": "05", "short": "05 SPA", "name": "SPA & AYURVEDA",
+        "border": "#F43F5E", "glow": "rgba(244, 63, 94, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #3F1D2B 0%, #16141C 78%)",
+        "kpi": "SLOT CABINE: 14/16 | FALLBACK PIOGGIA ON", "url": "https://ska-boschetto.streamlit.app",
+        "subs": ["1. Conversione Pioggia (S1/S2)", "2. Agenda Cabine & Massaggi", "3. Percorso Private Spa VIP", "4. Vendita Linea Cosmetica", "5. Turni Operatori"]
     },
     {
-        "id": "SQ06", "bit": 5, "short": "B6 SKA", "theme": "AMBER", "totem": "KNIGHT",
-        "title": "06\nS.K.A. & ROOMS",
-        "rows": [
-            {"lbl": "1. Housekeeping", "url": "https://boschetto.streamlit.app/?module=hk", "desc": "Floor Room Status (Clean/Dirty/Priority), Maids Roster & Inspections"},
-            {"lbl": "2. Room Consumables", "url": "https://boschetto.streamlit.app/?module=hk_opex", "desc": "OPEX Purchasing: Courtesy Amenities, Cleaning Chemicals, Paper & Linen"},
-            {"lbl": "3. S.K.A. Tech Core", "url": "https://sovereign-kinetic-architecture.streamlit.app", "desc": "Facility Maintenance Tickets, Boilers, HVAC & Electrical Shields"},
-            {"lbl": "4. HACCP Telemetry", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=haccp", "desc": "24/7 Temperature Probes: Kitchen Fridges, Pool Water & Spa Steamers"},
-            {"lbl": "5. Tech Hardware", "url": "https://sovereign-kinetic-architecture.streamlit.app/?sub=tech_capex", "desc": "CAPEX Purchasing: Spare Parts, Pumps, LED Bulbs, Filters & Tools"}
-        ]
+        "bit": 5, "code": "06", "short": "06 SKA", "name": "S.K.A. & ROOMS",
+        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #382B19 0%, #15161C 78%)",
+        "kpi": "CAMERE PRONTE: 58/60 | SEGNALAZIONI: 0", "url": "https://ska-boschetto.streamlit.app",
+        "subs": ["1. Stato Pulizia Camere", "2. Ticket Manutenzione", "3. Presidio Brigata Piani", "4. Dotazioni & Biancheria", "5. Ispezione Governante"]
     },
     {
-        "id": "SQ07", "bit": 6, "short": "B7 ROP", "theme": "EMERALD", "totem": "ROOK",
-        "title": "07\nPUNTO ACQUISTO",
-        "rows": [
-            {"lbl": "1. Soglia Riordino ROP", "url": "https://bemask-lazers.streamlit.app/?sub=rop", "desc": "Calcolo Automatico Punto Acquisto: (Consumo x Lead Time) + Scudo 96h"},
-            {"lbl": "2. Scudo Autonomia 96h", "url": "https://bemask-lazers.streamlit.app/?sub=shield96", "desc": "Copertura Dispensa Emergenza per Ospiti In-House + Staff Alloggiato"},
-            {"lbl": "3. Lead Time Fornitori", "url": "https://bemask-lazers.streamlit.app/?sub=vendors", "desc": "Mappa Consegne, Giorni Critici e Semaforo Riordino Immediato"},
-            {"lbl": "4. Fatture XML & Rese", "url": "https://bemask-lazers.streamlit.app/?sub=xml", "desc": "Controllo Prezzi Acquisto, Peso Sgocciolato e Sfridi Carni/Pesce"},
-            {"lbl": "5. Ordine Rapido", "url": "https://bemask-lazers.streamlit.app/?sub=order", "desc": "Generazione Lista Acquisto Certificata per Economato e Cucina"}
-        ]
+        "bit": 6, "code": "07", "short": "07 ACQUISTO", "name": "PUNTO ACQUISTO & ROP",
+        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #13392E 0%, #12171D 78%)",
+        "kpi": "ROP: SCORTA OK | SCUDO AUTONOMIA: 96H", "url": "https://bemask-lazers.streamlit.app",
+        "subs": ["1. Calcolatore Punto Riordino (ROP)", "2. Scudo Dispensa 96 Ore", "3. Lead Time Fornitori", "4. Controllo Fatture XML", "5. Lista Ordini Urgenti"]
     },
     {
-        "id": "SQ08", "bit": 7, "short": "B8 ASL", "theme": "CYAN", "totem": "QUEEN",
-        "title": "08\nHACCP & ASL",
-        "rows": [
-            {"lbl": "1. Registro Temperature", "url": "https://ska-boschetto.streamlit.app/?sub=asl", "desc": "Certificazione Giornaliera Celle -18°C, Frigo +4°C e Vetrine Buffet"},
-            {"lbl": "2. Firme PIN Brigata", "url": "https://ska-boschetto.streamlit.app/?sub=pins", "desc": "Validazione Operatori in Turno con Codice PIN Personale a 4 Cifre"},
-            {"lbl": "3. Lotti & Abbattimento", "url": "https://ska-boschetto.streamlit.app/?sub=lots", "desc": "Tracciabilità Materie Prime, Cicli Abbattitore e Scadenze"},
-            {"lbl": "4. Piano Sanificazione", "url": "https://ska-boschetto.streamlit.app/?sub=clean", "desc": "Check-list Pulizia Cappa, Linee Cucina, Pasticceria e Bar"},
-            {"lbl": "5. Stampa Ufficiale ASL", "url": "https://ska-boschetto.streamlit.app/?sub=print_asl", "desc": "Esportazione Immediata Registro HTML/CSV Pronto per Ispezione"}
-        ]
+        "bit": 7, "code": "08", "short": "08 HACCP", "name": "HACCP & REGISTRO ASL",
+        "border": "#06B6D4", "glow": "rgba(6, 182, 212, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #123440 0%, #12171E 78%)",
+        "kpi": "CELLE FRIGO: 21/21 OK | FIRME PIN: 6", "url": "https://ska-boschetto.streamlit.app",
+        "subs": ["1. Temperature Celle (-18°C / +4°C)", "2. Firma Digitale con PIN", "3. Lotti & Sgocciolato", "4. Sanificazione Cucina", "5. Scarica Stampa ASL (.HTML)"]
     },
     {
-        "id": "SQ09", "bit": 8, "short": "B9 GOP", "theme": "RED", "totem": "EAGLE",
-        "title": "09\nMULTI-P.IVA & GOP",
-        "rows": [
-            {"lbl": "1. Split Multi-P.IVA", "url": "https://bemask-lazers.streamlit.app/?sub=piva", "desc": "Ripartizione Automatica Ricavi e Costi tra Società Gestione e F&B"},
-            {"lbl": "2. Floor Pasto HB/FB", "url": "https://bemask-lazers.streamlit.app/?sub=floor", "desc": "Scorporo Industriale Costo Vivo Pasto + Brigata su Sovereign Zero"},
-            {"lbl": "3. Semaforo Zero-Fee", "url": "https://bemask-lazers.streamlit.app/?sub=thefork", "desc": "Blocco Automatico Portali Esterni a Sala Satura per Risparmio Commissioni"},
-            {"lbl": "4. MOL & GOPPAR Live", "url": "https://sovereign-apex.streamlit.app/?module=goppar", "desc": "Margine Operativo Lordo Giornaliero Consolidato Camere + Ristorante"},
-            {"lbl": "5. Export Revisore", "url": "https://sovereign-apex.streamlit.app/?module=audit_export", "desc": "Report Direzionale Completo per Proprietà e Studio Commercialista"}
-        ]
+        "bit": 8, "code": "09", "short": "09 GOPPAR", "name": "OPEX / CAPEX & P.IVA",
+        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.35)", "bg_grad": "radial-gradient(circle at 50% 42%, #3B2816 0%, #14161D 78%)",
+        "kpi": "MOL NETTO OGGI: € 4.820 | GOP: +34%", "url": "https://bemask-lazers.streamlit.app",
+        "subs": ["1. Split Multi-P.IVA Casa Madre", "2. OPEX vs CAPEX Real-Time", "3. Incidenza Costo Brigate", "4. Cashflow Consolidato", "5. Ponte Dati Revisore"]
     }
 ]
 
-if "active_bits_9" not in st.session_state:
-    # Di default accende i primi 6 settori storici, espandibili da 1 fino a 9 (2^9 = 512 stati)
-    st.session_state.active_bits_9 = [True, True, True, True, True, True, False, False, False]
-if "alpha_visitors" not in st.session_state:
-    st.session_state.alpha_visitors = 34
+WEATHER_5_DAYS = [
+    {"day": "SOL 08 · 19°C", "status": "NOMINAL ORBIT", "pct": "8%", "border": "#F59E0B", "text_col": "#F59E0B"},
+    {"day": "SUN 08/11 · 17°C", "status": "NOMINAL ORBIT", "pct": "14%", "border": "#F59E0B", "text_col": "#F59E0B"},
+    {"day": "MON 09/11 · 17°C", "status": "SOLAR STORM", "pct": "91%", "border": "#EF4444", "text_col": "#EF4444"},
+    {"day": "TUE 10/11 · 20°C", "status": "SOLAR STORM", "pct": "94%", "border": "#EF4444", "text_col": "#EF4444"},
+    {"day": "WED 11/11 · 21°C", "status": "NOMINAL ORBIT", "pct": "22%", "border": "#38BDF8", "text_col": "#F59E0B"},
+]
 
-state_code_512 = sum((1 << i) for i, b in enumerate(st.session_state.active_bits_9) if b)
-bin_str_9 = "".join(["1" if b else "0" for b in st.session_state.active_bits_9])
-active_base = [sq for i, sq in enumerate(base_squares) if st.session_state.active_bits_9[i]]
+# --- 4. SINTETIZZATORE AUDIO REALE WEBAUDIO (EMS SYNTHI 1975) ---
+def play_ems_synth(effect_type):
+    js_code = f"""
+    <script>
+    (function() {{
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        const now = ctx.currentTime;
+        if ("{effect_type}" === "burst") {{
+            const freqs = [523.25, 659.25, 783.99, 1046.50, 880.0, 1174.66];
+            freqs.forEach((f, i) => {{
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sawtooth";
+                osc.frequency.setValueAtTime(f, now + i * 0.06);
+                gain.gain.setValueAtTime(0.08, now + i * 0.06);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.055);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(now + i * 0.06); osc.stop(now + i * 0.06 + 0.06);
+            }});
+        }} else if ("{effect_type}" === "commlock") {{
+            [987.77, 1318.51].forEach((f, i) => {{
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = "sine";
+                osc.frequency.setValueAtTime(f, now + i * 0.11);
+                gain.gain.setValueAtTime(0.12, now + i * 0.11);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.11 + 0.10);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(now + i * 0.11); osc.stop(now + i * 0.11 + 0.11);
+            }});
+        }} else if ("{effect_type}" === "klaxon") {{
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = "square";
+            osc.frequency.setValueAtTime(440, now);
+            osc.frequency.linearRampToValueAtTime(880, now + 0.25);
+            osc.frequency.linearRampToValueAtTime(440, now + 0.50);
+            gain.gain.setValueAtTime(0.10, now);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
+            osc.connect(gain); gain.connect(ctx.destination);
+            osc.start(now); osc.stop(now + 0.52);
+        }}
+    }})();
+    </script>
+    """
+    components.html(js_code, height=0)
+
+# --- 5. CSS MONUMENTALE MOONBASE A.L.P.H.A. ---
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
+
+.stApp { background-color: #12151B; color: #F8FAFC; font-family: 'Orbitron', sans-serif; }
+header[data-testid="stHeader"] { background: transparent; }
+.block-container { padding-top: 0.7rem; max-width: 96%; }
+
+/* TOP KOENIG STRIP */
+.koenig-strip {
+    background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
+    padding: 8px 14px; margin-bottom: 10px; border-radius: 2px;
+}
+.badge-amber { background-color: #F59E0B; color: #0B0E14; font-weight: 900; font-size: 10px; padding: 3px 8px; margin-right: 8px; letter-spacing: 0.8px; display: inline-block; }
+.badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; }
+.badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; }
+
+/* MAIN ALPHA MISSION BAR */
+.mission-bar {
+    background: linear-gradient(90deg, #161C24 0%, #192530 100%);
+    border: 1px solid #2D3D4E; border-left: 4px solid #38BDF8;
+    padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;
+}
+.mission-title { font-size: 19px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.5px; }
+.mission-sub { font-size: 10px; color: #38BDF8; font-family: 'Share Tech Mono', monospace; letter-spacing: 1px; margin-top: 2px; }
+.nixie-group { display: flex; align-items: center; gap: 10px; }
+.nixie-label { font-size: 10px; color: #94A3B8; font-weight: 700; letter-spacing: 1px; }
+.nixie-digits {
+    background-color: #0D1015; border: 1px solid #F59E0B; color: #F59E0B;
+    font-family: 'Share Tech Mono', monospace; font-size: 18px; font-weight: 900;
+    padding: 3px 10px; letter-spacing: 3px; border-radius: 2px;
+    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+/* WEATHER STRIP */
+.weather-card {
+    background-color: #161A22; border: 1px solid #2B3340;
+    padding: 8px 12px; border-radius: 2px; margin-bottom: 10px;
+}
+.w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.6px; }
+.w-status { font-size: 9px; font-weight: 800; margin-top: 3px; letter-spacing: 0.8px; }
+
+/* KINETIC MONOLITH TILES (IDENTICHE ALLA FOTO TABLET) */
+.alpha-tile {
+    height: 195px; border-radius: 3px; padding: 18px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; position: relative; transition: all 0.24s ease;
+    margin-bottom: -10px;
+}
+.alpha-tile:hover {
+    transform: translateY(-4px) scale(1.01);
+    filter: brightness(1.14);
+}
+.tile-code { font-size: 11px; font-weight: 800; color: #E2E8F0; margin-top: 12px; letter-spacing: 1.5px; }
+.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.2px; margin-top: 3px; }
+.tile-kpi { font-size: 9px; font-family: 'Share Tech Mono', monospace; color: #CBD5E1; margin-top: 8px; opacity: 0.9; }
+
+/* BOTTONI TATTICI SOTTO LE PIASTRELLE E NELLA FISARMONICA */
+div.stButton > button {
+    background-color: #1A212B !important; color: #F8FAFC !important;
+    border: 1px solid #2F3E50 !important; border-radius: 2px !important;
+    font-family: 'Orbitron', sans-serif !important; font-size: 10px !important;
+    font-weight: 800 !important; letter-spacing: 1px !important;
+    transition: all 0.2s ease !important;
+}
+div.stButton > button:hover {
+    border-color: #F59E0B !important; color: #F59E0B !important;
+    box-shadow: 0 0 14px rgba(245, 158, 11, 0.35) !important;
+}
+
+/* PANNELLO DESTRO: EMS-1975 SYNTH + QR COMMLOCK */
+.ems-panel {
+    background-color: #161A22; border: 2px solid #F59E0B;
+    padding: 12px; border-radius: 3px; margin-bottom: 10px;
+}
+.commlock-panel {
+    background-color: #161A22; border: 1px solid #F59E0B;
+    padding: 14px; border-radius: 3px; text-align: center;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# --- 6. CALCOLO DINAMICO MATRICE BINARIA 1 -> 2^9 (512 COMBINAZIONI) ---
+bits = st.session_state["active_bits_9"]
+active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
 if not active_base:
-    st.session_state.active_bits_9[0] = True
-    active_base = [base_squares[0]]
+    st.session_state["active_bits_9"][0] = True
+    active_base = [BASE_VECTORS[0]]
 
-all_squares = active_base + st.session_state.custom_squares
-active_channels = len(all_squares) * 5
+all_squares = active_base + st.session_state["custom_squares"]
+n_sectors = len(all_squares)
+total_micro_modules = n_sectors * 5
+binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
+binary_str = "".join(["1" if b else "0" for b in bits])
+ora_attuale = datetime.now().strftime("%H:%M")
 
-with st.expander(f"⚡ SCALABLE ARCHITECTURE 1 → 2⁹ // STATE #{state_code_512}/512 | SIGNATURE: {bin_str_9} ({active_channels} CHANNELS LIVE) | VISITORS: {st.session_state.alpha_visitors}", expanded=False):
-    b_cols = st.columns(9)
-    for i, sq_item in enumerate(base_squares):
-        with b_cols[i]:
-            t_val = st.toggle(sq_item["short"], value=st.session_state.active_bits_9[i], key=f"b9_sw_{i}")
-            if t_val != st.session_state.active_bits_9[i]:
-                st.session_state.active_bits_9[i] = t_val
-                st.session_state.expanded_sq_id = None
+# --- 7. RENDER TOP KOENIG BAR + ALPHA HEADER + STRISCIA METEO 5 GIORNI ---
+st.markdown(f"""
+<div class="koenig-strip">
+    <div>
+        <span class="badge-amber">MOONBASE ALPHA</span>
+        <span style="font-size:12px; font-weight:900; letter-spacing:1.2px; color:#FFFFFF;">
+            MAIN MISSION // {total_micro_modules}-NODE COMMAND MATRIX // KOENIG
+        </span>
+    </div>
+    <div style="margin-top:6px;">
+        <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
+        <span class="badge-amber">OPEX & CAPEX SPLIT</span>
+        <span class="badge-red">{total_micro_modules} CHANNELS LIVE</span>
+        <span class="badge-white">SCALABILITY: 1 → 2⁹ (STATE #{binary_state_num}/512)</span>
+        <span class="badge-white">VISITORS: {st.session_state['visitors_log']}</span>
+    </div>
+</div>
+
+<div class="mission-bar">
+    <div style="display:flex; align-items:center; gap:14px;">
+        <div>{SVG_ICONS["01"]}</div>
+        <div>
+            <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
+            <div class="mission-sub">SPACE: 1999 COMMAND | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
+        </div>
+    </div>
+    <div class="nixie-group">
+        <span class="nixie-label">ALPHA TIME:</span>
+        <span class="nixie-digits">{ora_attuale}</span>
+        <span class="nixie-label">MATRIX:</span>
+        <span class="nixie-digits">{total_micro_modules:02d}</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+w_cols = st.columns(5)
+for idx, w in enumerate(WEATHER_5_DAYS):
+    with w_cols[idx]:
+        st.markdown(f"""
+        <div class="weather-card" style="border-left: 3px solid {w['border']}; border-top: 1px solid {w['border']};">
+            <div class="w-day">{w['day']} <span style="float:right; color:#94A3B8; font-family:'Share Tech Mono';">{w['pct']}</span></div>
+            <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# --- 8. SELETTORE SCALABILITÀ 1 -> 2^9 (DA 1 SINGOLO MODULO A 9 SETTORI) ---
+with st.expander(f"🎛️ MATRICE MODULARE 1 → 2⁹ (Stato #{binary_state_num}/512 — Attiva da 1 a 9 Settori o Aggiungi Nodi)", expanded=False):
+    sw_cols = st.columns(9)
+    for i, vec in enumerate(BASE_VECTORS):
+        with sw_cols[i]:
+            toggled = st.toggle(vec["short"], value=st.session_state["active_bits_9"][i], key=f"tg_{i}")
+            if toggled != st.session_state["active_bits_9"][i]:
+                st.session_state["active_bits_9"][i] = toggled
+                st.session_state["expanded_node"] = None
                 st.rerun()
+
     pr1, pr2, pr3 = st.columns(3)
-    if pr1.button("1️⃣ SINGLE NODE (2⁰ = 1 MODULE)", type="secondary", use_container_width=True):
-        st.session_state.active_bits_9 = [True] + [False]*8
-        st.session_state.expanded_sq_id = None
+    if pr1.button("⚡ 1 NODO SINGOLO (2⁰ — B&B / Bar)", use_container_width=True):
+        st.session_state["active_bits_9"] = [True] + [False]*8
         st.rerun()
-    if pr2.button("6️⃣ CLASSIC ALPHA (6 SECTORS = 30 CHANNELS)", type="secondary", use_container_width=True):
-        st.session_state.active_bits_9 = [True]*6 + [False]*3
-        st.session_state.expanded_sq_id = None
+    if pr2.button("🛸 6 SETTORI (30 Nodi — Assetto Tablet)", use_container_width=True):
+        st.session_state["active_bits_9"] = [True, True, True, True, True, True, False, False, False]
         st.rerun()
-    if pr3.button("9️⃣ FULL MATRIX 2⁹ (STATE #511 = 45 CHANNELS)", type="secondary", use_container_width=True):
-        st.session_state.active_bits_9 = [True]*9
-        st.session_state.expanded_sq_id = None
+    if pr3.button("🔥 9 SETTORI COMPLETI (2⁹ = 512 Stati — Full Resort)", use_container_width=True):
+        st.session_state["active_bits_9"] = [True]*9
         st.rerun()
 
-# ==============================================================================
-# 7. CHESSBOARD + EMS-1975 SYNTHESIZER WITH AUTOMATIC TOUCH AUDIO HOOK
-# ==============================================================================
-if st.session_state.opened_sq_id is None:
-    col_grid, col_tower = st.columns([2.85, 1.05], gap="small")
+# --- 9. CORPO CENTRALE: MATRICE CINETICA (SINISTRA) + SYNTH & QR COMMLOCK (DESTRA) ---
+col_left, col_right = st.columns([3.25, 1.15])
 
-    with col_grid:
-        tot_sq = len(all_squares)
-        cols_per_row = 1 if tot_sq == 1 else (2 if tot_sq in [2, 4] else 3)
-        rows_count = (tot_sq + cols_per_row - 1) // cols_per_row
-        for r_i in range(rows_count):
-            cols = st.columns(cols_per_row, gap="small")
-            for c_i in range(cols_per_row):
-                idx = r_i * cols_per_row + c_i
-                if idx < tot_sq:
-                    sq = all_squares[idx]
-                    sid = sq["id"]
-                    theme = sq["theme"]
-                    t_icon = sq.get("totem", "EAGLE")
-                    with cols[c_i]:
-                        if st.session_state.expanded_sq_id == sid:
-                            for r_num, r_obj in enumerate(sq["rows"], 1):
-                                r_txt = r_obj["lbl"] if isinstance(r_obj, dict) else r_obj
-                                if st.button(r_txt, key=f"r5_{sid}_{r_num}", type="secondary", use_container_width=True):
-                                    st.session_state.opened_sq_id = sid
-                                    st.session_state.opened_row_num = r_num
+with col_left:
+    # Se l'utente ha cliccato una delle 5 righe interne, apre la Consolle Operativa (es. Punto Acquisto ROP)
+    if st.session_state["selected_sub"] is not None:
+        sec_obj, sub_label = st.session_state["selected_sub"]
+        b_back1, b_back2 = st.columns(2)
+        if b_back1.button(f"← TORNA ALLE 5 RIGHE DI {sec_obj['name']}", use_container_width=True):
+            st.session_state["selected_sub"] = None
+            st.rerun()
+        if b_back2.button("TORNA ALLA MATRICE PRINCIPALE", use_container_width=True):
+            st.session_state["selected_sub"] = None
+            st.session_state["expanded_node"] = None
+            st.rerun()
+
+        st.markdown(f"""
+        <div style="background:#161C24; border:1px solid {sec_obj['border']}; border-left:5px solid {sec_obj['border']}; padding:18px; margin:10px 0;">
+            <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono';">SETTORE {sec_obj['code']} // CONSOLLE ESECUTIVA</div>
+            <div style="font-size:20px; font-weight:900; margin:4px 0;">{sec_obj['name']} — {sub_label}</div>
+            <div style="font-size:12px; color:#38BDF8; font-family:'Share Tech Mono';">{sec_obj['kpi']}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Calcolatore Punto Acquisto (ROP) + Scudo 96h sempre disponibile dentro i moduli
+        c_rop1, c_rop2, c_rop3 = st.columns(3)
+        st.session_state["rop_cons_gg"] = c_rop1.number_input("Consumo Giornaliero (Porzioni/Unità)", 1, 1000, st.session_state["rop_cons_gg"])
+        st.session_state["rop_lead_gg"] = c_rop2.number_input("Giorni Consegna Fornitore (Lead Time)", 1, 30, st.session_state["rop_lead_gg"])
+        st.session_state["rop_stock"] = c_rop3.number_input("Giacenza Attuale in Casa", 0, 5000, st.session_state["rop_stock"])
+
+        scorta_sicurezza_96h = st.session_state["bocche_96h"] * 4
+        punto_acquisto_rop = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + scorta_sicurezza_96h
+        delta_stock = st.session_state["rop_stock"] - punto_acquisto_rop
+
+        if delta_stock >= 0:
+            st.success(f"🟢 PUNTO ACQUISTO (ROP): Soglia {punto_acquisto_rop} u. | Giacenza {st.session_state['rop_stock']} u. (+{delta_stock} u. sopra Scudo 96h)")
+        else:
+            st.error(f"🔴 ALLERTA PUNTO ACQUISTO (ROP): Soglia {punto_acquisto_rop} u. | Ordinare subito {abs(delta_stock)} unità al fornitore!")
+
+        st.link_button(f"🚀 TELEPORT DIRETTO A {sec_obj['name']}", sec_obj["url"], use_container_width=True)
+
+    else:
+        # Griglia adattiva: 1 colonna se 1 solo modulo, 2 colonne se 2 o 4 moduli, altrimenti 3 colonne (come nella foto!)
+        n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
+        for r in range(0, n_sectors, n_cols):
+            row_cols = st.columns(n_cols)
+            for c in range(n_cols):
+                if r + c < n_sectors:
+                    sq = all_squares[r + c]
+                    code = sq["code"]
+                    svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
+                    with row_cols[c]:
+                        # Se la piastrella è cliccata, si apre a fisarmonica nelle 5 righe + X CHIUDI (Stile Boschetto Pro)
+                        if st.session_state["expanded_node"] == code:
+                            for sub_item in sq["subs"]:
+                                if st.button(sub_item, key=f"sub_{code}_{sub_item}", use_container_width=True):
+                                    st.session_state["selected_sub"] = (sq, sub_item)
                                     st.rerun()
-                            if st.button("✖ CLOSE", key=f"cl_{sid}", type="secondary", use_container_width=True):
-                                st.session_state.expanded_sq_id = None
+                            if st.button(f"✖ CHIUDI {sq['name']}", key=f"close_{code}", use_container_width=True):
+                                st.session_state["expanded_node"] = None
                                 st.rerun()
                         else:
-                            if st.button(sq["title"], key=f"sq_{theme}_{t_icon}_{sid}", type="primary", use_container_width=True):
-                                st.session_state.expanded_sq_id = sid
+                            st.markdown(f"""
+                            <div class="alpha-tile" style="background: {sq['bg_grad']}; border: 1.5px solid {sq['border']}; border-left: 4px solid {sq['border']}; box-shadow: inset 0 0 24px {sq['glow']};">
+                                <div>{svg_icon}</div>
+                                <div class="tile-code">{code}</div>
+                                <div class="tile-name">{sq['name']}</div>
+                                <div class="tile-kpi">{sq['kpi']}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
+                            if st.button(f"APRI {code} // {sq['name']}", key=f"btn_open_{code}", use_container_width=True):
+                                st.session_state["expanded_node"] = code
                                 st.rerun()
 
-    with col_tower:
-        sound_console_html = """
-        <div style="background:#080c14;border:1.5px solid #ffb703;border-top:4px solid #ffb703;border-radius:4px;padding:8px;font-family:monospace;color:#fff;">
-            <div style="font-size:10px;font-weight:900;color:#ffb703;letter-spacing:1.5px;margin-bottom:6px;border-bottom:1px solid #263248;padding-bottom:4px;display:flex;justify-content:space-between;">
-                <span>ALPHA EMS-1975 SYNTH</span>
-                <span id="st-led" style="color:#00ff9d;">TOUCH ARMED</span>
-            </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:5px;">
-                <button onclick="playComputerBurst()" id="btn-tel" style="background:#ffb703;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
-                    ▶ X5-7 DATA BURST
-                </button>
-                <button onclick="playCommlock1975()" style="background:#e2e8f0;color:#000;border:none;padding:7px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:0.5px;">
-                    ◈ COMMLOCK 1975
-                </button>
-            </div>
-            <button onclick="playAlphaKlaxon()" style="width:100%;background:#ff2a54;color:#fff;border:none;padding:6px 4px;font-weight:900;font-size:10px;cursor:pointer;border-radius:2px;letter-spacing:1px;">
-                ▲ ALPHA KLAXON SIREN
-            </button>
+with col_right:
+    st.markdown("""
+    <div class="ems-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:900; color:#FFFFFF; letter-spacing:1px;">ALPHA EMS-1975<br>SYNTH</span>
+            <span style="font-size:10px; font-weight:900; color:#10B981; font-family:'Share Tech Mono';">TOUCH<br>ARMED</span>
         </div>
-        <script>
-        let audioCtx = null;
+    </div>
+    """, unsafe_allow_html=True)
 
-        function initCtx() {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
-        }
+    s_col1, s_col2 = st.columns(2)
+    with s_col1:
+        if st.button("▶ X5-7 DATA\nBURST", use_container_width=True):
+            play_ems_synth("burst")
+            st.toast("🔊 EMS-1975: X5-7 Data Burst (95 BPM)")
+    with s_col2:
+        if st.button("◈ COMMLOCK\n1975", use_container_width=True):
+            play_ems_synth("commlock")
+            st.session_state["visitors_log"] += 1
+            st.toast("📡 Commlock 1975: Visitatore Registrato")
 
-        function createAnalogChain() {
-            const now = audioCtx.currentTime;
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(1650, now);
-            filter.Q.setValueAtTime(3.2, now);
+    if st.button("▲ ALPHA KLAXON SIREN", use_container_width=True):
+        play_ems_synth("klaxon")
+        st.warning("🚨 ALLERTA SOLAR STORM // PROTOCOLLO SCUDO 96H ATTIVO")
 
-            const delay = audioCtx.createDelay();
-            delay.delayTime.setValueAtTime(0.065, now);
-            const fb = audioCtx.createGain();
-            fb.gain.setValueAtTime(0.28, now);
+    module_options = ["00 ALPHA MAIN MISSION"] + [f"{s['code']} {s['name']}" for s in all_squares]
+    chosen_mod = st.selectbox("SELEZIONA NODO TELEPORT", module_options, label_visibility="collapsed")
 
-            filter.connect(audioCtx.destination);
-            filter.connect(delay);
-            delay.connect(fb);
-            fb.connect(delay);
-            delay.connect(audioCtx.destination);
-            return filter;
-        }
+    target_url = "https://alpha-main-mission.streamlit.app"
+    for s in all_squares:
+        if chosen_mod.startswith(s["code"]):
+            target_url = s["url"]
+            break
 
-        function playTouchPulse() {
-            try {
-                initCtx();
-                const now = audioCtx.currentTime;
-                const bus = createAnalogChain();
-                const freqs = [1480, 1960, 2350];
-                freqs.forEach((f, idx) => {
-                    const t = now + (idx * 0.045);
-                    const o1 = audioCtx.createOscillator();
-                    const o2 = audioCtx.createOscillator();
-                    const env = audioCtx.createGain();
-                    o1.type = 'sine'; o2.type = 'triangle';
-                    o1.frequency.setValueAtTime(f, t);
-                    o2.frequency.setValueAtTime(f * 1.414, t);
-                    env.gain.setValueAtTime(0.001, t);
-                    env.gain.linearRampToValueAtTime(0.075, t + 0.005);
-                    env.gain.exponentialRampToValueAtTime(0.001, t + 0.042);
-                    o1.connect(env); o2.connect(env); env.connect(bus);
-                    o1.start(t); o2.start(t);
-                    o1.stop(t + 0.044); o2.stop(t + 0.044);
-                });
-            } catch (e) {}
-        }
-
-        try {
-            const parentDoc = window.parent.document;
-            if (!parentDoc.alphaTouchBound) {
-                parentDoc.alphaTouchBound = true;
-                parentDoc.addEventListener('pointerdown', (ev) => {
-                    const btn = ev.target.closest('button');
-                    if (btn) {
-                        playTouchPulse();
-                    }
-                }, true);
-            }
-        } catch (e) {}
-
-        function playComputerBurst() {
-            initCtx();
-            const led = document.getElementById('st-led');
-            led.innerText = 'COMPUTING...';
-            led.style.color = '#00f0ff';
-
-            const now = audioCtx.currentTime;
-            const bus = createAnalogChain();
-
-            const hum = audioCtx.createOscillator();
-            const humGain = audioCtx.createGain();
-            hum.type = 'sawtooth';
-            hum.frequency.setValueAtTime(110, now);
-            humGain.gain.setValueAtTime(0.025, now);
-            humGain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
-            hum.connect(humGain);
-            humGain.connect(audioCtx.destination);
-            hum.start(now);
-            hum.stop(now + 1.26);
-
-            const steps = 24;
-            const stepTime = 0.046;
-            const alphaFreqs = [1180, 1420, 1680, 1930, 2240, 2580, 1310, 2890, 1540];
-
-            for (let i = 0; i < steps; i++) {
-                if (Math.random() < 0.14) continue;
-                const t = now + (i * stepTime);
-                const osc = audioCtx.createOscillator();
-                const mod = audioCtx.createOscillator();
-                const modGain = audioCtx.createGain();
-                const env = audioCtx.createGain();
-
-                const baseF = alphaFreqs[Math.floor(Math.random() * alphaFreqs.length)];
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(baseF, t);
-
-                mod.type = 'triangle';
-                mod.frequency.setValueAtTime(baseF * 1.414, t);
-                modGain.gain.setValueAtTime(320, t);
-
-                mod.connect(modGain);
-                modGain.connect(osc.frequency);
-
-                env.gain.setValueAtTime(0.001, t);
-                env.gain.linearRampToValueAtTime(0.09, t + 0.004);
-                env.gain.exponentialRampToValueAtTime(0.002, t + stepTime - 0.004);
-
-                osc.connect(env);
-                env.connect(bus);
-
-                osc.start(t); mod.start(t);
-                osc.stop(t + stepTime); mod.stop(t + stepTime);
-            }
-
-            setTimeout(() => {
-                led.innerText = 'TOUCH ARMED';
-                led.style.color = '#00ff9d';
-            }, 1250);
-        }
-
-        function playCommlock1975() {
-            initCtx();
-            const now = audioCtx.currentTime;
-            const bus = createAnalogChain();
-            const pattern = [
-                {t: 0.00, f1: 1480, f2: 2110, d: 0.11},
-                {t: 0.13, f1: 1960, f2: 2790, d: 0.18},
-                {t: 0.34, f1: 1480, f2: 2110, d: 0.11},
-                {t: 0.47, f1: 2350, f2: 3320, d: 0.24}
-            ];
-            pattern.forEach(p => {
-                const start = now + p.t;
-                const o1 = audioCtx.createOscillator();
-                const o2 = audioCtx.createOscillator();
-                const env = audioCtx.createGain();
-                o1.type = 'sine'; o2.type = 'sine';
-                o1.frequency.setValueAtTime(p.f1, start);
-                o2.frequency.setValueAtTime(p.f2, start);
-                env.gain.setValueAtTime(0.001, start);
-                env.gain.linearRampToValueAtTime(0.08, start + 0.008);
-                env.gain.exponentialRampToValueAtTime(0.001, start + p.d);
-                o1.connect(env); o2.connect(env); env.connect(bus);
-                o1.start(start); o2.start(start);
-                o1.stop(start + p.d + 0.01); o2.stop(start + p.d + 0.01);
-            });
-        }
-
-        function playAlphaKlaxon() {
-            initCtx();
-            const now = audioCtx.currentTime;
-            const filter = audioCtx.createBiquadFilter();
-            filter.type = 'lowpass';
-            filter.frequency.setValueAtTime(1350, now);
-            filter.Q.setValueAtTime(4.0, now);
-            filter.connect(audioCtx.destination);
-
-            for (let i = 0; i < 4; i++) {
-                const t = now + (i * 0.28);
-                const osc1 = audioCtx.createOscillator();
-                const osc2 = audioCtx.createOscillator();
-                const env = audioCtx.createGain();
-                const fBase = (i % 2 === 0) ? 585 : 440;
-                osc1.type = 'sawtooth'; osc2.type = 'square';
-                osc1.frequency.setValueAtTime(fBase, t);
-                osc2.frequency.setValueAtTime(fBase * 1.008, t);
-                env.gain.setValueAtTime(0.08, t);
-                env.gain.exponentialRampToValueAtTime(0.01, t + 0.25);
-                osc1.connect(env); osc2.connect(env); env.connect(filter);
-                osc1.start(t); osc2.start(t);
-                osc1.stop(t + 0.26); osc2.stop(t + 0.26);
-            }
-        }
-        </script>
-        """
-        components.html(sound_console_html, height=122)
-
-        qr_sel = st.selectbox(
-            "QR TARGET MODULE:",
-            [
-                "00 ALPHA MAIN MISSION",
-                "01 SOVEREIGN APEX",
-                "02 LAZERS BEVERAGE",
-                "03 LAZERS FOOD",
-                "04 BEACH & POOL",
-                "05 SPA & AYURVEDA",
-                "06 S.K.A. & ROOMS",
-                "07 PUNTO ACQUISTO (ROP)",
-                "08 HACCP & ASL REGISTRY",
-                "09 MULTI-P.IVA & GOPPAR"
-            ],
-            label_visibility="collapsed"
-        )
-        qr_map = {
-            "00 ALPHA MAIN MISSION": "https://alpha-main-mission.streamlit.app",
-            "01 SOVEREIGN APEX": "https://sovereign-apex.streamlit.app",
-            "02 LAZERS BEVERAGE": "https://bemask-lazers.streamlit.app/?sub=bev",
-            "03 LAZERS FOOD": "https://bemask-lazers.streamlit.app/?sub=food",
-            "04 BEACH & POOL": "https://boschetto.streamlit.app/?module=beach",
-            "05 SPA & AYURVEDA": "https://boschetto.streamlit.app/?module=spa",
-            "06 S.K.A. & ROOMS": "https://sovereign-kinetic-architecture.streamlit.app",
-            "07 PUNTO ACQUISTO (ROP)": "https://bemask-lazers.streamlit.app/?sub=rop",
-            "08 HACCP & ASL REGISTRY": "https://ska-boschetto.streamlit.app/?sub=asl",
-            "09 MULTI-P.IVA & GOPPAR": "https://bemask-lazers.streamlit.app/?sub=piva"
-        }
-        target_qr_url = qr_map[qr_sel]
-        encoded_url = urllib.parse.quote(target_qr_url, safe="")
-        qr_img_src = f"https://api.qrserver.com/v1/create-qr-code/?size=130x130&color=ffb703&bgcolor=060b14&margin=2&data={encoded_url}"
-
-        tower_html = (
-            f"<div class='right-tower'>"
-            f"<div class='tower-header'>COMMLOCK // QR TELEPORT</div>"
-            f"<div class='qr-holo-box'>"
-            f"<img src='{qr_img_src}' width='115' height='115' alt='QR Access'/>"
-            f"<div style='font-family:Orbitron,monospace;font-size:0.62rem;font-weight:800;color:#ffb703;margin-top:5px;'>{qr_sel}</div>"
-            f"<div style='font-family:Share Tech Mono,monospace;font-size:0.54rem;color:#00ff9d;'>STATE #{state_code_512}/512 | VISITORS: {st.session_state.alpha_visitors}</div>"
-            f"<div style='font-family:Share Tech Mono,monospace;font-size:0.52rem;color:#94a3b8;'>{target_qr_url.replace('https://', '')}</div>"
-            f"</div>"
-            f"</div>"
-        )
-        st.markdown(tower_html, unsafe_allow_html=True)
-
-# ==============================================================================
-# 8. INTERNAL 45-BUTTON LAUNCH BRIDGE & TELEMETRY BRIEFING
-# ==============================================================================
-else:
-    sid = st.session_state.opened_sq_id
-    r_num = st.session_state.opened_row_num
-    sq_obj = next(x for x in all_squares if x["id"] == sid)
-    clean_name = sq_obj["title"].replace("\n", " - ")
-    row_obj = sq_obj["rows"][r_num - 1]
-    row_label = row_obj["lbl"]
-    target_url = row_obj["url"]
-    row_desc = row_obj["desc"]
-
-    if st.button(f"⬅ RETURN TO MAIN MISSION ({clean_name})", type="secondary", use_container_width=True):
-        st.session_state.opened_sq_id = None
-        st.session_state.expanded_sq_id = None
-        st.rerun()
-
-    st.markdown(f"#### {clean_name} // {row_label}")
-    st.markdown(
-        f"<div style='background:#080d18;border:1.5px solid #ffb703;border-left:6px solid #ffb703;padding:18px;border-radius:4px;margin-top:10px;'>"
-        f"<div style='font-family:Michroma,Orbitron,sans-serif;font-size:0.85rem;color:#ffb703;'>DIRECT HYPER-BRIDGE // NODE {sid}-R0{r_num} (STATE #{state_code_512}/512)</div>"
-        f"<div style='font-family:Inter,sans-serif;font-size:0.92rem;color:#ffffff;font-weight:700;margin-top:8px;'>{row_desc}</div>"
-        f"<div style='font-family:Share Tech Mono,monospace;font-size:0.78rem;color:#38bdf8;margin:6px 0 16px 0;'>Target Endpoint: <b>{target_url}</b></div>"
-        f"<a href='{target_url}' target='_blank' style='display:inline-block;background:#ffb703;color:#000;font-family:Orbitron,sans-serif;font-weight:900;padding:10px 20px;border-radius:3px;text-decoration:none;letter-spacing:0.08em;'>"
-        f"🚀 LAUNCH {row_label.upper()} MODULE</a>"
-        f"</div>",
-        unsafe_allow_html=True
-    )
+    st.markdown(f"""
+    <div class="commlock-panel">
+        <div style="font-size:11px; font-weight:900; color:#FFFFFF; text-align:left; letter-spacing:1px; margin-bottom:10px;">
+            COMMLOCK // QR<br>TELEPORT
+        </div>
+        <div style="background:#0B0E14; border:2px solid #F59E0B; padding:10px; display:inline-block; border-radius:3px;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=F59E0B&bgcolor=0B0E14&data={target_url}" width="145" />
+        </div>
+        <div style="font-size:10px; font-weight:900; color:#F59E0B; margin-top:10px; letter-spacing:0.8px;">
+            {chosen_mod}
+        </div>
+        <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">
+            alpha-main-mission.streamlit.app
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
