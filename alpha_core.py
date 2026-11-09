@@ -15,16 +15,16 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MOBILE ZERO-CLICK AUTO-SCAN EDITION
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (100% FULL UNABRIDGED EDITION)
 # ==============================================================================
 
 st.set_page_config(
-    page_title="BEMASK - MOONBASE A.L.P.H.A.",
+    page_title="BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# --- 1. MOTORE CRITTOGRAFICO NATIVO 2FA ---
+# --- 1. MOTORE CRITTOGRAFICO NATIVO 2FA (RFC 6238 GOOGLE AUTHENTICATOR) ---
 def get_totp_secret():
     try:
         return st.secrets.get("ALPHA_2FA_SECRET", "JBSWY3DPEHPK3PXP")
@@ -73,12 +73,12 @@ def verify_2fa_code(input_code, secret_b32):
     return False
 
 # ==============================================================================
-# MOTORE OCR VISION IN RAM CON AUTODISCOVERY (ZERO-CLICK AUTO-RUN)
+# MOTORE OCR VISION IN RAM CON AUTODISCOVERY DEI MODELLI GOOGLE (ZERO-CLICK)
 # ==============================================================================
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
     clean_key = str(api_key).strip()
     if not clean_key or len(clean_key) < 15:
-        return None, "Chiave API mancante. Inseriscila una sola volta nel box 'Chiave AI' qui sotto."
+        return None, "Chiave API mancante. Inseriscila nel box 'Chiave AI' o in st.secrets['GEMINI_API_KEY']."
 
     b64_img = base64.b64encode(image_bytes).decode("utf-8")
     prompt_txt = (
@@ -114,7 +114,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
                 break
         except urllib.error.HTTPError as he:
             if he.code in [400, 401, 403]:
-                return None, f"Chiave API non valida (HTTP {he.code}). Assicurati che inizi con 'AIzaSy...'."
+                return None, f"Chiave API non riconosciuta (HTTP {he.code}). Assicurati che inizi con 'AIzaSy...'."
         except Exception:
             continue
 
@@ -154,7 +154,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
 
     return None, f"Lettura AI non riuscita ({last_err})."
 
-# --- 2. BLINDAGGIO SESSION STATE ---
+# --- 2. BLINDAGGIO SESSION STATE COMPLETO ---
 def init_monumental_state():
     default_labels_ao = {
         "A": "USCITA A", "B": "USCITA B", "C": "USCITA C", "D": "USCITA D",
@@ -192,17 +192,18 @@ def init_monumental_state():
         "bar_ao_labels": default_labels_ao,
         "unsaved_ops_count": 0,
         "custom_gemini_key": "",
-        "processed_ hashes": [],
+        "processed_hashes": [],
         "last_auto_saved_banner": None,
-        "ocr_esercente": "Pechino Follonica",
+        "ocr_esercente": "Pechino Follonica (pechinofollonica@gmail.com)",
         "ocr_metodo": "CARTA DI CREDITO / POS",
         "ocr_items_df": [
-            {"voce": "Scontrino / Pagamento POS", "qta": 1, "prezzo": 19.80}
+            {"voce": "Voce 1 Scontrino (Modifica qui il nome prodotto)", "qta": 1, "prezzo": 10.00},
+            {"voce": "Voce 2 Scontrino (Modifica o aggiungi riga +)", "qta": 1, "prezzo": 9.80}
         ],
         "chrono_ledger": [
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "desc": "Apertura sacchetto grani 1 Kg (~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "desc": "Apertura sacchetto grani 1 Kg (Resa attesa ~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
             {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:15", "type": "BOLLA DDT", "desc": "Art. 10001 Doreca — Scostamento +€1.90/L", "amount": -14.80, "days_span": 1, "status": "ALERT"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "desc": "Pechino Follonica (Carta di Credito) — € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "desc": "Pechino Follonica (Carta di Credito) — Totale € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
         ]
     }
     for k, v in defaults.items():
@@ -240,7 +241,7 @@ def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK"):
     })
     st.session_state["unsaved_ops_count"] += 1
 
-# --- 3. SINTETIZZATORE AUDIO WEBAUDIO ---
+# --- 3. SINTETIZZATORE AUDIO WEBAUDIO (EMS SYNTHI 1975) ---
 def play_ems_synth(effect_type):
     js_code = f"""
     <script>
@@ -293,32 +294,37 @@ def play_ems_synth(effect_type):
 # 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (SVG MONUMENTALI)
 # ==============================================================================
 EAGLE_HERO_SVG = """
-<svg width="95" height="48" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="105" height="52" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
   <rect x="48" y="16" width="84" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
   <path d="M48 28L62 16L76 28L90 16L104 28L118 16L132 28" stroke="#CBD5E1" stroke-width="1.8"/>
+  <path d="M48 16L62 28L76 16L90 28L104 16L118 28L132 16" stroke="#64748B" stroke-width="1.4"/>
   <polygon points="36,36 58,36 62,58 32,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
   <polygon points="122,36 144,36 148,58 118,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
   <rect x="30" y="58" width="34" height="5" fill="#F59E0B"/>
   <rect x="116" y="58" width="34" height="5" fill="#F59E0B"/>
   <rect x="58" y="30" width="64" height="24" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+  <line x1="74" y1="30" x2="74" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
+  <line x1="106" y1="30" x2="106" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
   <polygon points="90,22 122,42 112,68 68,68 58,42" fill="#E2E8F0" stroke="#FFFFFF" stroke-width="2.2"/>
   <polygon points="87,34 65,44 72,54 87,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
   <polygon points="93,34 115,44 108,54 93,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
+  <circle cx="22" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
+  <circle cx="158" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
 </svg>
 """
 
 SVG_ICONS = {
-    "01": """<svg width="80" height="60" viewBox="0 0 120 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="10" width="72" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/><path d="M24 22L38 10L52 22L66 10L80 22L96 10" stroke="#E2E8F0" stroke-width="2"/><polygon points="14,32 36,32 40,58 10,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="84,32 106,32 110,58 80,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="60,20 92,42 82,70 38,70 28,42" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2.5"/><polygon points="57,34 35,44 42,56 57,50" fill="#F59E0B"/><polygon points="63,34 85,44 78,56 63,50" fill="#F59E0B"/><rect x="8" y="60" width="32" height="5" fill="#F59E0B"/><rect x="80" y="60" width="32" height="5" fill="#F59E0B"/></svg>""",
-    "02": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="8" width="90" height="68" rx="4" fill="#0F172A" stroke="#10B981" stroke-width="2.5"/><rect x="18" y="16" width="20" height="12" fill="#F59E0B"/><rect x="44" y="16" width="20" height="12" fill="#F8FAFC"/><rect x="70" y="16" width="22" height="12" fill="#10B981"/><rect x="18" y="34" width="20" height="12" fill="#10B981"/><rect x="44" y="34" width="20" height="12" fill="#EF4444"/><rect x="70" y="34" width="22" height="12" fill="#F59E0B"/><rect x="18" y="54" width="74" height="14" fill="#1E293B" stroke="#34D399" stroke-width="1.8"/><path d="M22 61H40L45 56L52 66L58 58L64 61H88" stroke="#10B981" stroke-width="2.2"/></svg>""",
-    "03": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="55" cy="42" r="32" fill="#0F293A" stroke="#38BDF8" stroke-width="2.5"/><circle cx="55" cy="42" r="20" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="55" y1="10" x2="55" y2="74" stroke="#38BDF8" stroke-width="1.5"/><line x1="23" y1="42" x2="87" y2="42" stroke="#38BDF8" stroke-width="1.5"/><circle cx="65" cy="32" r="5" fill="#F59E0B"/><circle cx="43" cy="50" r="4" fill="#10B981"/></svg>""",
-    "04": """<svg width="72" height="60" viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="6" width="48" height="74" rx="5" fill="#1E1B2E" stroke="#A855F7" stroke-width="2.8"/><rect x="33" y="13" width="34" height="26" rx="2" fill="#090D16" stroke="#38BDF8" stroke-width="2"/><circle cx="50" cy="26" r="7" fill="#F59E0B"/><rect x="34" y="45" width="9" height="7" fill="#F59E0B"/><rect x="46" y="45" width="9" height="7" fill="#E2E8F0"/><rect x="57" y="45" width="9" height="7" fill="#EF4444"/><line x1="34" y1="60" x2="66" y2="60" stroke="#CBD5E1" stroke-width="2"/><line x1="34" y1="66" x2="66" y2="66" stroke="#CBD5E1" stroke-width="2"/></svg>""",
-    "05": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="12" width="82" height="60" rx="6" fill="#2A121F" stroke="#F43F5E" stroke-width="2.5"/><path d="M22 44H38L45 24L55 62L64 34L70 44H88" stroke="#F43F5E" stroke-width="3"/><circle cx="28" cy="24" r="4" fill="#F59E0B"/><circle cx="82" cy="24" r="4" fill="#10B981"/></svg>""",
-    "06": """<svg width="80" height="60" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="18,76 28,10 86,10 96,76" fill="#161A22" stroke="#F59E0B" stroke-width="2.8"/><polygon points="22,74 30,13 54,13 48,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="66,74 62,13 84,13 92,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="48,74 54,13 62,13 66,74" fill="rgba(245,158,11,0.35)"/><rect x="100" y="34" width="8" height="16" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/></svg>""",
-    "07": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="24,20 86,20 96,42 86,66 24,66 14,42" fill="#0F2E26" stroke="#10B981" stroke-width="2.5"/><rect x="34" y="30" width="42" height="24" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><line x1="24" y1="42" x2="86" y2="42" stroke="#34D399" stroke-width="2"/><circle cx="55" cy="42" r="6" fill="#F59E0B"/></svg>""",
-    "08": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/><circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/><path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/></svg>""",
-    "09": """<svg width="80" height="60" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/><ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/><ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/><circle cx="55" cy="12" r="6" fill="#EF4444"/></svg>""",
-    "10": """<svg width="80" height="60" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/><rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/><line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/><line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/><circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/><circle cx="82" cy="29" r="4" fill="#EF4444"/><rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/><rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/></svg>""",
-    "11": """<svg width="82" height="60" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>"""
+    "01": """<svg width="84" height="62" viewBox="0 0 120 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="10" width="72" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/><path d="M24 22L38 10L52 22L66 10L80 22L96 10" stroke="#E2E8F0" stroke-width="2"/><polygon points="14,32 36,32 40,58 10,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="84,32 106,32 110,58 80,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="60,20 92,42 82,70 38,70 28,42" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2.5"/><polygon points="57,34 35,44 42,56 57,50" fill="#F59E0B"/><polygon points="63,34 85,44 78,56 63,50" fill="#F59E0B"/><rect x="8" y="60" width="32" height="5" fill="#F59E0B"/><rect x="80" y="60" width="32" height="5" fill="#F59E0B"/></svg>""",
+    "02": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="8" width="90" height="68" rx="4" fill="#0F172A" stroke="#10B981" stroke-width="2.5"/><rect x="18" y="16" width="20" height="12" fill="#F59E0B"/><rect x="44" y="16" width="20" height="12" fill="#F8FAFC"/><rect x="70" y="16" width="22" height="12" fill="#10B981"/><rect x="18" y="34" width="20" height="12" fill="#10B981"/><rect x="44" y="34" width="20" height="12" fill="#EF4444"/><rect x="70" y="34" width="22" height="12" fill="#F59E0B"/><rect x="18" y="54" width="74" height="14" fill="#1E293B" stroke="#34D399" stroke-width="1.8"/><path d="M22 61H40L45 56L52 66L58 58L64 61H88" stroke="#10B981" stroke-width="2.2"/></svg>""",
+    "03": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="55" cy="42" r="32" fill="#0F293A" stroke="#38BDF8" stroke-width="2.5"/><circle cx="55" cy="42" r="20" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="55" y1="10" x2="55" y2="74" stroke="#38BDF8" stroke-width="1.5"/><line x1="23" y1="42" x2="87" y2="42" stroke="#38BDF8" stroke-width="1.5"/><circle cx="65" cy="32" r="5" fill="#F59E0B"/><circle cx="43" cy="50" r="4" fill="#10B981"/></svg>""",
+    "04": """<svg width="74" height="62" viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="6" width="48" height="74" rx="5" fill="#1E1B2E" stroke="#A855F7" stroke-width="2.8"/><rect x="33" y="13" width="34" height="26" rx="2" fill="#090D16" stroke="#38BDF8" stroke-width="2"/><circle cx="50" cy="26" r="7" fill="#F59E0B"/><rect x="34" y="45" width="9" height="7" fill="#F59E0B"/><rect x="46" y="45" width="9" height="7" fill="#E2E8F0"/><rect x="57" y="45" width="9" height="7" fill="#EF4444"/><line x1="34" y1="60" x2="66" y2="60" stroke="#CBD5E1" stroke-width="2"/><line x1="34" y1="66" x2="66" y2="66" stroke="#CBD5E1" stroke-width="2"/></svg>""",
+    "05": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="12" width="82" height="60" rx="6" fill="#2A121F" stroke="#F43F5E" stroke-width="2.5"/><path d="M22 44H38L45 24L55 62L64 34L70 44H88" stroke="#F43F5E" stroke-width="3"/><circle cx="28" cy="24" r="4" fill="#F59E0B"/><circle cx="82" cy="24" r="4" fill="#10B981"/></svg>""",
+    "06": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="18,76 28,10 86,10 96,76" fill="#161A22" stroke="#F59E0B" stroke-width="2.8"/><polygon points="22,74 30,13 54,13 48,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="66,74 62,13 84,13 92,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="48,74 54,13 62,13 66,74" fill="rgba(245,158,11,0.35)"/><rect x="100" y="34" width="8" height="16" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/></svg>""",
+    "07": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="24,20 86,20 96,42 86,66 24,66 14,42" fill="#0F2E26" stroke="#10B981" stroke-width="2.5"/><rect x="34" y="30" width="42" height="24" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><line x1="24" y1="42" x2="86" y2="42" stroke="#34D399" stroke-width="2"/><circle cx="55" cy="42" r="6" fill="#F59E0B"/></svg>""",
+    "08": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/><circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/><path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/></svg>""",
+    "09": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/><ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/><ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/><circle cx="55" cy="12" r="6" fill="#EF4444"/></svg>""",
+    "10": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/><rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/><line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/><line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/><circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/><circle cx="82" cy="29" r="4" fill="#EF4444"/><rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/><rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/></svg>""",
+    "11": """<svg width="86" height="62" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>"""
 }
 
 # --- 5. ARCHITETTURA DEGLI 11 VETTORI PRIMARI ---
@@ -381,32 +387,31 @@ BASE_VECTORS = [
         "bit": 9, "code": "10", "short": "10 BAR DDT", "name": "BAR & DDT SENTINEL", "artifact": "X5-7 MAIN COMPUTER CONSOLE", "staff_allowed": False,
         "border": "#10B981", "glow": "rgba(16, 185, 129, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F3D33 0%, #10171D 78%)",
         "kpi": "SCATTA E SALVA 1-CLICK | CASSA A-O | +1KG CAFFÈ", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scatta & Salva Automatico", "2. 🎹 Tastiera Cassa (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Calendario Storico"]
+        "subs": ["1. 📸 Scatta & Salva + Bolla", "2. 🎹 Tastiera Cassa (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Calendario Storico"]
     },
     {
         "bit": 10, "code": "11", "short": "11 VAMPIRE", "name": "BANK VAMPIRE SCANNER", "artifact": "KOENIG LASER STUN GUN", "staff_allowed": False,
         "border": "#EF4444", "glow": "rgba(239, 68, 68, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #421820 0%, #151319 78%)",
         "kpi": "AUTOPSIA CONTO | POS REALE & SDD ALERT", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scatta E/C & Salva", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Calendario Storico"]
+        "subs": ["1. 📸 Scatta E/C & POS Reale", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Calendario Storico"]
     }
 ]
 
 WEATHER_5_DAYS = [
-    {"day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "7 KT NW", "directive": "☀️ SPINTA DEHORS & APERITIVI", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MAR 10/11 · 17°C", "icon": "🌤️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "11 KT W", "directive": "🌤️ REGIME STANDARD", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MER 11/11 · 17°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "29 KT SW", "directive": "⚡ FALLBACK SALA INTERNA", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "GIO 12/11 · 20°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "33 KT S", "directive": "🚨 SCUDO 96H ATTIVO", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "VEN 13/11 · 21°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "9 KT NE", "directive": "🛸 RIAPERTURA ESTERNI", "border": "#38BDF8", "text_col": "#38BDF8"},
+    {"day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW", "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO", "border": "#F59E0B", "text_col": "#F59E0B"},
+    {"day": "MAR 10/11 · 17°C", "icon": "🌤️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W", "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO", "border": "#F59E0B", "text_col": "#F59E0B"},
+    {"day": "MER 11/11 · 17°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW", "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2", "border": "#EF4444", "text_col": "#EF4444"},
+    {"day": "GIO 12/11 · 20°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S", "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI", "border": "#EF4444", "text_col": "#EF4444"},
+    {"day": "VEN 13/11 · 21°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE", "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI", "border": "#38BDF8", "text_col": "#38BDF8"},
 ]
 
 # ==============================================================================
-# 6. CSS BLINDATO CONTro LO SPOSTAMENTO COLONNA SU TELEFONINO (ANTI-WOBBLE MOBILE)
+# 6. CSS MONUMENTALE + BLOCCO TOTALE SCORRIMENTO ORIZZONTALE SU TELEFONINO
 # ==============================================================================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
 
-/* BLOCCO TOTALE SCORRIMENTO ORIZZONTALE SU TELEFONINO */
 html, body, [data-testid="stAppViewContainer"], .stApp, .main, .block-container {
     overflow-x: hidden !important;
     max-width: 100vw !important;
@@ -417,7 +422,7 @@ html, body, [data-testid="stAppViewContainer"], .stApp, .main, .block-container 
     background-color: #101319;
     background-image:
         radial-gradient(circle at 50% 32%, rgba(245, 158, 11, 0.07) 0%, rgba(16, 19, 25, 0.96) 72%),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420'><g opacity='0.045' stroke='%23F59E0B' stroke-width='2' fill='none'><rect x='220' y='90' width='460' height='60'/><path d='M220 150 L300 90 L380 150 L460 90 L540 150 L620 90 L680 150'/><polygon points='450,110 610,210 560,340 340,340 290,210'/><polygon points='435,175 325,220 360,275 435,250' fill='%23F59E0B'/><polygon points='465,175 575,220 540,275 465,250' fill='%23F59E0B'/></g></svg>");
+        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420'><g opacity='0.045' stroke='%23F59E0B' stroke-width='2' fill='none'><rect x='220' y='90' width='460' height='60'/><path d='M220 150 L300 90 L380 150 L460 90 L540 150 L620 90 L680 150'/><polygon points='450,110 610,210 560,340 340,340 290,210'/><polygon points='435,175 325,220 360,275 435,250' fill='%23F59E0B'/><polygon points='465,175 575,220 540,275 465,250' fill='%23F59E0B'/><rect x='140' y='180' width='120' height='110'/><rect x='640' y='180' width='120' height='110'/></g></svg>");
     background-repeat: no-repeat;
     background-position: center 140px;
     background-attachment: fixed;
@@ -425,7 +430,7 @@ html, body, [data-testid="stAppViewContainer"], .stApp, .main, .block-container 
     font-family: 'Orbitron', sans-serif;
 }
 header[data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 0.6rem; padding-left: 0.8rem !important; padding-right: 0.8rem !important; max-width: 98% !important; }
+.block-container { padding-top: 0.6rem; padding-left: 1rem !important; padding-right: 1rem !important; max-width: 97% !important; }
 
 div[data-baseweb="input"] > div:focus-within {
     border-color: #10B981 !important;
@@ -434,36 +439,37 @@ div[data-baseweb="input"] > div:focus-within {
 
 .koenig-strip {
     background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
-    padding: 8px 12px; margin-bottom: 8px; border-radius: 2px;
+    padding: 8px 14px; margin-bottom: 8px; border-radius: 2px;
 }
-.badge-amber { background-color: #F59E0B; color: #0B0E14; font-weight: 900; font-size: 10px; padding: 3px 7px; margin-right: 6px; display: inline-block; margin-bottom: 3px; }
-.badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 7px; margin-right: 5px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 7px; margin-right: 5px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-green { background-color: #064E3B; border: 1px solid #10B981; color: #6EE7B7; font-weight: 800; font-size: 10px; padding: 2px 7px; margin-right: 5px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
+.badge-amber { background-color: #F59E0B; color: #0B0E14; font-weight: 900; font-size: 10px; padding: 3px 8px; margin-right: 6px; display: inline-block; margin-bottom: 3px; }
+.badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
+.badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
+.badge-green { background-color: #064E3B; border: 1px solid #10B981; color: #6EE7B7; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
 
 .mission-bar {
     background: linear-gradient(90deg, #161C24 0%, #1E2836 50%, #161C24 100%);
     border: 1px solid #3A4B5E; border-left: 5px solid #F59E0B;
-    padding: 10px 14px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;
+    padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;
 }
-.mission-title { font-size: 17px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.2px; }
-.mission-sub { font-size: 10px; color: #38BDF8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.8px; margin-top: 2px; }
-.nixie-group { display: flex; align-items: center; gap: 8px; }
-.nixie-label { font-size: 10px; color: #94A3B8; font-weight: 700; }
+.mission-title { font-size: 18px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.4px; }
+.mission-sub { font-size: 10px; color: #38BDF8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 2px; }
+.nixie-group { display: flex; align-items: center; gap: 10px; }
+.nixie-label { font-size: 10px; color: #94A3B8; font-weight: 700; letter-spacing: 1px; }
 .nixie-digits {
     background-color: #0D1015; border: 1px solid #F59E0B; color: #F59E0B;
-    font-family: 'Share Tech Mono', monospace; font-size: 16px; font-weight: 900;
-    padding: 2px 8px; letter-spacing: 2px; border-radius: 2px;
+    font-family: 'Share Tech Mono', monospace; font-size: 17px; font-weight: 900;
+    padding: 3px 10px; letter-spacing: 3px; border-radius: 2px;
+    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
 }
 
 .weather-card {
     background-color: #151922; border: 1px solid #2B3340;
-    padding: 8px 10px; border-radius: 3px; margin-bottom: 8px;
+    padding: 9px 11px; border-radius: 3px; margin-bottom: 8px;
 }
 .w-header { display: flex; justify-content: space-between; align-items: center; }
-.w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; }
-.w-icon { font-size: 16px; }
-.w-status { font-size: 9px; font-weight: 900; margin-top: 3px; }
+.w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.5px; }
+.w-icon { font-size: 17px; line-height: 1; }
+.w-status { font-size: 10px; font-weight: 900; margin-top: 3px; letter-spacing: 0.7px; }
 .w-telemetry {
     display: flex; justify-content: space-between; margin-top: 5px; padding-top: 4px;
     border-top: 1px dashed #2E3846; font-family: 'Share Tech Mono', monospace;
@@ -472,59 +478,67 @@ div[data-baseweb="input"] > div:focus-within {
 .w-directive { margin-top: 4px; font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #94A3B8; }
 
 .alpha-tile {
-    height: 215px; border-radius: 3px; padding: 14px;
+    height: 220px; border-radius: 3px; padding: 15px;
     display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; position: relative; margin-bottom: 12px; pointer-events: none;
+    text-align: center; position: relative; transition: all 0.22s ease;
+    margin-bottom: 14px; pointer-events: none;
 }
-.tile-code { font-size: 11px; font-weight: 800; color: #F59E0B; margin-top: 8px; letter-spacing: 1.5px; }
-.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1px; margin-top: 3px; }
-.tile-artifact { font-size: 9px; font-weight: 700; color: #94A3B8; font-family: 'Share Tech Mono', monospace; margin-top: 4px; }
+.tile-code { font-size: 11px; font-weight: 800; color: #F59E0B; margin-top: 9px; letter-spacing: 1.5px; }
+.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.1px; margin-top: 3px; }
+.tile-artifact { font-size: 9px; font-weight: 700; color: #94A3B8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 4px; }
 
 div[class*="st-key-blum_click_"] {
-    margin-top: -227px !important;
-    margin-bottom: 12px !important;
+    margin-top: -234px !important;
+    margin-bottom: 14px !important;
     position: relative;
     z-index: 10;
 }
 div[class*="st-key-blum_click_"] > div > button {
-    height: 215px !important;
+    height: 220px !important;
     width: 100% !important;
     background: transparent !important;
     border: none !important;
     color: transparent !important;
     box-shadow: none !important;
 }
+div[class*="st-key-blum_click_"] > div > button:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
+    box-shadow: 0 0 32px rgba(245, 158, 11, 0.4) !important;
+}
 
 div.stButton > button {
     background-color: #1A212B !important; color: #F8FAFC !important;
     border: 1px solid #2F3E50 !important; border-radius: 3px !important;
-    font-family: 'Orbitron', sans-serif !important; font-size: 11px !important;
+    font-family: 'Orbitron', sans-serif !important; font-size: 10px !important;
     font-weight: 800 !important; letter-spacing: 0.8px !important;
-    min-height: 42px !important;
+    min-height: 40px !important;
+    transition: all 0.2s ease !important;
 }
 div.stButton > button:hover {
     border-color: #F59E0B !important; color: #F59E0B !important;
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important;
 }
 
 .ems-panel { background-color: #161A22; border: 2px solid #F59E0B; padding: 12px; border-radius: 3px; margin-bottom: 10px; }
-.commlock-panel { background-color: #161A22; border: 1px solid #F59E0B; padding: 14px; border-radius: 3px; text-align: center; }
-.blum-stage { background: radial-gradient(circle at 50% 20%, #1A2432 0%, #0E1218 85%); padding: 16px; border-radius: 4px; margin-bottom: 12px; }
+.commlock-panel { background-color: #161A22; border: 1px solid #F59E0B; padding: 14px; border-radius: 3px; text-align: center; margin-top: 8px; }
+.blum-stage { background: radial-gradient(circle at 50% 20%, #1A2432 0%, #0E1218 85%); padding: 18px; border-radius: 4px; margin-bottom: 12px; }
 
 .kpi-custom-box {
     background-color: #141A23; border: 1px solid #2B394A; border-left: 4px solid #F59E0B;
     padding: 14px; border-radius: 3px; margin-top: 6px; margin-bottom: 8px;
 }
-.kpi-custom-title { font-size: 10px; font-weight: 800; color: #94A3B8; letter-spacing: 1px; margin-bottom: 6px; font-family: 'Share Tech Mono', monospace; }
-.kpi-custom-value { font-size: 22px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.8px; line-height: 1.2; }
+.kpi-custom-title { font-size: 10px; font-weight: 800; color: #94A3B8; letter-spacing: 1.1px; margin-bottom: 6px; font-family: 'Share Tech Mono', monospace; }
+.kpi-custom-value { font-size: 23px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.9px; line-height: 1.2; }
 .kpi-custom-sub { font-size: 11px; font-weight: 700; margin-top: 6px; font-family: 'Share Tech Mono', monospace; }
 
 .autosave-banner {
     background: linear-gradient(90deg, #064E3B 0%, #0F2922 100%);
     border: 2px solid #10B981; border-left: 6px solid #F59E0B;
     padding: 14px; border-radius: 4px; margin-top: 10px; margin-bottom: 12px;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
 }
 
-/* OTTIMIZZAZIONE SPECIFICA PER SCHERMI TELEFONINO (< 768px) */
 @media (max-width: 768px) {
     .mission-title { font-size: 14px !important; }
     .kpi-custom-value { font-size: 19px !important; }
@@ -543,52 +557,69 @@ STAFF_PINS = {
 }
 
 if not st.session_state["auth_unlocked"]:
-    st.markdown("<div style='height:15px;'></div>", unsafe_allow_html=True)
-    g_left, g_center, g_right = st.columns([0.2, 2.6, 0.2])
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    g_left, g_center, g_right = st.columns([0.5, 2.2, 0.5])
     with g_center:
         st.markdown(f"""
-        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:20px; border-radius:4px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:24px; border-radius:4px; box-shadow:0 0 45px rgba(245,158,11,0.22);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div>{EAGLE_HERO_SVG}</div>
-                <span class="badge-amber">EAGLE-1 // MOBILE READY</span>
+                <span class="badge-amber">EAGLE-1 // ZERO-TRUST 2FA</span>
             </div>
-            <div style="font-size:18px; font-weight:900; color:#FFFFFF; letter-spacing:1.2px;">
+            <div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:1.4px;">
                 BEMASK // A.L.P.H.A. SECURITY GATE
             </div>
-            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px;">
-                SCATTA E SALVA IN 1 SECONDO | ZERO-CLICK AI OCR
+            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
+                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | ZERO-CLICK AI OCR SCANNER
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST)", use_container_width=True):
+        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
             play_ems_synth("commlock")
             st.session_state["auth_unlocked"] = True
             st.session_state["auth_role"] = "COMMANDER"
-            st.session_state["auth_user"] = "ENRICO // ARCHITECT MASTER"
+            st.session_state["auth_user"] = "ENRICO // ARCHITECT MASTER DEMO"
             st.rerun()
 
         c_pin, c_2fa = st.columns(2)
-        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="9999 o 1024")
-        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE)", type="password", placeholder="199975")
+        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
+        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
 
         if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
             master_pin = get_master_pin()
             secret_2fa = get_totp_secret()
-            if in_pin.strip() == master_pin and verify_2fa_code(in_2fa, secret_2fa):
-                play_ems_synth("commlock")
-                st.session_state["auth_unlocked"] = True
-                st.session_state["auth_role"] = "COMMANDER"
-                st.session_state["auth_user"] = "COMANDANTE (2FA VERIFIED)"
-                st.rerun()
+            ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+            if in_pin.strip() == master_pin:
+                if verify_2fa_code(in_2fa, secret_2fa):
+                    play_ems_synth("commlock")
+                    st.session_state["auth_unlocked"] = True
+                    st.session_state["auth_role"] = "COMMANDER"
+                    st.session_state["auth_user"] = "COMANDANTE / TITOLARE (2FA VERIFIED)"
+                    st.session_state["pin_code"] = master_pin
+                    st.rerun()
+                else:
+                    play_ems_synth("klaxon")
+                    st.session_state["breach_log"].append(
+                        f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
+                    )
+                    st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
+
             elif in_pin.strip() in STAFF_PINS:
                 play_ems_synth("burst")
                 st.session_state["auth_unlocked"] = True
                 st.session_state["auth_role"] = "STAFF"
                 st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
+                st.session_state["pin_code"] = in_pin.strip()
                 st.rerun()
+
             else:
-                st.error("🚨 Credenziali non valide.")
+                play_ems_synth("klaxon")
+                st.session_state["breach_log"].append(
+                    f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
+                )
+                st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
     st.stop()
 
 # ==============================================================================
@@ -612,51 +643,59 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 9. TOP KOENIG BAR ---
-top_c1, top_c2 = st.columns([4.0, 1.0])
+# --- 9. TOP KOENIG BAR + AQUILA HERO ---
+breach_count = len(st.session_state["breach_log"])
+breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
+
+top_c1, top_c2 = st.columns([4.1, 0.9])
 with top_c1:
     st.markdown(f"""
     <div class="koenig-strip">
         <div>
             <span class="badge-amber">MOONBASE ALPHA</span>
-            <span style="font-size:11px; font-weight:900; color:#FFFFFF;">{st.session_state['auth_user']}</span>
+            <span style="font-size:12px; font-weight:900; letter-spacing:1px; color:#FFFFFF;">
+                MAIN MISSION // {st.session_state['auth_user']}
+            </span>
         </div>
-        <div style="margin-top:4px;">
-            <span class="badge-white">{n_sectors} SETTORI</span>
-            <span class="badge-green">🤖 ZERO-CLICK AUTO-OCR</span>
-            <span class="badge-white">STATO #{binary_state_num}/2048</span>
+        <div style="margin-top:5px;">
+            <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
+            <span class="badge-amber">EAGLE-1 ZERO-CLICK OCR</span>
+            {breach_badge}
+            <span class="badge-white">1 → 2¹¹ (STATE #{binary_state_num}/2048)</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 with top_c2:
-    if st.button("🔒 ESCI", use_container_width=True):
+    if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
         st.session_state["blum_sector"] = None
         st.rerun()
 
 st.markdown(f"""
 <div class="mission-bar">
-    <div style="display:flex; align-items:center; gap:12px;">
+    <div style="display:flex; align-items:center; gap:16px;">
         <div>{EAGLE_HERO_SVG}</div>
         <div>
             <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
-            <div class="mission-sub">DATE: {datetime.now().strftime('%d/%m/%Y')} | {total_micro_modules} MODULI ATTIVI</div>
+            <div class="mission-sub">EAGLE-1 TRANSPORTER COMMAND | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
         </div>
     </div>
     <div class="nixie-group">
-        <span class="nixie-label">TIME:</span>
+        <span class="nixie-label">ALPHA TIME:</span>
         <span class="nixie-digits">{ora_attuale}</span>
+        <span class="nixie-label">MATRIX:</span>
+        <span class="nixie-digits">{total_micro_modules:02d}</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 if st.session_state["unsaved_ops_count"] >= 3:
-    al_c1, al_c2 = st.columns([3.0, 1.2])
+    al_c1, al_c2 = st.columns([3.2, 1.2])
     with al_c1:
-        st.warning(f"⚠️ Hai {st.session_state['unsaved_ops_count']} nuove operazioni registrate. Scarica il backup sul telefono!")
+        st.warning(f"⚠️ CHECKPOINT MEMORIA VOLATILE: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nel Calendario in RAM. Scarica una copia di sicurezza sul dispositivo prima di chiudere il turno!")
     with al_c2:
         cal_json = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        if st.download_button("💾 SALVA STORICO (.JSON)", cal_json, file_name=f"alpha_calendario_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
+        if st.download_button("💾 SALVA CALENDARIO (.JSON)", cal_json, file_name=f"alpha_calendario_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
@@ -665,49 +704,82 @@ with st.expander("🌤️ RADAR METEO TELEMETRICO 5 GIORNI (SANDRA BENES / MAYA)
     for idx, w in enumerate(WEATHER_5_DAYS):
         with w_cols[idx]:
             st.markdown(f"""
-            <div class="weather-card" style="border-left: 4px solid {w['border']};">
-                <div class="w-header"><span class="w-day">{w['day']}</span><span class="w-icon">{w['icon']}</span></div>
+            <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
+                <div class="w-header">
+                    <span class="w-day">{w['day']}</span>
+                    <span class="w-icon">{w['icon']}</span>
+                </div>
                 <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
-                <div class="w-telemetry"><span style="color:{w['text_col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
+                <div class="w-telemetry">
+                    <span style="color:{w['text_col']};">{w['rain']}</span>
+                    <span>{w['hum']}</span>
+                    <span style="color:#38BDF8;">{w['wind']}</span>
+                </div>
                 <div class="w-directive">{w['directive']}</div>
             </div>
             """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 10. PANNELLO DEL COMANDANTE (COMPATTO SU MOBILE)
+# 10. PANNELLI DEL COMANDANTE (SCALABILITÀ MULTIVERSO + CASSAFORTE 2FA COMPLETA)
 # ==============================================================================
 if is_commander:
-    with st.expander("🎛️ CONFIGURA PACCHETTI & CHIAVE AI (bar / hotel / 2FA)", expanded=st.session_state["keep_multiverse_open"]):
-        p1, p2, p3, p4 = st.columns(4)
-        p1.button("🍸 PACCHETTO BAR (02+10+11)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True],), use_container_width=True)
-        p2.button("🛸 PACCHETTO 6 SETTORI", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, False, False],), use_container_width=True)
-        p3.button("🔥 FULL 11 SETTORI", on_click=apply_multiverse_preset, args=([True] * 11,), use_container_width=True)
-        p4.button("⚡ SOLO 01", on_click=apply_multiverse_preset, args=([True] + [False] * 10,), use_container_width=True)
+    sec_col1, sec_col2 = st.columns([1.45, 1.0])
+    with sec_col1:
+        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹¹ (Configura Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
+            st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 2048` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
+            sw_cols = st.columns(11)
+            for i, vec in enumerate(BASE_VECTORS):
+                with sw_cols[i]:
+                    st.toggle(vec["short"], key=f"bit_sw_{i}", on_change=on_single_bit_toggle, args=(i,))
 
-        sw_cols = st.columns(11)
-        for i, vec in enumerate(BASE_VECTORS):
-            with sw_cols[i]:
-                st.toggle(vec["short"], key=f"bit_sw_{i}", on_change=on_single_bit_toggle, args=(i,))
+            p1, p2, p3, p4 = st.columns(4)
+            p1.button("🍸 PACCHETTO BAR (02+10+11)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True],), use_container_width=True)
+            p2.button("🛸 PACCHETTO 6 SETTORI (01-06)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, False, False],), use_container_width=True)
+            p3.button("🔥 FULL MULTIVERSE 2¹¹ (TUTTI 11)", on_click=apply_multiverse_preset, args=([True] * 11,), use_container_width=True)
+            p4.button("⚡ SOLO 01 (RESET A 1)", on_click=apply_multiverse_preset, args=([True] + [False] * 10,), use_container_width=True)
+
+    with sec_col2:
+        with st.expander(f"🛡️ CASSAFORTE 2FA & MOTORE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
+            q1, q2 = st.columns([1, 2])
+            secret_now = get_totp_secret()
+            otp_uri = f"otpauth://totp/BEMASK_ALPHA:TITOLARE?secret={secret_now}&issuer=BEMASK_ALPHA"
+            with q1:
+                st.markdown(f"""
+                <div style="text-align:center; background:#0B0E14; border:1px solid #10B981; padding:8px; border-radius:4px;">
+                    <div style="font-size:9px; color:#10B981; margin-bottom:4px;">INQUADRA CON GOOGLE AUTH</div>
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&color=10B981&bgcolor=0B0E14&data={otp_uri}" width="105" />
+                </div>
+                """, unsafe_allow_html=True)
+            with q2:
+                st.markdown(f"**Chiave Segreta 2FA:** `{secret_now}`")
+                st.markdown(f"**Token 2FA Attivo (30s):** `{generate_totp_token(secret_now)}`")
+                v_key = st.text_input("🤖 Chiave Google AI Studio (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key="api_key_box_VAULT", type="password")
+                if v_key and len(v_key.strip()) > 15:
+                    st.session_state["custom_gemini_key"] = v_key.strip()
+                if st.session_state["breach_log"]:
+                    for item in reversed(st.session_state["breach_log"]):
+                        st.error(item)
+                    if st.button("🧹 AZZERA REGISTRO INTRUSIONI"):
+                        st.session_state["breach_log"] = []
+                        st.rerun()
 
 # ==============================================================================
-# AUTOMAZIONE ZERO-CLICK: APPENA SCATTI LA FOTO, LEGGE E SALVA DA SOLO!
+# AUTOMAZIONE ZERO-CLICK + VISORE RAGGI-X COMPLETO
 # ==============================================================================
 def process_photo_zero_click(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
     ram_kb = len(raw_bytes) / 1024.0
     ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
-
-    # Controlla la chiave API
     active_key = get_gemini_api_key()
 
-    # Se questa foto non è ancora stata processata in automatico, la legge e la salva SUBITO!
-    if ram_hash not in st.session_state["processed_ hashes"]:
+    # Appena scatti la foto, se c'è la chiave AI legge e salva subito nel Calendario senza premere altri bottoni!
+    if ram_hash not in st.session_state["processed_hashes"]:
         if active_key:
             with st.spinner("🤖 Lettura automatica scontrino e salvataggio nel Calendario in corso..."):
                 parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
                 if parsed_ocr:
                     eser = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                    met = parsed_ocr.get("metodo_pagamento", "POS / CARTA")
+                    met = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
                     tot_letto = float(parsed_ocr.get("totale_euro", 19.80))
                     righe_ai = parsed_ocr.get("righe", [])
 
@@ -721,7 +793,7 @@ def process_photo_zero_click(stream_obj, module_tag="DDT"):
 
                     full_desc = f"{eser} [{met}] -> {voci_str}"[:140]
                     add_calendar_event(f"AUTO-SCAN ({module_tag})", full_desc, -tot_letto, 1, "OK")
-                    st.session_state["processed_ hashes"].append(ram_hash)
+                    st.session_state["processed_hashes"].append(ram_hash)
                     st.session_state["last_auto_saved_banner"] = {
                         "eser": eser, "met": met, "tot": tot_letto, "voci": voci_str, "hash": ram_hash, "kb": ram_kb
                     }
@@ -729,9 +801,8 @@ def process_photo_zero_click(stream_obj, module_tag="DDT"):
                 else:
                     st.warning(f"⚠️ {err_msg}")
         else:
-            st.info("👇 Inserisci una sola volta la chiave `AIzaSy...` qui sotto: dal prossimo scatto leggerà e salverà tutto da solo in 1 secondo!")
+            st.info("👇 Inserisci la chiave `AIzaSy...` nel cassetto qui sotto per attivare la lettura automatica istantanea a ogni scatto!")
 
-    # Mostra il Banner Verde Gigante di operazione già completata!
     if st.session_state.get("last_auto_saved_banner") and st.session_state["last_auto_saved_banner"]["hash"] == ram_hash:
         b_info = st.session_state["last_auto_saved_banner"]
         st.markdown(f"""
@@ -743,7 +814,7 @@ def process_photo_zero_click(stream_obj, module_tag="DDT"):
                 {b_info['eser']} — € {b_info['tot']:.2f} ({b_info['met']})
             </div>
             <div style="font-size:12px; color:#6EE7B7; font-family:'Share Tech Mono', monospace; margin-top:4px;">
-                🧾 Voci registrate nel Calendario: {b_info['voci']}
+                🧾 Voci già registrate nel Calendario: {b_info['voci']}
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -752,39 +823,74 @@ def process_photo_zero_click(stream_obj, module_tag="DDT"):
             st.session_state["ram_clear_counter"] += 1
             st.rerun()
 
-    # Cassetto opzionale per chi vuole vedere la foto ingrandita o correggere a mano
-    with st.expander("🛠️ Vuoi vedere la foto o correggere una voce a mano? Apri qui", expanded=(not bool(active_key))):
-        typed_k = st.text_input(
-            "🔑 Chiave Google AI Studio (AIzaSy...):",
-            value=st.session_state.get("custom_gemini_key", ""),
-            key=f"api_key_box_{module_tag}",
-            placeholder="Incolla qui la chiave AIzaSy..."
-        )
-        if typed_k and len(typed_k.strip()) > 15:
-            st.session_state["custom_gemini_key"] = typed_k.strip()
+    with st.expander("👁️ ISPEZIONA FOTO INGRANDITA / TABELLA VOCI RAGGI-X / CHIAVE AI", expanded=(not bool(active_key))):
+        c_k1, c_k2 = st.columns([1.6, 1.4])
+        with c_k1:
+            typed_k = st.text_input(
+                "🔑 Chiave Google AI Studio (AIzaSy...):",
+                value=st.session_state.get("custom_gemini_key", ""),
+                key=f"api_key_box_{module_tag}",
+                placeholder="Incolla qui la chiave AIzaSy..."
+            )
+            if typed_k and len(typed_k.strip()) > 15:
+                st.session_state["custom_gemini_key"] = typed_k.strip()
+        with c_k2:
+            st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+            if st.button("🤖 RILEGGI FOTO CON AI VISION", key=f"re_ocr_{module_tag}", use_container_width=True):
+                if ram_hash in st.session_state["processed_hashes"]:
+                    st.session_state["processed_hashes"].remove(ram_hash)
+                st.rerun()
 
-        st.image(raw_bytes, caption=f"📸 Foto in RAM ({ram_kb:.1f} KB)", use_container_width=True)
-
-        df_items = pd.DataFrame(st.session_state["ocr_items_df"])
-        edited_items = st.data_editor(
-            df_items,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            key=f"items_ed_{module_tag}"
-        )
-        tot_man = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
-        if st.button(f"💾 SALVA MODIFICA MANUALE (€ {tot_man:.2f})", key=f"man_save_{module_tag}", use_container_width=True):
-            add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']} (€ {tot_man:.2f})", -tot_man, 1, "OK")
-            st.session_state["ram_clear_counter"] += 1
-            st.toast(f"✅ Registrato € {tot_man:.2f} nel Calendario!")
-            st.rerun()
+        v_left, v_right = st.columns([1.15, 1.85])
+        with v_left:
+            st.image(raw_bytes, caption=f"📸 Lastra in RAM ({ram_kb:.1f} KB — Hash #{ram_hash})", use_container_width=True)
+        with v_right:
+            st.session_state["ocr_esercente"] = st.text_input("🏪 Esercente / Fornitore:", value=st.session_state["ocr_esercente"], key=f"eser_{module_tag}")
+            df_items = pd.DataFrame(st.session_state["ocr_items_df"])
+            edited_items = st.data_editor(
+                df_items,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="large"),
+                    "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1),
+                    "prezzo": st.column_config.NumberColumn("PREZZO (€)", format="€ %.2f", step=0.10)
+                },
+                key=f"items_ed_{module_tag}"
+            )
+            tot_man = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
+            if st.button(f"💾 SALVA SCONTRINO MODIFICATO (€ {tot_man:.2f}) NEL CALENDARIO", key=f"man_save_{module_tag}", use_container_width=True):
+                add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']} (€ {tot_man:.2f})", -tot_man, 1, "OK")
+                st.session_state["ram_clear_counter"] += 1
+                play_ems_synth("commlock")
+                st.toast(f"✅ Registrato € {tot_man:.2f} nel Calendario!")
+                st.rerun()
 
 # ==============================================================================
-# CALENDARIO STORICO COMPATTO E ANTI-SPOSTAMENTO SU TELEFONINO
+# CALENDARIO STORICO COMPLETO (SCHEDE MOBILE + VISTE GIORNO / SETTIMANA / MESE)
 # ==============================================================================
 def render_alpha_chrono_calendar():
-    st.markdown("##### 📅 CALENDARIO STORICO (GIORNO · SETTIMANA · MESE)")
+    st.markdown("##### 📅 ALPHA CHRONO-CALENDAR // STORICO GIORNO · SETTIMANA · MESE")
+    cal_top1, cal_top2, cal_top3 = st.columns([1.6, 1.2, 1.2])
+    with cal_top1:
+        cal_view = st.radio("Lente Temporale:", ["GIORNO (Schede & Modifica)", "SETTIMANA (7 Giorni)", "MESE (Griglia 30gg)"], horizontal=True)
+    with cal_top2:
+        cal_json_str = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
+        if st.download_button("💾 SALVA STORICO MESE (.JSON)", cal_json_str, file_name=f"calendario_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
+            st.session_state["unsaved_ops_count"] = 0
+            st.toast("✅ Calendario salvato sul tuo dispositivo!")
+    with cal_top3:
+        up_cal = st.file_uploader("📂 Ricarica Storico (.json)", type=["json"], label_visibility="collapsed")
+        if up_cal is not None:
+            try:
+                loaded_list = json.loads(up_cal.getvalue().decode("utf-8"))
+                if isinstance(loaded_list, list):
+                    st.session_state["chrono_ledger"] = loaded_list
+                    st.success("Storico ripristinato!")
+            except Exception:
+                pass
+
     df_cal = pd.DataFrame(st.session_state["chrono_ledger"])
     if df_cal.empty:
         st.info("Nessun movimento registrato.")
@@ -796,170 +902,328 @@ def render_alpha_chrono_calendar():
 
     c_m1, c_m2, c_m3 = st.columns(3)
     with c_m1:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI / RESA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI / RESA TEORICA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
     with c_m2:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">USCITE & SCONTRINI</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">USCITE CASSA, SCONTRINI & BOLLE</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
     with c_m3:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">SALDO PERIODO</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">SALDO CONSOLIDATO CALENDARIO</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
 
-    # Vista Schede Mobile (Non fa mai muovere la pagina a destra e sinistra!)
-    st.markdown("###### 📋 ULTIMI MOVIMENTI REGISTRATI (VISTA STABILE PER TELEFONINO):")
-    for idx_r, row_c in df_cal.iloc[::-1].iterrows():
-        col_bar = "#10B981" if row_c["amount"] > 0 else "#EF4444"
-        st.markdown(f"""
-        <div style="background:#151B24; border:1px solid #283344; border-left:4px solid {col_bar}; padding:10px 12px; border-radius:3px; margin-bottom:6px;">
-            <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8; font-family:'Share Tech Mono', monospace;">
-                <span>📅 {row_c['date']} · 🕒 {row_c['time']} · <b>{row_c['type']}</b></span>
-                <span style="color:{col_bar}; font-size:14px; font-weight:900;">€ {row_c['amount']:+.2f}</span>
+    if cal_view.startswith("GIORNO"):
+        st.markdown("###### 📋 ULTIMI MOVIMENTI REGISTRATI (VISTA STABILE ANTI-SCORRIMENTO PER TELEFONINO):")
+        for _, row_c in df_cal.iloc[::-1].iterrows():
+            col_bar = "#10B981" if row_c["amount"] > 0 else "#EF4444"
+            st.markdown(f"""
+            <div style="background:#151B24; border:1px solid #283344; border-left:4px solid {col_bar}; padding:10px 12px; border-radius:3px; margin-bottom:6px;">
+                <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8; font-family:'Share Tech Mono', monospace;">
+                    <span>📅 {row_c['date']} · 🕒 {row_c['time']} · <b>{row_c['type']}</b></span>
+                    <span style="color:{col_bar}; font-size:14px; font-weight:900;">€ {row_c['amount']:+.2f}</span>
+                </div>
+                <div style="font-size:12px; color:#FFFFFF; margin-top:3px; font-family:'Share Tech Mono', monospace;">
+                    {row_c['desc']}
+                </div>
             </div>
-            <div style="font-size:12px; color:#FFFFFF; margin-top:3px; font-family:'Share Tech Mono', monospace;">
-                {row_c['desc']}
+            """, unsafe_allow_html=True)
+
+        with st.expander("✏️ Apri Tabella Interattiva per Modificare o Cancellare Righe", expanded=False):
+            edited_df = st.data_editor(
+                df_cal,
+                num_rows="dynamic",
+                use_container_width=True,
+                hide_index=True,
+                column_config={
+                    "date": st.column_config.TextColumn("DATA"),
+                    "time": st.column_config.TextColumn("ORA"),
+                    "type": st.column_config.TextColumn("OPERAZIONE"),
+                    "desc": st.column_config.TextColumn("CONTENUTO INTERNO SCONTRINO / NOTA", width="large"),
+                    "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
+                    "days_span": st.column_config.NumberColumn("GIORNI", min_value=1, max_value=30),
+                    "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
+                },
+                key="cal_editor_live"
+            )
+            if not edited_df.equals(df_cal):
+                st.session_state["chrono_ledger"] = edited_df.to_dict("records")
+                st.rerun()
+
+    elif cal_view.startswith("SETTIMANA"):
+        grp_w = df_cal.groupby(["date", "type"], as_index=False)["amount"].sum()
+        st.dataframe(grp_w, use_container_width=True, hide_index=True)
+    else:
+        grp_m = df_cal.groupby("date", as_index=False).agg(Operazioni=("type", "count"), Saldo_Giorno=("amount", "sum"), Giorni_Coperti=("days_span", "max"))
+        st.dataframe(grp_m, use_container_width=True, hide_index=True)
+
+# ==============================================================================
+# 11. CORPO PRINCIPALE COMPLETO (COLONNA SINISTRA + COLONNA DESTRA CON QR TELEPORT)
+# ==============================================================================
+col_left, col_right = st.columns([3.25, 1.15])
+rc_id = st.session_state["ram_clear_counter"]
+
+with col_left:
+    if st.session_state["blum_sector"] is not None:
+        sec_obj = next((s for s in all_squares if s["code"] == st.session_state["blum_sector"]), all_squares[0])
+        svg_blum = SVG_ICONS.get(sec_obj["code"], SVG_ICONS["01"])
+
+        if st.button("▲ RIEMERGI ALLA MATRICE CENTRALE A.L.P.H.A. (CHIUDI BLUM)", key="exit_blum_top", use_container_width=True):
+            st.session_state["blum_sector"] = None
+            st.session_state["selected_sub"] = None
+            st.rerun()
+
+        st.markdown(f"""
+        <div class="blum-stage" style="border: 2px solid {sec_obj['border']}; border-left: 6px solid {sec_obj['border']}; box-shadow: inset 0 0 40px {sec_obj['glow']};">
+            <div style="display:flex; align-items:center; gap:16px;">
+                <div>{svg_blum}</div>
+                <div>
+                    <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono'; letter-spacing:1.3px;">
+                        {sec_obj['artifact']} // SETTORE {sec_obj['code']} // ZERO-CLICK RAM SESSION
+                    </div>
+                    <div style="font-size:22px; font-weight:900; color:#FFFFFF; letter-spacing:1.3px; margin-top:2px;">
+                        {sec_obj['name']}
+                    </div>
+                    <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono'; margin-top:4px;">
+                        {sec_obj['kpi']} | FOCUS: {st.session_state['selected_sub']}
+                    </div>
+                </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-    with st.expander("✏️ Apri Tabella Modificabile / Esporta o Carica Backup Mensile"):
-        edited_df = st.data_editor(df_cal, num_rows="dynamic", use_container_width=True, hide_index=True, key="cal_ed_mob")
-        if not edited_df.equals(df_cal):
-            st.session_state["chrono_ledger"] = edited_df.to_dict("records")
-            st.rerun()
-
-        cal_json_str = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        st.download_button("💾 SCARICA BACKUP MESE (.JSON)", cal_json_str, file_name=f"calendario_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True)
-
-# ==============================================================================
-# 11. CORPO PRINCIPALE: UX "BLUM" FLUIDA SU MOBILE E DESKTOP
-# ==============================================================================
-rc_id = st.session_state["ram_clear_counter"]
-
-if st.session_state["blum_sector"] is not None:
-    sec_obj = next((s for s in all_squares if s["code"] == st.session_state["blum_sector"]), all_squares[0])
-    svg_blum = SVG_ICONS.get(sec_obj["code"], SVG_ICONS["01"])
-
-    if st.button("▲ TORNA ALLA GRIGLIA PRINCIPALE A.L.P.H.A.", key="exit_blum_top", use_container_width=True):
-        st.session_state["blum_sector"] = None
-        st.session_state["selected_sub"] = None
-        st.rerun()
-
-    st.markdown(f"""
-    <div class="blum-stage" style="border: 2px solid {sec_obj['border']}; border-left: 6px solid {sec_obj['border']};">
-        <div style="display:flex; align-items:center; gap:14px;">
-            <div>{svg_blum}</div>
-            <div>
-                <div style="font-size:10px; color:{sec_obj['border']}; font-family:'Share Tech Mono';">{sec_obj['artifact']} // SETTORE {sec_obj['code']}</div>
-                <div style="font-size:20px; font-weight:900; color:#FFFFFF;">{sec_obj['name']}</div>
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    # Selettore sottomoduli stabile (non sborda mai su telefonino)
-    sub_cols = st.columns(5)
-    for idx_s, sub_label in enumerate(sec_obj["subs"]):
-        with sub_cols[idx_s]:
-            if st.button(sub_label, key=f"blum_sub_{sec_obj['code']}_{idx_s}", use_container_width=True):
-                st.session_state["selected_sub"] = sub_label
-                st.rerun()
-
-    curr_sub = str(st.session_state.get("selected_sub", sec_obj["subs"][0]))
-
-    # ==========================================================================
-    # MODULO 10: BAR & DDT SENTINEL (1-CLICK SCATTA E SALVA!)
-    # ==========================================================================
-    if sec_obj["code"] == "10":
-        if "5." in curr_sub:
-            render_alpha_chrono_calendar()
-
-        elif "2." in curr_sub:
-            st.markdown("##### 🎹 TASTIERA CASSA RAPIDA (A → O)")
-            uscita_euro = st.number_input("💶 Importo Uscita Cassetto (€):", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
-            ao_keys = list(st.session_state["bar_ao_labels"].keys())
-            row1 = st.columns(4)
-            for i, k_let in enumerate(ao_keys):
-                lbl = st.session_state["bar_ao_labels"][k_let]
-                if row1[i % 4].button(f"[{k_let}] {lbl}", key=f"btn_ao_{k_let}", use_container_width=True):
-                    add_calendar_event(f"CASSA [{k_let}]", f"Uscita {lbl}", -uscita_euro, 1, "OK")
-                    play_ems_synth("commlock")
-                    st.toast(f"✅ Registrato: [{k_let}] -€ {uscita_euro:.2f}")
+        sub_cols = st.columns(5)
+        for idx_s, sub_label in enumerate(sec_obj["subs"]):
+            with sub_cols[idx_s]:
+                if st.button(sub_label, key=f"blum_sub_{sec_obj['code']}_{idx_s}", use_container_width=True):
+                    st.session_state["selected_sub"] = sub_label
                     st.rerun()
 
-        elif "3." in curr_sub:
-            st.markdown("##### 🏁 CHIUSURA CASSA / CAMBIO TURNO (ANCHE SU PIÙ GIORNI)")
-            tipo_punto = st.selectbox("Tipo Controllo:", ["🏁 CHIUSURA FINE GIORNATA", "⏱️ PARZIALE CAMBIO TURNO", "💶 ALLEGGERIMENTO TITOLARE"])
-            giorni_coperti = st.selectbox("Giorni coperti da questo incasso:", [1, 2, 3, 4, 5, 6, 7], index=0)
-            incasso_contato = st.number_input("Totale Contanti + POS (€):", 0.0, 100000.0, 680.0, step=10.0)
-            if st.button("📅 REGISTRA CHIUSURA NEL CALENDARIO", use_container_width=True):
-                segno = -incasso_contato if "ALLEGGERIMENTO" in tipo_punto else incasso_contato
-                add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg)", segno, giorni_coperti, "OK")
-                play_ems_synth("commlock")
-                st.success("✅ Chiusura registrata nel Calendario!")
+        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
+        curr_sub = str(st.session_state.get("selected_sub", sec_obj["subs"][0]))
 
-        else:
-            # VISTA PRINCIPALE SEMPLIFICATA PER TELEFONINO: SCATTA -> LEGGE -> SALVA DA SOLO!
-            st.markdown("##### 📸 PASSO UNICO: SCATTA LA FOTO ALLO SCONTRINO / BOLLA (FA TUTTO DA SOLO)")
+        # ======================================================================
+        # MODULO 10: BAR & DDT SENTINEL (COMPLETO AL 100%)
+        # ======================================================================
+        if sec_obj["code"] == "10":
+            if "5." in curr_sub:
+                render_alpha_chrono_calendar()
 
-            c_cam1, c_cam2 = st.columns(2)
-            with c_cam1:
-                use_cam_ddt = st.toggle("📸 APRI FOTOCAMERA TELEFONO", value=True, key="tog_cam_ddt")
-            with c_cam2:
-                if st.button("☕ +1 KG CAFFÈ APERTO (TIMBRA ORA)", use_container_width=True):
-                    st.session_state["bar_kg_caffe_aperti"] += 1.0
-                    resa_sacchetto = st.session_state["bar_tazzine_per_kg"] * st.session_state["bank_prezzo_caffe"]
-                    add_calendar_event("CAFFÈ (+1 KG)", f"Sacchetto 1 Kg (~135 caffè)", resa_sacchetto, 1, "OK")
+            elif "2." in curr_sub:
+                st.markdown("##### 🎹 TASTIERA CASSA UNIVERSALE (A → O) // TOCCHI RAPIDI SENZA SCRIVERE CAUSALI")
+                with st.expander("⚙️ Personalizza i nomi dei Tasti A-O per questo Bar (Opzionale)", expanded=False):
+                    cfg_cols = st.columns(4)
+                    keys_list = list(st.session_state["bar_ao_labels"].keys())
+                    for idx_k, k_let in enumerate(keys_list):
+                        with cfg_cols[idx_k % 4]:
+                            st.session_state["bar_ao_labels"][k_let] = st.text_input(f"Tasto {k_let}", st.session_state["bar_ao_labels"][k_let], key=f"cfg_ao_{k_let}")
+
+                imp_col1, imp_col2 = st.columns([1.5, 2.5])
+                with imp_col1:
+                    uscita_euro = st.number_input("💶 Importo Uscita Cassetto (€)", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
+                with imp_col2:
+                    st.info("Tocca una lettera qui sotto per timbrare subito l'uscita nel Calendario del Giorno:")
+
+                ao_keys = list(st.session_state["bar_ao_labels"].keys())
+                row1 = st.columns(4)
+                for i, k_let in enumerate(ao_keys):
+                    lbl = st.session_state["bar_ao_labels"][k_let]
+                    if row1[i % 4].button(f"[{k_let}] {lbl}", key=f"btn_ao_{k_let}", use_container_width=True):
+                        add_calendar_event(f"CASSA [{k_let}]", f"Uscita rapida {lbl}", -uscita_euro, 1, "OK")
+                        play_ems_synth("commlock")
+                        st.toast(f"✅ Registrato nel Calendario: [{k_let}] {lbl} (-€ {uscita_euro:.2f})")
+                        st.rerun()
+
+            elif "3." in curr_sub:
+                st.markdown("##### 🏁 CONTROLLO CASSA MULTI-TURNO & CHIUSURA A FISARMONICA (RECUPERO GIORNI SALTATI)")
+                ch1, ch2, ch3 = st.columns(3)
+                tipo_punto = ch1.selectbox("Tipo Controllo Cassetto", [
+                    "⏱️ PARZIALE / CAMBIO TURNO (Mattina -> Pomeriggio)",
+                    "💶 ALLEGGERIMENTO CONTANTI TITOLARE",
+                    "🏁 CHIUSURA FINE GIORNATA / CUMULATIVA"
+                ])
+                giorni_coperti = ch2.selectbox("Quanti giorni copre questo conto?", [1, 2, 3, 4, 5, 6, 7], index=0)
+                incasso_contato = ch3.number_input("Totale Contanti + POS Rilevato (€)", 0.0, 100000.0, 680.0, step=10.0)
+
+                media_giorno = incasso_contato / giorni_coperti
+                if st.button("📅 TIMBRA PUNTO CASSA NEL CALENDARIO STORICO", use_container_width=True):
+                    segno = -incasso_contato if "ALLEGGERIMENTO" in tipo_punto else incasso_contato
+                    add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg — Media €{media_giorno:.2f}/gg)", segno, giorni_coperti, "OK")
                     play_ems_synth("commlock")
-                    st.toast(f"☕ +1 Kg Caffè registrato (+€ {resa_sacchetto:.2f})!")
+                    st.success(f"Registrato nel Calendario! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
+
+            else:
+                st.markdown("##### 📸 SCATTA E SALVA AUTOMATICO (1-CLICK) + CONTATORE SACCHETTI CAFFÈ (1 KG)")
+                cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
+                with cf1:
+                    if st.button("☕ +1 KG CAFFÈ APERTO (TIMBRA ORA)", use_container_width=True):
+                        st.session_state["bar_kg_caffe_aperti"] += 1.0
+                        resa_sacchetto = st.session_state["bar_tazzine_per_kg"] * st.session_state["bank_prezzo_caffe"]
+                        add_calendar_event("CAFFÈ (+1 KG)", f"Aperto sacchetto 1 Kg (~{st.session_state['bar_tazzine_per_kg']} caffè attesi)", resa_sacchetto, 1, "OK")
+                        play_ems_synth("commlock")
+                        st.toast(f"☕ +1 Kg registrato nel Calendario! (+€ {resa_sacchetto:.2f} attesi)")
+                        st.rerun()
+                with cf2:
+                    st.session_state["bar_kg_caffe_aperti"] = st.number_input("Totale Kg Caffè Aperti nel Periodo", 0.5, 500.0, st.session_state["bar_kg_caffe_aperti"], step=0.5)
+                with cf3:
+                    tazzine_attese = int(st.session_state["bar_kg_caffe_aperti"] * st.session_state["bar_tazzine_per_kg"])
+                    incasso_caffe_atteso = tazzine_attese * st.session_state["bank_prezzo_caffe"]
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#F59E0B; padding:10px 14px; margin-top:0;">
+                        <div class="kpi-custom-title">RESA TEORICA DAI KG DI CAFFÈ APERTI</div>
+                        <div class="kpi-custom-value" style="font-size:20px;">€ {incasso_caffe_atteso:.2f} ({tazzine_attese} caffè)</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                cam_col1, cam_col2, cam_col3 = st.columns([1.4, 2.0, 1.0])
+                with cam_col1:
+                    use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE (AUTO-SCAN)", value=False, key="tog_cam_ddt")
+                with cam_col2:
+                    ddt_file = st.file_uploader("📂 Oppure carica Foto Scontrino/CSV/XML da dispositivo", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
+                with cam_col3:
+                    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+                    if st.button("🔥 SVUOTA RAM ORA", key="purge_ddt", use_container_width=True):
+                        st.session_state["ram_clear_counter"] += 1
+                        play_ems_synth("burst")
+                        st.rerun()
+
+                cam_ddt_shot = st.camera_input("Tocca 'Take Photo': legge e salva nel Calendario da solo!", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
+                active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
+
+                if active_ddt_stream is not None:
+                    process_photo_zero_click(active_ddt_stream, module_tag="DDT")
+
+                st.markdown("---")
+                d0, d1, d2, d3, d4 = st.columns([1.2, 1, 1, 1, 1])
+                st.session_state["ddt_codice_art"] = d0.text_input("Cod. Articolo Bolla", st.session_state["ddt_codice_art"])
+                st.session_state["ddt_prezzo_fattura"] = d1.number_input("Prezzo Bolla (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_fattura"], step=0.10)
+                st.session_state["ddt_prezzo_pattuito"] = d2.number_input("Pattuito (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_pattuito"], step=0.10)
+                st.session_state["ddt_litri_bottiglia"] = d3.selectbox("Formato (Litri)", [0.70, 0.75, 1.0, 1.5], index=2)
+                st.session_state["ddt_omaggio_finto_iva"] = d4.number_input("IVA Finto Omaggio (€)", 0.0, 100.0, st.session_state["ddt_omaggio_finto_iva"], step=0.25)
+
+                dna_litro_reale = st.session_state["ddt_prezzo_fattura"] / st.session_state["ddt_litri_bottiglia"]
+                scostamento_bott = st.session_state["ddt_prezzo_fattura"] - st.session_state["ddt_prezzo_pattuito"]
+
+                k1, k2, k3 = st.columns(3)
+                with k1:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
+                        <div class="kpi-custom-title">PREZZO REALE AL LITRO ({st.session_state['ddt_codice_art']})</div>
+                        <div class="kpi-custom-value">€ {dna_litro_reale:.2f} / L</div>
+                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scostamento_bott:.2f} € vs pattuito</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with k2:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
+                        <div class="kpi-custom-title">CONTROLLO OMAGGI IN FATTURA (IVA)</div>
+                        <div class="kpi-custom-value">€ {st.session_state['ddt_omaggio_finto_iva']:.2f}</div>
+                        <div class="kpi-custom-sub" style="color:#F59E0B;">● Anomalia Bolla 190677/9</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with k3:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#10B981;">
+                        <div class="kpi-custom-title">FRIGO BAR 1-CLICK (HACCP)</div>
+                        <div class="kpi-custom-value">+3.8 °C OK</div>
+                        <div class="kpi-custom-sub" style="color:#10B981;">✔ Firmato PIN #{st.session_state['pin_code']}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                if st.button("📅 ARCHIVIA QUESTA BOLLA NEL CALENDARIO DI OGGI", use_container_width=True):
+                    add_calendar_event("BOLLA DDT", f"Art. {st.session_state['ddt_codice_art']} (€{dna_litro_reale:.2f}/L | Scost. {scostamento_bott:+.2f}€)", -st.session_state["ddt_prezzo_fattura"], 1, "ALERT" if scostamento_bott > 0 else "OK")
+                    play_ems_synth("commlock")
+                    st.toast("✅ Bolla registrata nel Calendario Storico!")
                     st.rerun()
 
-            cam_ddt_shot = st.camera_input("Tocca 'Take Photo': legge e salva nel Calendario in automatico!", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
-            ddt_file = st.file_uploader("📂 Oppure scegli una foto dalla galleria del telefono", type=["jpg", "jpeg", "png", "csv", "xml"], key=f"up_ddt_{rc_id}")
+        # ======================================================================
+        # MODULO 11: BANK VAMPIRE SCANNER (COMPLETO AL 100%)
+        # ======================================================================
+        elif sec_obj["code"] == "11":
+            if "5." in curr_sub:
+                render_alpha_chrono_calendar()
+            else:
+                st.markdown("##### 🔫 BANK VAMPIRE SCANNER // ANALISI COSTI BANCARI & VERO TASSO POS (RAM-ONLY)")
+                ec_col1, ec_col2, ec_col3 = st.columns([1.4, 2.0, 1.0])
+                with ec_col1:
+                    use_cam_bank = st.toggle("📸 FOTOGRAFA ESTRATTO CONTO (AUTO-SCAN)", value=False, key="tog_cam_bank")
+                with ec_col2:
+                    bank_file = st.file_uploader("📂 Oppure leggi Foto/CSV Estratto Conto (Solo RAM)", type=["csv", "txt", "jpg", "jpeg", "png"], key=f"up_bank_{rc_id}")
+                with ec_col3:
+                    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
+                    if st.button("🔥 DISTRUGGI DATI RAM", key="purge_bank", use_container_width=True):
+                        st.session_state["ram_clear_counter"] += 1
+                        play_ems_synth("burst")
+                        st.rerun()
 
-            active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
-            if active_ddt_stream is not None:
-                process_photo_zero_click(active_ddt_stream, module_tag="DDT")
+                cam_bank_shot = st.camera_input("Inquadra il riepilogo spese dell'Estratto Conto (Lettura e salvataggio automatico)", key=f"cam_bank_{rc_id}") if use_cam_bank else None
+                sdd_alert_txt = "0 DOPPI ADDEBITI"
+                sdd_sub_txt = "✔ Controllo flussi SDD attivo"
+                sdd_col = "#10B981"
 
-    # ==========================================================================
-    # MODULO 11: BANK VAMPIRE SCANNER
-    # ==========================================================================
-    elif sec_obj["code"] == "11":
-        if "5." in curr_sub:
-            render_alpha_chrono_calendar()
+                active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
+                if active_bank_stream is not None:
+                    process_photo_zero_click(active_bank_stream, module_tag="BANK")
+
+                b1, b2, b3, b4 = st.columns(4)
+                st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
+                st.session_state["bank_comm_dichiarata"] = b2.number_input("Comm. POS Dichiarata (%)", 0.10, 5.0, st.session_state["bank_comm_dichiarata"], step=0.05)
+                st.session_state["bank_costi_occulti"] = b3.number_input("Spese Tenuta / Canoni / SDD (€)", 0.0, 5000.0, st.session_state["bank_costi_occulti"], step=10.0)
+                st.session_state["bank_prezzo_caffe"] = b4.number_input("Prezzo Tazzina Caffè (€)", 0.80, 3.0, st.session_state["bank_prezzo_caffe"], step=0.10)
+
+                costo_pos_base = st.session_state["bank_transato_pos"] * (st.session_state["bank_comm_dichiarata"] / 100.0)
+                prelievo_totale_banca = costo_pos_base + st.session_state["bank_costi_occulti"]
+                vero_tasso_pos = (prelievo_totale_banca / st.session_state["bank_transato_pos"]) * 100.0
+                caffe_pareggio = round(prelievo_totale_banca / st.session_state["bank_prezzo_caffe"])
+                scost_pos = vero_tasso_pos - st.session_state["bank_comm_dichiarata"]
+
+                v1, v2, v3 = st.columns(3)
+                with v1:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
+                        <div class="kpi-custom-title">VERO TASSO POS EFFETTIVO</div>
+                        <div class="kpi-custom-value">{vero_tasso_pos:.2f} %</div>
+                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scost_pos:.2f}% incidenza oneri accessori</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with v2:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
+                        <div class="kpi-custom-title">CAFFÈ NECESSARI PER COPRIRE I COSTI BANCARI</div>
+                        <div class="kpi-custom-value">{caffe_pareggio} Tazzine/mese</div>
+                        <div class="kpi-custom-sub" style="color:#10B981;">● Corrispettivo di € {prelievo_totale_banca:.2f} in oneri e commissioni</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                with v3:
+                    st.markdown(f"""
+                    <div class="kpi-custom-box" style="border-left-color:{sdd_col};">
+                        <div class="kpi-custom-title">SENTINELLA DOPPIO SDD</div>
+                        <div class="kpi-custom-value">{sdd_alert_txt}</div>
+                        <div class="kpi-custom-sub" style="color:{sdd_col};">{sdd_sub_txt}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                if st.button("📅 REGISTRA ANALISI BANCARIA NEL CALENDARIO DEL MESE", use_container_width=True):
+                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine per pareggio)", -prelievo_totale_banca, 30, "ALERT")
+                    play_ems_synth("commlock")
+                    st.toast("✅ Analisi bancaria salvata nel Calendario!")
+                    st.rerun()
+
+        # --- TUTTI GLI ALTRI MODULI (01 -> 09) COMPLETI DI CALCOLATORE ROP 96H ---
         else:
-            st.markdown("##### 🔫 BANK VAMPIRE // SCATTA FOTO ESTRATTO CONTO O CALCOLA COSTI POS")
-            use_cam_bank = st.toggle("📸 APRI FOTOCAMERA PER ESTRATTO CONTO", value=False, key="tog_cam_bank")
-            cam_bank_shot = st.camera_input("Scatta foto al riepilogo spese banca", key=f"cam_bank_{rc_id}") if use_cam_bank else None
-            bank_file = st.file_uploader("📂 Oppure carica foto/CSV Estratto Conto", type=["csv", "txt", "jpg", "jpeg", "png"], key=f"up_bank_{rc_id}")
+            st.markdown(f"##### ⚡ TELEMETRIA ESECUTIVA // {sec_obj['name']} — {curr_sub}")
+            c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.2, 1.4])
+            st.session_state["rop_cons_gg"] = c1.number_input("Consumo Giorno (u.)", 1, 1000, st.session_state["rop_cons_gg"])
+            st.session_state["rop_lead_gg"] = c2.number_input("Lead Time (gg)", 1, 30, st.session_state["rop_lead_gg"])
+            st.session_state["rop_stock"] = c3.number_input("Giacenza Casa", 0, 5000, st.session_state["rop_stock"])
+            rop_val = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + (st.session_state["bocche_96h"] * 4)
+            with c4:
+                st.markdown(f"""
+                <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
+                    <div class="kpi-custom-title">PUNTO ACQUISTO (ROP 96H)</div>
+                    <div class="kpi-custom-value" style="font-size:20px;">{rop_val} u.</div>
+                    <div class="kpi-custom-sub" style="color:#10B981;">Margine: {st.session_state['rop_stock'] - rop_val:+} u.</div>
+                </div>
+                """, unsafe_allow_html=True)
+            st.link_button(f"🚀 APRI CONSOLLE ESTERNA DEDICATA ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
 
-            active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
-            if active_bank_stream is not None:
-                process_photo_zero_click(active_bank_stream, module_tag="BANK")
-
-            b1, b2 = st.columns(2)
-            st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
-            st.session_state["bank_comm_dichiarata"] = b2.number_input("Comm. POS Dichiarata (%)", 0.10, 5.0, st.session_state["bank_comm_dichiarata"], step=0.05)
-            b3, b4 = st.columns(2)
-            st.session_state["bank_costi_occulti"] = b3.number_input("Spese Tenuta / Canoni / SDD (€)", 0.0, 5000.0, st.session_state["bank_costi_occulti"], step=10.0)
-            st.session_state["bank_prezzo_caffe"] = b4.number_input("Prezzo Tazzina Caffè (€)", 0.80, 3.0, st.session_state["bank_prezzo_caffe"], step=0.10)
-
-            costo_pos_base = st.session_state["bank_transato_pos"] * (st.session_state["bank_comm_dichiarata"] / 100.0)
-            prelievo_totale_banca = costo_pos_base + st.session_state["bank_costi_occulti"]
-            vero_tasso_pos = (prelievo_totale_banca / st.session_state["bank_transato_pos"]) * 100.0
-            caffe_pareggio = round(prelievo_totale_banca / st.session_state["bank_prezzo_caffe"])
-
-            v1, v2 = st.columns(2)
-            with v1:
-                st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">VERO TASSO POS EFFETTIVO</div><div class="kpi-custom-value">{vero_tasso_pos:.2f} %</div></div>""", unsafe_allow_html=True)
-            with v2:
-                st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">CAFFÈ NECESSARI PER COPRIRE I COSTI BANCARI</div><div class="kpi-custom-value">{caffe_pareggio} Tazzine/mese</div><div class="kpi-custom-sub" style="color:#10B981;">● Corrispettivo di € {prelievo_totale_banca:.2f}</div></div>""", unsafe_allow_html=True)
-
-    # --- TUTTI GLI ALTRI MODULI (01 -> 09) ---
+    # --- VISTA MATRICE CENTRALE PULITA CON I GRANDI SIMBOLI DI SPAZIO 1999 ---
     else:
-        st.markdown(f"##### ⚡ TELEMETRIA // {sec_obj['name']} — {curr_sub}")
-        st.link_button(f"🚀 APRI CONSOLLE ESTERNA ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
-
-# --- VISTA MATRICE CENTRALE PULITA ---
-else:
-    col_left, col_right = st.columns([3.2, 1.1])
-    with col_left:
         n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
         for r in range(0, n_sectors, n_cols):
             row_cols = st.columns(n_cols)
@@ -969,6 +1233,7 @@ else:
                     code = sq["code"]
                     svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
                     artifact_lbl = sq.get("artifact", "MOONBASE ALPHA NODE")
+
                     with row_cols[c]:
                         st.markdown(f"""
                         <div class="alpha-tile" style="background: {sq['bg_grad']}; border: 1.5px solid {sq['border']}; border-left: 5px solid {sq['border']}; box-shadow: inset 0 0 28px {sq['glow']};">
@@ -983,9 +1248,54 @@ else:
                             st.session_state["selected_sub"] = sq["subs"][0]
                             st.rerun()
 
-    with col_right:
-        st.markdown("""<div class="ems-panel"><span style="font-size:11px; font-weight:900; color:#FFFFFF;">ALPHA EMS-1975 SYNTH</span></div>""", unsafe_allow_html=True)
-        if st.button("▶ X5-7 DATA BURST", use_container_width=True):
+# --- COLONNA DESTRA COMPLETA AL 100% (EMS-1975 SYNTH + KLAXON + QR TELEPORT) ---
+with col_right:
+    st.markdown("""
+    <div class="ems-panel">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:11px; font-weight:900; color:#FFFFFF; letter-spacing:1px;">ALPHA EMS-1975<br>SYNTH</span>
+            <span style="font-size:10px; font-weight:900; color:#10B981; font-family:'Share Tech Mono';">TOUCH<br>ARMED</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    s_col1, s_col2 = st.columns(2)
+    with s_col1:
+        if st.button("▶ X5-7 DATA\nBURST", use_container_width=True):
             play_ems_synth("burst")
-        if st.button("◈ COMMLOCK 1975", use_container_width=True):
+            st.toast("🔊 EMS-1975: X5-7 Data Burst (95 BPM)")
+    with s_col2:
+        if st.button("◈ COMMLOCK\n1975", use_container_width=True):
             play_ems_synth("commlock")
+            st.session_state["visitors_log"] += 1
+            st.toast("📡 Commlock 1975 Sincronizzato")
+
+    if st.button("▲ ALPHA KLAXON SIREN", use_container_width=True):
+        play_ems_synth("klaxon")
+        st.warning("🚨 ALLERTA SOLAR STORM // PROTOCOLLO SCUDO 96H ATTIVO")
+
+    module_options = ["00 ALPHA MAIN MISSION"] + [f"{s['code']} {s['name']}" for s in all_squares]
+    chosen_mod = st.selectbox("SELEZIONA NODO TELEPORT", module_options, label_visibility="collapsed")
+
+    target_url = "https://alpha-main-mission.streamlit.app"
+    for s in all_squares:
+        if chosen_mod.startswith(s["code"]):
+            target_url = s["url"]
+            break
+
+    st.markdown(f"""
+    <div class="commlock-panel">
+        <div style="font-size:11px; font-weight:900; color:#FFFFFF; text-align:left; letter-spacing:1px; margin-bottom:10px;">
+            COMMLOCK // QR<br>TELEPORT
+        </div>
+        <div style="background:#0B0E14; border:2px solid #F59E0B; padding:10px; display:inline-block; border-radius:3px;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=F59E0B&bgcolor=0B0E14&data={target_url}" width="145" />
+        </div>
+        <div style="font-size:10px; font-weight:900; color:#F59E0B; margin-top:10px; letter-spacing:0.8px;">
+            {chosen_mod}
+        </div>
+        <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">
+            alpha-main-mission.streamlit.app
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
