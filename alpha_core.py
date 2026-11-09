@@ -689,11 +689,110 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 9. TOP KOENIG BAR + PULSANTE DIRETTO PAGINA ZERO ---
+# --- 9. TOP KOENIG BAR + DOSSIER ARCHITETTO ENRICO BRAGLIA ---
+def render_architect_dossier_content():
+    st.markdown("""
+    <div style="background:linear-gradient(135deg, #0B0E14 0%, #161C26 100%); border:1.5px solid #F59E0B; border-left:6px solid #F59E0B; padding:18px; border-radius:4px; margin-bottom:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            <span class="badge-amber">ORIGIN SEAL // INTELLECTUAL PROPERTY</span>
+            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#38BDF8;">
+                3-AXIS FRACTAL CORE // ZERO-TRUST RAM ARCHITECTURE
+            </span>
+        </div>
+        <div style="font-size:21px; font-weight:900; color:#FFFFFF; letter-spacing:1.5px; margin-top:8px;">
+            ENRICO BRAGLIA — SYSTEM ARCHITECT & CREATOR
+        </div>
+        <div style="font-size:11px; color:#F59E0B; font-family:'Share Tech Mono', monospace; letter-spacing:1px; margin-top:3px;">
+            30+ YEARS HOSPITALITY DIRECTION · REVENUE INTELLIGENCE · BEMASK MEDIA & AI LAB
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    v_col, m_col = st.columns([1.25, 1.55])
+
+    with v_col:
+        # Cerca automaticamente il tuo mini-video nel repository (o usa l'ologramma 3D finché non lo carichi)
+        if os.path.exists("architect_manifesto.mp4"):
+            st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
+        else:
+            st.markdown("""
+            <div style="background:#090C12; border:1px solid #2B394A; border-radius:4px; padding:22px 14px; text-align:center;">
+                <svg width="150" height="150" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
+                    <g stroke="#38BDF8" stroke-width="1.2" opacity="0.35">
+                        <polygon points="80,18 138,50 138,114 80,146 22,114 22,50" fill="none"/>
+                        <line x1="80" y1="18" x2="80" y2="146"/>
+                        <line x1="22" y1="50" x2="138" y2="114"/>
+                        <line x1="138" y1="50" x2="22" y2="114"/>
+                    </g>
+                    <g stroke="#F59E0B" stroke-width="2.5">
+                        <line x1="80" y1="32" x2="80" y2="132"/>
+                        <line x1="34" y1="56" x2="126" y2="108"/>
+                        <line x1="126" y1="56" x2="34" y2="108"/>
+                    </g>
+                    <circle cx="80" cy="82" r="14" fill="#0B0E14" stroke="#10B981" stroke-width="3">
+                        <animate attributeName="r" values="12;16;12" dur="2.4s" repeatCount="indefinite"/>
+                    </circle>
+                    <circle cx="80" cy="82" r="5" fill="#F59E0B"/>
+                </svg>
+                <div style="font-size:11px; font-weight:800; color:#F59E0B; letter-spacing:1.2px; margin-top:8px;">
+                    27TH CUBE // 3-AXIS CORE ACTIVE
+                </div>
+                <div style="font-size:10px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:4px;">
+                    Carica 'architect_manifesto.mp4' nel repo per attivare il Mini-Video Manifesto
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        vcard_data = "MECARD:N:Braglia,Enrico;ORG:BEMASK Sovereign Architecture;NOTE:Creator & Hospitality Revenue Architect;;"
+        st.markdown(f"""
+        <div style="background:#0D1118; border:1px solid #263244; padding:10px; border-radius:4px; margin-top:10px; display:flex; align-items:center; gap:12px;">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=F59E0B&bgcolor=0D1118&data={vcard_data}" width="72" style="border:1px solid #F59E0B; padding:3px;" />
+            <div style="font-family:'Share Tech Mono', monospace; font-size:10px; color:#CBD5E1; line-height:1.4;">
+                <strong style="color:#F59E0B;">VERIFICA DIRETTA CREATORE</strong><br>
+                Inquadra per salvare il contatto ufficiale dell'Architetto del sistema.<br>
+                <span style="color:#10B981;">ID: EB-BEMASK-2026-ALPHA</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with m_col:
+        st.markdown("""
+        <div style="font-family:'Share Tech Mono', monospace; font-size:12.5px; color:#E2E8F0; line-height:1.65; background:#111620; border:1px solid #243042; padding:16px; border-radius:4px;">
+            <div style="color:#F59E0B; font-weight:900; font-family:'Orbitron', sans-serif; font-size:12px; margin-bottom:8px;">
+                PERCHÉ QUESTA ARCHITETTURA È DIVERSA
+            </div>
+            <p style="margin-bottom:10px;">
+                I software gestionali tradizionali nascono in laboratorio da chi non ha mai chiuso una cassa a fine turno, difeso il RevPAR di un hotel o scoperto un rincaro occulto tra una bolla fornitore e un estratto conto POS.
+            </p>
+            <p style="margin-bottom:10px;">
+                <strong>BEMASK Sovereign Zero</strong> nasce dall'incontro tra <strong>oltre 30 anni di Direzione Alberghiera, Revenue Management e F&B sul campo</strong>, basi di elettronica industriale e orchestrazione avanzata con l'Intelligenza Artificiale.
+            </p>
+            <div style="color:#38BDF8; font-weight:900; font-family:'Orbitron', sans-serif; font-size:11px; margin-top:12px; margin-bottom:6px;">
+                LA LEGGE DEL CUBO E LA MITOSI COMPUTAZIONALE
+            </div>
+            <ul style="padding-left:18px; margin-bottom:10px; color:#CBD5E1;">
+                <li><strong>Il Perno Centrale (3 Assi X·Y·Z):</strong> ogni gesto fisico sul campo (<em>Materia</em>) si traduce all'istante in controllo di cassa e margine (<em>Energia</em>) sincronizzato col contesto operativo e meteo (<em>Tempo</em>).</li>
+                <li><strong>Micro-Moduli Leggeri:</strong> invece di un monolite pesante, una flotta di pod autonomi da 1 secondo su smartphone — per reparti diretti, gestioni in concessione o singole P.IVA.</li>
+                <li><strong>Sovranità in RAM (0 Byte su Cloud):</strong> nessun dato sensibile resta sui server. I numeri appartengono solo a chi governa l'azienda.</li>
+            </ul>
+            <div style="border-top:1px dashed #334155; padding-top:8px; margin-top:8px; font-size:11px; color:#10B981;">
+                ◈ Conceived, Directed & Engineered by <strong>Enrico Braglia</strong> // Co-orchestrated via AI Synthesis
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+if hasattr(st, "dialog"):
+    @st.dialog("◈ ARCHITECT & GENESIS // BEMASK SOVEREIGN ZERO", width="large")
+    def open_architect_modal():
+        render_architect_dossier_content()
+else:
+    def open_architect_modal():
+        st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
+
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
-top_c1, top_c2, top_c3 = st.columns([3.4, 0.9, 0.7])
+top_c1, top_c_arch, top_c2, top_c3 = st.columns([2.65, 1.15, 0.8, 0.7])
 with top_c1:
     st.markdown(f"""
     <div class="koenig-strip">
@@ -705,16 +804,29 @@ with top_c1:
         </div>
         <div style="margin-top:5px;">
             <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
-            <span class="badge-amber">12 TRAVEL TUBE ARMED</span>
+            <span class="badge-amber">ARCHITECT: E. BRAGLIA</span>
             {breach_badge}
-            <span class="badge-white">1 → 2¹² (STATE #{binary_state_num}/4096)</span>
+            <span class="badge-white">1 → 2¹² (#{binary_state_num})</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
+with top_c_arch:
+    if st.button("◈ ARCHITECT\nENRICO BRAGLIA", use_container_width=True):
+        play_ems_synth("commlock")
+        open_architect_modal()
 with top_c2:
     if st.button("🏠 PAGINA ZERO\n(HOME PLANCIA)", use_container_width=True):
         return_to_page_zero()
         st.rerun()
+with top_c3:
+    if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
+        st.session_state["auth_unlocked"] = False
+        return_to_page_zero()
+        st.rerun()
+
+if st.session_state.get("show_arch_fallback", False):
+    with st.expander("◈ ARCHITECT & GENESIS // ENRICO BRAGLIA", expanded=True):
+        render_architect_dossier_content()
 with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
