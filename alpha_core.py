@@ -616,7 +616,7 @@ def render_architect_dossier_content():
     v_col, m_col = st.columns([1.25, 1.55])
 
     with v_col:
-        if os.path.exists("architect_manifesto.mp4"):
+        if os.path.exists("architect_manifesto..mp4"):
             st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
         else:
             st.markdown("""
