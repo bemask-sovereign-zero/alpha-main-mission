@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (X-RAY RECEIPT ITEM TABLE + ZOOM)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (AUTO-API KEY & GEMINI 2.5 FLASH)
 # ==============================================================================
 
 st.set_page_config(
@@ -37,10 +37,19 @@ def get_master_pin():
         return "9999"
 
 def get_gemini_api_key():
+    # Controlla prima i widget attivi a schermo, poi session_state, poi st.secrets
+    for k_name in ["api_key_box_DDT", "api_key_box_BANK", "api_key_box_VAULT", "custom_gemini_key"]:
+        val = str(st.session_state.get(k_name, "")).strip()
+        if len(val) > 15:
+            st.session_state["custom_gemini_key"] = val
+            return val
     try:
-        return st.secrets.get("GEMINI_API_KEY", st.session_state.get("custom_gemini_key", ""))
+        sec_k = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
+        if len(sec_k) > 15:
+            return sec_k
     except Exception:
-        return st.session_state.get("custom_gemini_key", "")
+        pass
+    return ""
 
 def generate_totp_token(secret_b32, time_offset=0):
     try:
@@ -63,42 +72,56 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
-# --- MOTORE OCR VISION IN RAM (ESTRAZIONE RIGA PER RIGA DELLO SCONTRINO) ---
+# --- MOTORE OCR VISION IN RAM (CON SUPPORTO MULTI-MODELLO GEMINI 2.5 / 2.0 / 1.5) ---
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
-    if not api_key or len(api_key.strip()) < 10:
-        return None, "Per l'estrazione automatica da foto, incolla una chiave gratuita Google AI Studio (aistudio.google.com/apikey) oppure usa la Tabella Raggi-X qui sotto!"
-    try:
-        b64_img = base64.b64encode(image_bytes).decode("utf-8")
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key.strip()}"
-        prompt_txt = (
-            "Sei lo scanner contabile di un bar italiano. Leggi questa foto di scontrino, bolla o nota. "
-            "Estrai l'esercente, tutte le singole righe dei prodotti acquistati con quantità e prezzo, e il totale pagato. "
-            "Rispondi SOLO con un JSON valido in questo formato esatto: "
-            "{\"esercente\": \"nome locale\", \"metodo_pagamento\": \"CARTA DI CREDITO o CONTANTI\", "
-            "\"righe\": [{\"voce\": \"nome articolo\", \"qta\": 1, \"prezzo\": 10.00}], \"totale_euro\": 19.80}"
-        )
-        payload = {
-            "contents": [{
-                "parts": [
-                    {"text": prompt_txt},
-                    {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}
-                ]
-            }]
-        }
-        req = urllib.request.Request(
-            url,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST"
-        )
-        with urllib.request.urlopen(req, timeout=14) as resp:
-            res_data = json.loads(resp.read().decode("utf-8"))
-            raw_reply = res_data["candidates"][0]["content"]["parts"][0]["text"]
-            clean_json = re.sub(r"```json|```", "", raw_reply).strip()
-            parsed = json.loads(clean_json)
-            return parsed, None
-    except Exception as e:
-        return None, f"Errore lettura ottica: {str(e)}"
+    clean_key = str(api_key).strip()
+    if not clean_key or len(clean_key) < 15:
+        return None, "Incolla la tua chiave AIza... nella casella a destra e clicca direttamente questo bottone!"
+
+    b64_img = base64.b64encode(image_bytes).decode("utf-8")
+    prompt_txt = (
+        "Sei lo scanner contabile di un bar italiano. Leggi questa foto di scontrino, bolla o ricevuta POS. "
+        "Se vedi solo l'appendice POS o il pagamento, metti una riga con 'Pagamento Scontrino / POS' e l'importo letto. "
+        "Se vedi i prodotti, elencali tutti. "
+        "Rispondi SOLO con un JSON valido (senza commenti) in questo formato esatto: "
+        "{\"esercente\": \"nome o email locale\", \"metodo_pagamento\": \"CARTA DI CREDITO / POS\", "
+        "\"righe\": [{\"voce\": \"nome articolo o pagamento\", \"qta\": 1, \"prezzo\": 19.80}], \"totale_euro\": 19.80}"
+    )
+    payload = {
+        "contents": [{
+            "parts": [
+                {"text": prompt_txt},
+                {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}
+            ]
+        }]
+    }
+
+    # Prova automaticamente i modelli dal più recente (2026) in giù
+    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
+    last_err = ""
+    for m_name in models_to_try:
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={clean_key}"
+            req = urllib.request.Request(
+                url,
+                data=json.dumps(payload).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                res_data = json.loads(resp.read().decode("utf-8"))
+                raw_reply = res_data["candidates"][0]["content"]["parts"][0]["text"]
+                clean_json = re.sub(r"```json|```", "", raw_reply).strip()
+                match_j = re.search(r"\{.*\}", clean_json, re.DOTALL)
+                if match_j:
+                    clean_json = match_j.group(0)
+                parsed = json.loads(clean_json)
+                return parsed, None
+        except Exception as e:
+            last_err = f"[{m_name}] {str(e)}"
+            continue
+
+    return None, f"Errore connessione API: {last_err}"
 
 # --- 2. BLINDAGGIO SESSION STATE ---
 def init_monumental_state():
@@ -139,8 +162,7 @@ def init_monumental_state():
         "unsaved_ops_count": 0,
         "custom_gemini_key": "",
         "ocr_esercente": "Pechino Follonica (pechinofollonica@gmail.com)",
-        "ocr_metodo": "CARTA DI CREDITO",
-        # Scomposizione interna delle voci dello scontrino (Modificabile riga per riga!)
+        "ocr_metodo": "CARTA DI CREDITO / POS",
         "ocr_items_df": [
             {"voce": "Voce 1 Scontrino (Modifica qui il nome prodotto)", "qta": 1, "prezzo": 10.00},
             {"voce": "Voce 2 Scontrino (Modifica o aggiungi riga +)", "qta": 1, "prezzo": 9.80}
@@ -446,7 +468,7 @@ WEATHER_5_DAYS = [
     },
 ]
 
-# --- 6. CSS MONUMENTALE ---
+# --- 6. CSS MONUMENTALE (CON OVERRIDE BORDO VERDE SMERALDO SUGLI INPUT ATTIVI!) ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
@@ -464,6 +486,12 @@ st.markdown("""
 }
 header[data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 0.7rem; max-width: 96%; }
+
+/* Sostituisce il bordo rosso di Streamlit con il Verde Smeraldo / Ambra Alpha! */
+div[data-baseweb="input"] > div:focus-within {
+    border-color: #10B981 !important;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
+}
 
 .koenig-strip {
     background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
@@ -807,10 +835,12 @@ if is_commander:
                 """, unsafe_allow_html=True)
             with q2:
                 st.markdown(f"**Token 2FA Attivo (30s):** `{generate_totp_token(secret_now)}`")
-                st.session_state["custom_gemini_key"] = st.text_input("🤖 Chiave API Gemini Vision:", value=st.session_state["custom_gemini_key"], type="password", placeholder="AIzaSy...")
+                if st.session_state["breach_log"]:
+                    for item in reversed(st.session_state["breach_log"]):
+                        st.error(item)
 
 # ==============================================================================
-# VISORE OTTICO RAY-SCAN CON TABELLA INTERNA DELLE SINGOLE VOCI + LENTE ZOOM HD
+# VISORE OTTICO RAY-SCAN CON LETTURA IMMEDIATA CHIAVE API (SENZA CONFLITTI)
 # ==============================================================================
 def render_live_ram_inspector(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
@@ -842,26 +872,40 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
 
     with v_right:
         st.markdown("###### 🧾 SCOMPOSIZIONE PRODOTTI & VOCI INTERNE DELLO SCONTRINO:")
-        api_k = get_gemini_api_key()
 
-        c_ai1, c_ai2 = st.columns([1.5, 1.5])
+        c_ai1, c_ai2 = st.columns([1.45, 1.55])
+        with c_ai2:
+            # Casella univoca con bordo verde che salva istantaneamente la chiave!
+            typed_key = st.text_input(
+                "Chiave AIza:",
+                value=st.session_state.get("custom_gemini_key", ""),
+                key=f"api_key_box_{module_tag}",
+                placeholder="Incolla qui la chiave AIzaSy...",
+                label_visibility="collapsed"
+            )
+            if typed_key and len(typed_key.strip()) > 15:
+                st.session_state["custom_gemini_key"] = typed_key.strip()
+
+        active_key = get_gemini_api_key()
+
         with c_ai1:
             if st.button("🤖 ESTRAI TUTTE LE RIGHE CON AI VISION", key=f"run_ocr_{module_tag}", use_container_width=True):
-                with st.spinner("Lettura ottica di ogni singola riga dello scontrino in RAM..."):
-                    parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, api_k)
+                with st.spinner("Lettura ottica Gemini 2.5 Flash in corso sulla RAM..."):
+                    parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
                     if parsed_ocr:
                         st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino Acquisito")
-                        st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO")
+                        st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
                         righe_ai = parsed_ocr.get("righe", [])
                         if isinstance(righe_ai, list) and len(righe_ai) > 0:
                             st.session_state["ocr_items_df"] = righe_ai
                         play_ems_synth("commlock")
-                        st.success("✅ Tutte le righe dello scontrino sono state estratte nella tabella qui sotto!")
+                        st.success("✅ Scontrino letto dall'AI! Ecco le righe estratte qui sotto:")
                         st.rerun()
                     else:
-                        st.info(err_msg)
-        with c_ai2:
-            st.session_state["custom_gemini_key"] = st.text_input("Chiave Gratuita AIza... (Opz.):", value=st.session_state["custom_gemini_key"], type="password", placeholder="Incolla chiave AIza per auto-OCR...", label_visibility="collapsed")
+                        st.warning(err_msg)
+
+        if active_key:
+            st.caption(f"🟢 **Chiave AI Attiva (`...{active_key[-4:]}`):** premi il pulsante **🤖 ESTRAI TUTTE LE RIGHE CON AI VISION** qui sopra per leggere la foto!")
 
         e_col1, e_col2 = st.columns([1.8, 1.2])
         with e_col1:
@@ -884,7 +928,6 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
             key=f"items_ed_{module_tag}"
         )
 
-        # Calcolo automatico del Totale Reale sommando le singole voci dello scontrino!
         totale_calcolato = 0.0
         voci_riepilogo = []
         if not edited_items.empty:
