@@ -617,7 +617,7 @@ def render_architect_dossier_content():
 
     with v_col:
         if os.path.exists("architect_manifesto..mp4"):
-            st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
+            st.video("architect_manifesto..mp4", autoplay=True, loop=True, muted=False)
         else:
             st.markdown("""
             <div style="background:#090C12; border:1px solid #2B394A; border-radius:4px; padding:22px 14px; text-align:center;">
