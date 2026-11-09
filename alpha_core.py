@@ -12,7 +12,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (EAGLE-1 & SPACE:1999 EDITION)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (SANDRA BENES & MAYA TELEMETRY)
 # ==============================================================================
 
 st.set_page_config(
@@ -55,7 +55,7 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
-# --- 2. BLINDAGGIO SESSION STATE + CALENDARIO STORICO + CASSA A-O + CAFFÈ ---
+# --- 2. BLINDAGGIO SESSION STATE + FIX PRESET MULTIVERSO ---
 def init_monumental_state():
     default_labels_ao = {
         "A": "USCITA A", "B": "USCITA B", "C": "USCITA C", "D": "USCITA D",
@@ -68,6 +68,7 @@ def init_monumental_state():
         "auth_user": "",
         "breach_log": [],
         "active_bits_11": [True, True, True, True, True, True, False, False, False, True, True],
+        "keep_multiverse_open": True,  # Mantiene il selettore sempre aperto mentre configuri!
         "custom_squares": [],
         "blum_sector": None,
         "selected_sub": None,
@@ -87,7 +88,6 @@ def init_monumental_state():
         "bank_costi_occulti": 198.50,
         "bank_prezzo_caffe": 1.30,
         "ram_clear_counter": 0,
-        # Nuovi automatismi Bar Sotto Casa & Chrono-Calendar
         "bar_kg_caffe_aperti": 2.0,
         "bar_tazzine_per_kg": 135,
         "bar_ao_labels": default_labels_ao,
@@ -101,7 +101,26 @@ def init_monumental_state():
         if k not in st.session_state:
             st.session_state[k] = v
 
+    # Allinea anche le chiavi dei singoli toggle per evitare il blocco su un solo modulo
+    for idx_b in range(11):
+        t_key = f"bit_sw_{idx_b}"
+        if t_key not in st.session_state:
+            st.session_state[t_key] = st.session_state["active_bits_11"][idx_b]
+
 init_monumental_state()
+
+# Funzione atomica per applicare i Preset senza che Streamlit li sovrascriva!
+def apply_multiverse_preset(new_bits_list):
+    st.session_state["active_bits_11"] = list(new_bits_list)
+    for idx_b, val_b in enumerate(new_bits_list):
+        st.session_state[f"bit_sw_{idx_b}"] = bool(val_b)
+    st.session_state["blum_sector"] = None
+    st.session_state["keep_multiverse_open"] = True
+
+def on_single_bit_toggle(idx_b):
+    st.session_state["active_bits_11"][idx_b] = bool(st.session_state[f"bit_sw_{idx_b}"])
+    st.session_state["blum_sector"] = None
+    st.session_state["keep_multiverse_open"] = True
 
 def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK"):
     st.session_state["chrono_ledger"].append({
@@ -167,34 +186,27 @@ def play_ems_synth(effect_type):
 # ==============================================================================
 # 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (SVG MONUMENTALI 86x66 PX)
 # ==============================================================================
-# Aquila Frontale / Laterale ad alto dettaglio per l'Header e il Gate
 EAGLE_HERO_SVG = """
 <svg width="115" height="58" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Traliccio Dorsale Reticolare (Spine Truss) -->
   <rect x="48" y="16" width="84" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
   <path d="M48 28L62 16L76 28L90 16L104 28L118 16L132 28" stroke="#CBD5E1" stroke-width="1.8"/>
   <path d="M48 16L62 28L76 16L90 28L104 16L118 28L132 16" stroke="#64748B" stroke-width="1.4"/>
-  <!-- Pod Carrelli Laterali (Landing Pods) -->
   <polygon points="36,36 58,36 62,58 32,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
   <polygon points="122,36 144,36 148,58 118,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
   <rect x="30" y="58" width="34" height="5" fill="#F59E0B"/>
   <rect x="116" y="58" width="34" height="5" fill="#F59E0B"/>
-  <!-- Modulo Passeggeri Centrale -->
   <rect x="58" y="30" width="64" height="24" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
   <line x1="74" y1="30" x2="74" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
   <line x1="106" y1="30" x2="106" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
-  <!-- Muso Conico Aquila (Command Module) con i 2 Oblò Triangolari Ambra Luminosi -->
   <polygon points="90,22 122,42 112,68 68,68 58,42" fill="#E2E8F0" stroke="#FFFFFF" stroke-width="2.2"/>
   <polygon points="87,34 65,44 72,54 87,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
   <polygon points="93,34 115,44 108,54 93,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
-  <!-- Ugelli Razzi Posteriori -->
   <circle cx="22" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
   <circle cx="158" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
 </svg>
 """
 
 SVG_ICONS = {
-    # 01: AQUILA (EAGLE TRANSPORTER — MUSO CON FINESTRINI AMBRA E TRALICCIO)
     "01": """<svg width="86" height="64" viewBox="0 0 120 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <rect x="24" y="10" width="72" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
              <path d="M24 22L38 10L52 22L66 10L80 22L96 10" stroke="#E2E8F0" stroke-width="2"/>
@@ -206,8 +218,6 @@ SVG_ICONS = {
              <rect x="8" y="60" width="32" height="5" fill="#F59E0B"/>
              <rect x="80" y="60" width="32" height="5" fill="#F59E0B"/>
              </svg>""",
-
-    # 02: PANNELLO CONTROLLO PARETE BASE ALPHA (COMPUTER WALL SWITCHES)
     "02": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <rect x="10" y="8" width="90" height="68" rx="4" fill="#0F172A" stroke="#10B981" stroke-width="2.5"/>
              <rect x="18" y="16" width="20" height="12" fill="#F59E0B"/><rect x="44" y="16" width="20" height="12" fill="#F8FAFC"/><rect x="70" y="16" width="22" height="12" fill="#10B981"/>
@@ -215,8 +225,6 @@ SVG_ICONS = {
              <rect x="18" y="54" width="74" height="14" fill="#1E293B" stroke="#34D399" stroke-width="1.8"/>
              <path d="M22 61H40L45 56L52 66L58 58L64 61H88" stroke="#10B981" stroke-width="2.2"/>
              </svg>""",
-
-    # 03: CONSOLLE TATTICA ROTONDA MAIN MISSION (COMPUTER RADAR DESK)
     "03": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <circle cx="55" cy="42" r="32" fill="#0F293A" stroke="#38BDF8" stroke-width="2.5"/>
              <circle cx="55" cy="42" r="20" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 3"/>
@@ -225,8 +233,6 @@ SVG_ICONS = {
              <circle cx="65" cy="32" r="5" fill="#F59E0B"/>
              <circle cx="43" cy="50" r="4" fill="#10B981"/>
              </svg>""",
-
-    # 04: IL COMMLOCK DI SPAZIO 1999 (CON SCHERMO QUADRATO CRT, TASTI E CLIP)
     "04": """<svg width="76" height="66" viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg">
              <rect x="26" y="6" width="48" height="74" rx="5" fill="#1E1B2E" stroke="#A855F7" stroke-width="2.8"/>
              <rect x="33" y="13" width="34" height="26" rx="2" fill="#090D16" stroke="#38BDF8" stroke-width="2"/>
@@ -236,79 +242,56 @@ SVG_ICONS = {
              <line x1="34" y1="66" x2="66" y2="66" stroke="#CBD5E1" stroke-width="2"/>
              <line x1="34" y1="72" x2="66" y2="72" stroke="#CBD5E1" stroke-width="2"/>
              </svg>""",
-
-    # 05: UNITA' DI RIANIMAZIONE & ONDE BIOMETRICHE MEDICAL CENTER (DR. RUSSELL)
     "05": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <rect x="14" y="12" width="82" height="60" rx="6" fill="#2A121F" stroke="#F43F5E" stroke-width="2.5"/>
              <path d="M22 44H38L45 24L55 62L64 34L70 44H88" stroke="#F43F5E" stroke-width="3"/>
              <circle cx="28" cy="24" r="4" fill="#F59E0B"/>
              <circle cx="82" cy="24" r="4" fill="#10B981"/>
              </svg>""",
-
-    # 06: LA PORTA SCORREVOLE DELLA BASE LUNARE ALPHA (MOONBASE SLIDING BULKHEAD DOOR)
     "06": """<svg width="86" height="64" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <polygon points="18,76 28,10 86,10 96,76" fill="#161A22" stroke="#F59E0B" stroke-width="2.8"/>
-             <!-- Anta Sinistra semichiusa -->
              <polygon points="22,74 30,13 54,13 48,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-             <!-- Anta Destra che si apre scorrendo -->
              <polygon points="66,74 62,13 84,13 92,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-             <!-- Luce Ambra del Corridoio Alpha che filtra dal varco -->
              <polygon points="48,74 54,13 62,13 66,74" fill="rgba(245,158,11,0.35)"/>
-             <!-- Sensore Commlock a muro accanto alla porta -->
              <rect x="100" y="34" width="8" height="16" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/>
              </svg>""",
-
-    # 07: CONTAINER CARGO EAGLE & POD LOGISTICO NUCLEARE (LOGISTICS POD)
     "07": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <polygon points="24,20 86,20 96,42 86,66 24,66 14,42" fill="#0F2E26" stroke="#10B981" stroke-width="2.5"/>
              <rect x="34" y="30" width="42" height="24" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/>
              <line x1="24" y1="42" x2="86" y2="42" stroke="#34D399" stroke-width="2"/>
              <circle cx="55" cy="42" r="6" fill="#F59E0B"/>
              </svg>""",
-
-    # 08: SCANNER DIAGNOSTICO PORTATILE MEDICO (MEDICAL CORORDER)
     "08": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/>
              <circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/>
              <path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/>
              </svg>""",
-
-    # 09: TORRE ENERGIA REATTORE ALPHA & GRIGLIA DIFESA LASER
     "09": """<svg width="84" height="64" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/>
              <ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/>
              <ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/>
              <circle cx="55" cy="12" r="6" fill="#EF4444"/>
              </svg>""",
-
-    # 10: TERMINALE TELEMETRIA X5-7 / COMPUTER CENTRALE BASE ALPHA (BAR & DDT)
     "10": """<svg width="86" height="64" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg">
              <rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/>
-             <!-- Bande luminose di lettura nastro magnetico X5-7 -->
              <rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/>
              <line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/>
              <line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/>
              <circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/>
              <circle cx="82" cy="29" r="4" fill="#EF4444"/>
-             <!-- Tastiera numerica di comando Alpha -->
              <rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/>
              <rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/>
              </svg>""",
-
-    # 11: LA PISTOLA LASER / STUN GUN DI KOENIG (ICONICA FORMA ANGOLARE SPAZIO 1999)
     "11": """<svg width="88" height="64" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg">
-             <!-- Corpo superiore fusto Pistola Laser -->
              <path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/>
-             <!-- Selettore Stun / Kill Rosso e Ambra -->
              <rect x="26" y="30" width="22" height="6" fill="#EF4444"/>
              <rect x="54" y="30" width="18" height="6" fill="#F59E0B"/>
-             <!-- Ugello Laser e Raggio Energetico -->
              <rect x="94" y="29" width="8" height="8" fill="#F59E0B"/>
              <line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/>
              </svg>"""
 }
 
-# --- 5. ARCHITETTURA DEGLI 11 VETTORI PRIMARI (CON SIMBOLO SPAZIO 1999 ESPLICITO) ---
+# --- 5. ARCHITETTURA DEGLI 11 VETTORI PRIMARI ---
 BASE_VECTORS = [
     {
         "bit": 0, "code": "01", "short": "01 FRONT", "name": "FRONT & APEX", "artifact": "EAGLE-1 TRANSPORTER", "staff_allowed": False,
@@ -378,12 +361,38 @@ BASE_VECTORS = [
     }
 ]
 
+# --- TELEMETRIA METEO STILE SANDRA BENES / MAYA (DATI ESPLICITI ED OPERATIVI) ---
 WEATHER_5_DAYS = [
-    {"day": "SOL 09 · 19°C", "status": "NOMINAL ORBIT", "pct": "8%", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "TUE 10/11 · 17°C", "status": "NOMINAL ORBIT", "pct": "14%", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "WED 11/11 · 17°C", "status": "SOLAR STORM", "pct": "91%", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "THU 12/11 · 20°C", "status": "SOLAR STORM", "pct": "94%", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "FRI 13/11 · 21°C", "status": "NOMINAL ORBIT", "pct": "22%", "border": "#38BDF8", "text_col": "#F59E0B"},
+    {
+        "day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT",
+        "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW",
+        "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO",
+        "border": "#F59E0B", "text_col": "#F59E0B"
+    },
+    {
+        "day": "MAR 10/11 · 17°C", "icon": "🌤️", "status": "NOMINAL ORBIT",
+        "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W",
+        "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO",
+        "border": "#F59E0B", "text_col": "#F59E0B"
+    },
+    {
+        "day": "MER 11/11 · 17°C", "icon": "⛈️", "status": "SOLAR STORM",
+        "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW",
+        "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2",
+        "border": "#EF4444", "text_col": "#EF4444"
+    },
+    {
+        "day": "GIO 12/11 · 20°C", "icon": "⛈️", "status": "SOLAR STORM",
+        "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S",
+        "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI",
+        "border": "#EF4444", "text_col": "#EF4444"
+    },
+    {
+        "day": "VEN 13/11 · 21°C", "icon": "☀️", "status": "NOMINAL ORBIT",
+        "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE",
+        "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI",
+        "border": "#38BDF8", "text_col": "#38BDF8"
+    },
 ]
 
 # --- 6. CSS MONUMENTALE CON BLUEPRINT DELL'AQUILA SULLO SFONDO ---
@@ -431,11 +440,22 @@ header[data-testid="stHeader"] { background: transparent; }
 }
 
 .weather-card {
-    background-color: #161A22; border: 1px solid #2B3340;
-    padding: 8px 12px; border-radius: 2px; margin-bottom: 10px;
+    background-color: #151922; border: 1px solid #2B3340;
+    padding: 10px 12px; border-radius: 3px; margin-bottom: 10px;
 }
+.w-header { display: flex; justify-content: space-between; align-items: center; }
 .w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.6px; }
-.w-status { font-size: 9px; font-weight: 800; margin-top: 3px; letter-spacing: 0.8px; }
+.w-icon { font-size: 18px; line-height: 1; }
+.w-status { font-size: 10px; font-weight: 900; margin-top: 4px; letter-spacing: 0.8px; }
+.w-telemetry {
+    display: flex; justify-content: space-between; margin-top: 6px; padding-top: 5px;
+    border-top: 1px dashed #2E3846; font-family: 'Share Tech Mono', monospace;
+    font-size: 10px; color: #E2E8F0; font-weight: 700;
+}
+.w-directive {
+    margin-top: 5px; font-family: 'Share Tech Mono', monospace;
+    font-size: 9px; color: #94A3B8; letter-spacing: 0.4px;
+}
 
 .alpha-tile {
     height: 225px; border-radius: 3px; padding: 16px;
@@ -501,7 +521,7 @@ div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 7. KOENIG ZERO-TRUST SECURITY GATE (CON AQUILA MONUMENTALE IN TESTATA)
+# 7. KOENIG ZERO-TRUST SECURITY GATE
 # ==============================================================================
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
@@ -577,7 +597,7 @@ if not st.session_state["auth_unlocked"]:
     st.stop()
 
 # ==============================================================================
-# 8. FILTRO RUOLO ANTI-TALPA + BARRA AVVISO SALVATAGGIO CALENDARIO
+# 8. FILTRO RUOLO ANTI-TALPA
 # ==============================================================================
 is_commander = (st.session_state["auth_role"] == "COMMANDER")
 bits = st.session_state["active_bits_11"]
@@ -585,7 +605,7 @@ bits = st.session_state["active_bits_11"]
 if is_commander:
     active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
     if not active_base:
-        st.session_state["active_bits_11"][0] = True
+        apply_multiverse_preset([True] + [False]*10)
         active_base = [BASE_VECTORS[0]]
     all_squares = active_base + st.session_state["custom_squares"]
 else:
@@ -597,7 +617,7 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 9. TOP KOENIG BAR + AQUILA HERO NELLA MISSION BAR ---
+# --- 9. TOP KOENIG BAR + AQUILA HERO ---
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} TENTATIVI INTRUSIONE RILEVATI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
@@ -654,42 +674,75 @@ if st.session_state["unsaved_ops_count"] >= 3:
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
+# --- CONSOLLE TELEMETRICA METEO SANDRA BENES & MAYA (5 GIORNI AD ALTA LEGGIBILITÀ) ---
 w_cols = st.columns(5)
 for idx, w in enumerate(WEATHER_5_DAYS):
     with w_cols[idx]:
         st.markdown(f"""
-        <div class="weather-card" style="border-left: 3px solid {w['border']}; border-top: 1px solid {w['border']};">
-            <div class="w-day">{w['day']} <span style="float:right; color:#94A3B8; font-family:'Share Tech Mono';">{w['pct']}</span></div>
+        <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
+            <div class="w-header">
+                <span class="w-day">{w['day']}</span>
+                <span class="w-icon">{w['icon']}</span>
+            </div>
             <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
+            <div class="w-telemetry">
+                <span style="color:{w['text_col']};">{w['rain']}</span>
+                <span>{w['hum']}</span>
+                <span style="color:#38BDF8;">{w['wind']}</span>
+            </div>
+            <div class="w-directive">{w['directive']}</div>
         </div>
         """, unsafe_allow_html=True)
 
-# --- 10. PANNELLO SEGRETO DEL COMANDANTE ---
+# ==============================================================================
+# 10. PANNELLO DEL COMANDANTE: SCALABILITÀ MULTIVERSO SEMPRE APERTA E PRESET FIXATI
+# ==============================================================================
 if is_commander:
-    sec_col1, sec_col2 = st.columns(2)
+    sec_col1, sec_col2 = st.columns([1.45, 1.0])
     with sec_col1:
-        with st.expander(f"🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹¹ (Stato #{binary_state_num}/2048 — Configura Vettori Cliente)", expanded=False):
+        # NOTA TECNICA: Etichetta fissa dell'expander + parametro expanded legato a session_state
+        # Così NON SI CHIUDE MAI mentre accendi o spegni più interruttori di fila!
+        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹¹ (Configura Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
+            st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 2048` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
             sw_cols = st.columns(11)
             for i, vec in enumerate(BASE_VECTORS):
                 with sw_cols[i]:
-                    toggled = st.toggle(vec["short"], value=st.session_state["active_bits_11"][i], key=f"tg11_{i}")
-                    if toggled != st.session_state["active_bits_11"][i]:
-                        st.session_state["active_bits_11"][i] = toggled
-                        st.session_state["blum_sector"] = None
-                        st.rerun()
-            p1, p2, p3 = st.columns(3)
-            if p1.button("🍸 PACCHETTO BAR (02+10+11)", use_container_width=True):
-                st.session_state["active_bits_11"] = [False, True, False, False, False, False, False, False, False, True, True]
-                st.session_state["blum_sector"] = None
-                st.rerun()
-            if p2.button("🛸 PACCHETTO 6 SETTORI", use_container_width=True):
-                st.session_state["active_bits_11"] = [True, True, True, True, True, True, False, False, False, False, False]
-                st.session_state["blum_sector"] = None
-                st.rerun()
-            if p3.button("🔥 FULL MULTIVERSE 2¹¹", use_container_width=True):
-                st.session_state["active_bits_11"] = [True] * 11
-                st.session_state["blum_sector"] = None
-                st.rerun()
+                    st.toggle(
+                        vec["short"],
+                        key=f"bit_sw_{i}",
+                        on_change=on_single_bit_toggle,
+                        args=(i,)
+                    )
+
+            p1, p2, p3, p4 = st.columns(4)
+            # Preset 1: Bar Sotto Casa (02 LAZERS BEV + 10 BAR DDT + 11 BANK VAMPIRE = 3 Settori!)
+            p1.button(
+                "🍸 PACCHETTO BAR (02+10+11)",
+                on_click=apply_multiverse_preset,
+                args=([False, True, False, False, False, False, False, False, False, True, True],),
+                use_container_width=True
+            )
+            # Preset 2: Hotel Classico 6 Settori (01 -> 06)
+            p2.button(
+                "🛸 PACCHETTO 6 SETTORI (01-06)",
+                on_click=apply_multiverse_preset,
+                args=([True, True, True, True, True, True, False, False, False, False, False],),
+                use_container_width=True
+            )
+            # Preset 3: Tutti gli 11 Settori Accesi (55 Micro-Moduli)
+            p3.button(
+                "🔥 FULL MULTIVERSE 2¹¹ (TUTTI 11)",
+                on_click=apply_multiverse_preset,
+                args=([True] * 11,),
+                use_container_width=True
+            )
+            # Preset 4: Solo Vettore 01 per partire da 1 e accendere a mano
+            p4.button(
+                "⚡ SOLO 01 (RESET A 1)",
+                on_click=apply_multiverse_preset,
+                args=([True] + [False] * 10,),
+                use_container_width=True
+            )
 
     with sec_col2:
         with st.expander(f"🛡️ CASSAFORTE 2FA TITOLARE & REGISTRO ANTINTRUSIONE ({breach_count} Allerte)", expanded=(breach_count > 0)):
@@ -809,7 +862,7 @@ with col_left:
         curr_sub = str(st.session_state.get("selected_sub", ""))
 
         # ======================================================================
-        # MODULO 10: BAR & DDT SENTINEL (CAFFÈ +1KG, CASSA A-O, MULTI-TURNO, CALENDARIO)
+        # MODULO 10: BAR & DDT SENTINEL
         # ======================================================================
         if sec_obj["code"] == "10":
             if "5." in curr_sub:
@@ -870,7 +923,6 @@ with col_left:
                     st.success(f"Registrato nel Calendario! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
 
             else:
-                # VISTA 1: SCANNER BOLLE IN RAM + CONTATORE SACCHETTO CAFFÈ (+1 KG)
                 st.markdown("##### ☕ CONTATORE INVERSO SACCHETTI CAFFÈ (1 KG) & SCANNER OTTICO BOLLE IN RAM")
                 cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
                 with cf1:
@@ -956,7 +1008,7 @@ with col_left:
                     st.rerun()
 
         # ======================================================================
-        # MODULO 11: BANK VAMPIRE SCANNER (DICITURA PROFESSIONALE + CALENDARIO)
+        # MODULO 11: BANK VAMPIRE SCANNER
         # ======================================================================
         elif sec_obj["code"] == "11":
             if "5." in curr_sub:
