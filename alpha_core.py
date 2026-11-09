@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (TRUE AI OCR SCANNER + EDITOR)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (X-RAY RECEIPT ITEM TABLE + ZOOM)
 # ==============================================================================
 
 st.set_page_config(
@@ -63,18 +63,19 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
-# --- MOTORE OCR VISION IN RAM (LEGGE DAVVERO LO SCONTRINO SENZA LIBRERIE ESTERNE!) ---
+# --- MOTORE OCR VISION IN RAM (ESTRAZIONE RIGA PER RIGA DELLO SCONTRINO) ---
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
     if not api_key or len(api_key.strip()) < 10:
-        return None, "Inserisci la chiave API Gemini Flash per la lettura automatica dei numeri dalla foto."
+        return None, "Per l'estrazione automatica da foto, incolla una chiave gratuita Google AI Studio (aistudio.google.com/apikey) oppure usa la Tabella Raggi-X qui sotto!"
     try:
         b64_img = base64.b64encode(image_bytes).decode("utf-8")
         url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key.strip()}"
         prompt_txt = (
-            "Sei lo scanner contabile di un bar italiano. Leggi questa foto di scontrino, bolla o nota a mano. "
+            "Sei lo scanner contabile di un bar italiano. Leggi questa foto di scontrino, bolla o nota. "
+            "Estrai l'esercente, tutte le singole righe dei prodotti acquistati con quantità e prezzo, e il totale pagato. "
             "Rispondi SOLO con un JSON valido in questo formato esatto: "
-            "{\"esercente_o_fornitore\": \"nome\", \"voci_lette\": \"elenco sintetico articoli e prezzi\", \"totale_euro\": 19.80} "
-            "Assicurati di estrarre il TOTALE reale pagato in euro come numero decimale."
+            "{\"esercente\": \"nome locale\", \"metodo_pagamento\": \"CARTA DI CREDITO o CONTANTI\", "
+            "\"righe\": [{\"voce\": \"nome articolo\", \"qta\": 1, \"prezzo\": 10.00}], \"totale_euro\": 19.80}"
         )
         payload = {
             "contents": [{
@@ -90,7 +91,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
             headers={"Content-Type": "application/json"},
             method="POST"
         )
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=14) as resp:
             res_data = json.loads(resp.read().decode("utf-8"))
             raw_reply = res_data["candidates"][0]["content"]["parts"][0]["text"]
             clean_json = re.sub(r"```json|```", "", raw_reply).strip()
@@ -137,14 +138,17 @@ def init_monumental_state():
         "bar_ao_labels": default_labels_ao,
         "unsaved_ops_count": 0,
         "custom_gemini_key": "",
-        "last_ocr_hash": "",
-        "ocr_extracted_desc": "Scontrino / Bolla acquisita da Fotocamera",
-        "ocr_extracted_total": 19.80,
-        "ocr_extracted_items": "",
+        "ocr_esercente": "Pechino Follonica (pechinofollonica@gmail.com)",
+        "ocr_metodo": "CARTA DI CREDITO",
+        # Scomposizione interna delle voci dello scontrino (Modificabile riga per riga!)
+        "ocr_items_df": [
+            {"voce": "Voce 1 Scontrino (Modifica qui il nome prodotto)", "qta": 1, "prezzo": 10.00},
+            {"voce": "Voce 2 Scontrino (Modifica o aggiungi riga +)", "qta": 1, "prezzo": 9.80}
+        ],
         "chrono_ledger": [
             {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "desc": "Apertura sacchetto grani 1 Kg (Resa attesa ~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
             {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:15", "type": "BOLLA DDT", "desc": "Art. 10001 Doreca — Scostamento +€1.90/L", "amount": -14.80, "days_span": 1, "status": "ALERT"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "desc": "Scontrino verificato da Fotocamera (€ 19,80)", "amount": -19.80, "days_span": 1, "status": "OK"}
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "desc": "Pechino Follonica (Carta di Credito) — Totale € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
         ]
     }
     for k, v in defaults.items():
@@ -596,7 +600,7 @@ if not st.session_state["auth_unlocked"]:
                 BEMASK // A.L.P.H.A. SECURITY GATE
             </div>
             <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:14px;">
-                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | AI OCR RAM SCANNER
+                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | X-RAY RECEIPT ITEM SCANNER
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -803,10 +807,10 @@ if is_commander:
                 """, unsafe_allow_html=True)
             with q2:
                 st.markdown(f"**Token 2FA Attivo (30s):** `{generate_totp_token(secret_now)}`")
-                st.session_state["custom_gemini_key"] = st.text_input("🤖 Chiave API Gemini Vision (Per lettura automatica foto scontrini):", value=st.session_state["custom_gemini_key"], type="password", placeholder="AIzaSy...")
+                st.session_state["custom_gemini_key"] = st.text_input("🤖 Chiave API Gemini Vision:", value=st.session_state["custom_gemini_key"], type="password", placeholder="AIzaSy...")
 
 # ==============================================================================
-# VISORE OTTICO RAY-SCAN CON LETTURA REALE SCONTRINO (AI OCR + CORRIGE 19.80 €)
+# VISORE OTTICO RAY-SCAN CON TABELLA INTERNA DELLE SINGOLE VOCI + LENTE ZOOM HD
 # ==============================================================================
 def render_live_ram_inspector(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
@@ -816,8 +820,8 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
 
     st.markdown(f"""
     <div class="rayscan-box">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span class="badge-amber">👁️ VISORE OTTICO RAY-SCAN // ANALISI SCONTRINO IN RAM VOLATILE</span>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span class="badge-amber">👁️ VISORE RAGGI-X // CONTENUTO INTERNO SCONTRINO IN RAM VOLATILE</span>
             <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#10B981;">
                 HASH: #{ram_hash} | BUFFER: {ram_kb:.1f} KB | 0 BYTE SU DISCO
             </span>
@@ -825,7 +829,11 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
     </div>
     """, unsafe_allow_html=True)
 
-    v_left, v_right = st.columns([1.25, 1.75])
+    zoom_hd = st.toggle("🔎 ATTIVA LENTE D'INGRANDIMENTO HD A TUTTO SCHERMO SULLO SCONTRINO", value=False, key=f"zoom_hd_{module_tag}")
+    if zoom_hd and (f_name.lower().endswith((".jpg", ".jpeg", ".png")) or "camera" in str(type(stream_obj)).lower()):
+        st.image(raw_bytes, caption="🔎 LENTE HD ATTIVA — Ingrandimento nitido del contenuto interno dello scontrino", use_container_width=True)
+
+    v_left, v_right = st.columns([1.15, 1.85])
     with v_left:
         if f_name.lower().endswith((".jpg", ".jpeg", ".png")) or "camera" in str(type(stream_obj)).lower():
             st.image(raw_bytes, caption=f"📸 Lastra Ottica in RAM ({ram_kb:.1f} KB)", use_container_width=True)
@@ -833,59 +841,82 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
             st.info(f"📄 Flusso Dati Testuale in RAM: `{f_name}`")
 
     with v_right:
-        st.markdown("###### 🤖 SCANSIONE AUTOMATICA VOCI & TOTALE SCONTRINO:")
+        st.markdown("###### 🧾 SCOMPOSIZIONE PRODOTTI & VOCI INTERNE DELLO SCONTRINO:")
         api_k = get_gemini_api_key()
 
-        # Bottone per lanciare la lettura AI reale sull'immagine appena scattata
-        c_ai1, c_ai2 = st.columns([1.6, 1.4])
+        c_ai1, c_ai2 = st.columns([1.5, 1.5])
         with c_ai1:
-            if st.button("🔍 AVVIA SCANSIONE OTTICA AI DELLO SCONTRINO", key=f"run_ocr_{module_tag}", use_container_width=True):
-                with st.spinner("Lettura caratteri e totale dallo scontrino in RAM..."):
+            if st.button("🤖 ESTRAI TUTTE LE RIGHE CON AI VISION", key=f"run_ocr_{module_tag}", use_container_width=True):
+                with st.spinner("Lettura ottica di ogni singola riga dello scontrino in RAM..."):
                     parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, api_k)
                     if parsed_ocr:
-                        eser = parsed_ocr.get("esercente_o_fornitore", "Scontrino")
-                        voci = parsed_ocr.get("voci_lette", "")
-                        tot_letto = float(parsed_ocr.get("totale_euro", 19.80))
-                        st.session_state["ocr_extracted_desc"] = f"{eser}: {voci}"[:90]
-                        st.session_state["ocr_extracted_total"] = tot_letto
-                        st.session_state["ocr_extracted_items"] = voci
+                        st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino Acquisito")
+                        st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO")
+                        righe_ai = parsed_ocr.get("righe", [])
+                        if isinstance(righe_ai, list) and len(righe_ai) > 0:
+                            st.session_state["ocr_items_df"] = righe_ai
                         play_ems_synth("commlock")
-                        st.success(f"✅ Scontrino letto! Totale rilevato: € {tot_letto:.2f}")
+                        st.success("✅ Tutte le righe dello scontrino sono state estratte nella tabella qui sotto!")
+                        st.rerun()
                     else:
-                        st.warning(err_msg)
+                        st.info(err_msg)
         with c_ai2:
-            if not api_k:
-                st.session_state["custom_gemini_key"] = st.text_input("Chiave Gemini Vision (Opz.):", value=st.session_state["custom_gemini_key"], type="password", placeholder="Incolla chiave AIza...", label_visibility="collapsed")
+            st.session_state["custom_gemini_key"] = st.text_input("Chiave Gratuita AIza... (Opz.):", value=st.session_state["custom_gemini_key"], type="password", placeholder="Incolla chiave AIza per auto-OCR...", label_visibility="collapsed")
 
-        if st.session_state.get("ocr_extracted_items"):
-            st.info(f"**Righe lette dallo scontrino:** {st.session_state['ocr_extracted_items']}")
+        e_col1, e_col2 = st.columns([1.8, 1.2])
+        with e_col1:
+            st.session_state["ocr_esercente"] = st.text_input("🏪 Esercente / Fornitore / Email:", value=st.session_state["ocr_esercente"], key=f"eser_{module_tag}")
+        with e_col2:
+            st.session_state["ocr_metodo"] = st.selectbox("💳 Metodo Pagamento:", ["CARTA DI CREDITO / POS", "CONTANTI DA CASSETTO", "BONIFICO / SDD"], index=0, key=f"met_{module_tag}")
 
-        # Campi pronti con il totale reale (es. € 19,80) modificabili prima dell'invio al Calendario
-        q_desc = st.text_input(
-            "📝 Dettaglio Scontrino / Prodotti letti:",
-            value=st.session_state["ocr_extracted_desc"],
-            key=f"ray_desc_{module_tag}"
+        st.caption("👇 **Ecco cosa c'è dentro lo scontrino (puoi modificare i prodotti o aggiungere righe col `+`):**")
+        df_items = pd.DataFrame(st.session_state["ocr_items_df"])
+        edited_items = st.data_editor(
+            df_items,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="large"),
+                "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1),
+                "prezzo": st.column_config.NumberColumn("PREZZO RIGA (€)", format="€ %.2f", step=0.10)
+            },
+            key=f"items_ed_{module_tag}"
         )
-        q_val = st.number_input(
-            "💶 TOTALE REALE SCONTRINO (€):",
-            min_value=0.0, max_value=100000.0,
-            value=float(st.session_state["ocr_extracted_total"]),
-            step=0.10, format="%.2f",
-            key=f"ray_val_{module_tag}"
-        )
 
-        if st.button(f"⚡ REGISTRA € {q_val:.2f} NEL CALENDARIO E SVUOTA LA RAM", key=f"ray_commit_{module_tag}", use_container_width=True):
-            add_calendar_event(f"SCONTRINO RAM ({module_tag})", q_desc, -q_val, 1, "OK")
+        # Calcolo automatico del Totale Reale sommando le singole voci dello scontrino!
+        totale_calcolato = 0.0
+        voci_riepilogo = []
+        if not edited_items.empty:
+            for _, row in edited_items.iterrows():
+                p_val = float(row.get("prezzo", 0.0) or 0.0)
+                q_val_r = int(row.get("qta", 1) or 1)
+                v_txt = str(row.get("voce", "")).strip()
+                totale_calcolato += p_val
+                if v_txt:
+                    voci_riepilogo.append(f"{q_val_r}x {v_txt} (€{p_val:.2f})")
+
+        st.markdown(f"""
+        <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px; margin-top:4px;">
+            <div class="kpi-custom-title">TOTALE CALCOLATO DALLE VOCI DELLO SCONTRINO ({st.session_state['ocr_metodo']})</div>
+            <div class="kpi-custom-value" style="font-size:22px;">€ {totale_calcolato:.2f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        full_desc_for_cal = f"{st.session_state['ocr_esercente']} [{st.session_state['ocr_metodo']}] -> " + " + ".join(voci_riepilogo)
+
+        if st.button(f"⚡ REGISTRA SCONTRINO DETTAGLIATO (€ {totale_calcolato:.2f}) NEL CALENDARIO E SVUOTA RAM", key=f"ray_commit_{module_tag}", use_container_width=True):
+            add_calendar_event(f"SCONTRINO ({module_tag})", full_desc_for_cal[:140], -totale_calcolato, 1, "OK")
             st.session_state["ram_clear_counter"] += 1
             play_ems_synth("commlock")
-            st.toast(f"✅ Scontrino da € {q_val:.2f} salvato nel Calendario e foto distrutta dalla RAM!")
+            st.toast(f"✅ Scontrino da € {totale_calcolato:.2f} con dettaglio voci salvato nel Calendario!")
             st.rerun()
 
 # ==============================================================================
-# CALENDARIO STORICO CON TABELLA INTERATTIVA MODIFICABILE (CORREGGI / ELIMINA RIGA)
+# CALENDARIO STORICO CON TABELLA INTERATTIVA MODIFICABILE
 # ==============================================================================
 def render_alpha_chrono_calendar():
-    st.markdown("##### 📅 ALPHA CHRONO-CALENDAR // STORICO INTERATTIVO (PUOI MODIFICARE O CANCELLARE LE RIGHE)")
+    st.markdown("##### 📅 ALPHA CHRONO-CALENDAR // STORICO INTERATTIVO (CON DETTAGLIO VOCI INTERNE SCONTRINO)")
     cal_top1, cal_top2, cal_top3 = st.columns([1.6, 1.2, 1.2])
     with cal_top1:
         cal_view = st.radio("Lente Temporale:", ["GIORNO (Modifica Righe)", "SETTIMANA (7 Giorni)", "MESE (Griglia 30gg)"], horizontal=True)
@@ -923,7 +954,7 @@ def render_alpha_chrono_calendar():
         st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">SALDO CONSOLIDATO CALENDARIO</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
 
     if cal_view.startswith("GIORNO"):
-        st.caption("💡 **Tabella Interattiva:** fai doppio clic su qualsiasi importo o descrizione per correggerlo al volo (es. `-19.80`), oppure seleziona una riga a sinistra e premi `Canc` per eliminarla!")
+        st.caption("💡 **Tabella Interattiva:** fai doppio clic su qualsiasi cella per modificare descrizione o importo, oppure seleziona una riga a sinistra e premi `Canc` per eliminarla!")
         edited_df = st.data_editor(
             df_cal,
             num_rows="dynamic",
@@ -933,7 +964,7 @@ def render_alpha_chrono_calendar():
                 "date": st.column_config.TextColumn("DATA"),
                 "time": st.column_config.TextColumn("ORA"),
                 "type": st.column_config.TextColumn("OPERAZIONE"),
-                "desc": st.column_config.TextColumn("DETTAGLIO SCONTRINO / NOTA", width="large"),
+                "desc": st.column_config.TextColumn("CONTENUTO INTERNO SCONTRINO / NOTA", width="large"),
                 "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
                 "days_span": st.column_config.NumberColumn("GIORNI", min_value=1, max_value=30),
                 "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
