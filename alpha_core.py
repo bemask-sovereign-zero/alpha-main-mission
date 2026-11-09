@@ -15,11 +15,12 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + TRAVEL TUBE)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + ARCHITECT SEAL)
+# CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
 # ==============================================================================
 
 st.set_page_config(
-    page_title="BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION",
+    page_title="BEMASK - MOONBASE A.L.P.H.A. // ENRICO BRAGLIA",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
@@ -194,6 +195,7 @@ def init_monumental_state():
         "auth_role": None,
         "auth_user": "",
         "breach_log": [],
+        "show_arch_fallback": False,
         # 9 Settori attivi di default = Griglia 3x3 perfetta senza buchi!
         "active_bits_12": [True, True, True, True, True, True, False, False, False, True, True, True],
         "keep_multiverse_open": False,
@@ -591,105 +593,8 @@ div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 7. KOENIG ZERO-TRUST SECURITY GATE
+# DOSSIER ARCHITETTO & GENESI (ENRICO BRAGLIA)
 # ==============================================================================
-STAFF_PINS = {
-    "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
-    "2048": "GOVERNANTE AI PIANI (SOLO CAMERE & SKA)",
-    "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
-}
-
-if not st.session_state["auth_unlocked"]:
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-    g_left, g_center, g_right = st.columns([0.5, 2.2, 0.5])
-    with g_center:
-        st.markdown(f"""
-        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:24px; border-radius:4px; box-shadow:0 0 45px rgba(245,158,11,0.22);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div>{EAGLE_HERO_SVG}</div>
-                <span class="badge-amber">EAGLE-1 // ZERO-TRUST 2FA</span>
-            </div>
-            <div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:1.4px;">
-                BEMASK // A.L.P.H.A. SECURITY GATE
-            </div>
-            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
-                MOONBASE ALPHA COMMAND | 12 SECTORS (2^12) + TRAVEL TUBE POD
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
-            play_ems_synth("commlock")
-            st.session_state["auth_unlocked"] = True
-            st.session_state["auth_role"] = "COMMANDER"
-            st.session_state["auth_user"] = "ENRICO // ARCHITECT MASTER DEMO"
-            return_to_page_zero()
-            st.rerun()
-
-        c_pin, c_2fa = st.columns(2)
-        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
-        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
-
-        if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
-            master_pin = get_master_pin()
-            secret_2fa = get_totp_secret()
-            ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-            if in_pin.strip() == master_pin:
-                if verify_2fa_code(in_2fa, secret_2fa):
-                    play_ems_synth("commlock")
-                    st.session_state["auth_unlocked"] = True
-                    st.session_state["auth_role"] = "COMMANDER"
-                    st.session_state["auth_user"] = "COMANDANTE / TITOLARE (2FA VERIFIED)"
-                    st.session_state["pin_code"] = master_pin
-                    return_to_page_zero()
-                    st.rerun()
-                else:
-                    play_ems_synth("klaxon")
-                    st.session_state["breach_log"].append(
-                        f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
-                    )
-                    st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
-
-            elif in_pin.strip() in STAFF_PINS:
-                play_ems_synth("burst")
-                st.session_state["auth_unlocked"] = True
-                st.session_state["auth_role"] = "STAFF"
-                st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
-                st.session_state["pin_code"] = in_pin.strip()
-                return_to_page_zero()
-                st.rerun()
-
-            else:
-                play_ems_synth("klaxon")
-                st.session_state["breach_log"].append(
-                    f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
-                )
-                st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
-    st.stop()
-
-# ==============================================================================
-# 8. FILTRO RUOLO ANTI-TALPA (12 BIT = 4096 COMBINAZIONI)
-# ==============================================================================
-is_commander = (st.session_state["auth_role"] == "COMMANDER")
-bits = st.session_state["active_bits_12"]
-
-if is_commander:
-    active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
-    if not active_base:
-        apply_multiverse_preset([True] + [False]*11)
-        active_base = [BASE_VECTORS[0]]
-    all_squares = active_base + st.session_state["custom_squares"]
-else:
-    all_squares = [v for v in BASE_VECTORS if v["staff_allowed"]]
-
-n_sectors = len(all_squares)
-total_micro_modules = n_sectors * 5
-binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
-binary_str = "".join(["1" if b else "0" for b in bits])
-ora_attuale = datetime.now().strftime("%H:%M")
-
-# --- 9. TOP KOENIG BAR + DOSSIER ARCHITETTO ENRICO BRAGLIA ---
 def render_architect_dossier_content():
     st.markdown("""
     <div style="background:linear-gradient(135deg, #0B0E14 0%, #161C26 100%); border:1.5px solid #F59E0B; border-left:6px solid #F59E0B; padding:18px; border-radius:4px; margin-bottom:14px;">
@@ -711,7 +616,6 @@ def render_architect_dossier_content():
     v_col, m_col = st.columns([1.25, 1.55])
 
     with v_col:
-        # Cerca automaticamente il tuo mini-video nel repository (o usa l'ologramma 3D finché non lo carichi)
         if os.path.exists("architect_manifesto.mp4"):
             st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
         else:
@@ -789,6 +693,119 @@ else:
     def open_architect_modal():
         st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
 
+# ==============================================================================
+# 7. KOENIG ZERO-TRUST SECURITY GATE
+# ==============================================================================
+STAFF_PINS = {
+    "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
+    "2048": "GOVERNANTE AI PIANI (SOLO CAMERE & SKA)",
+    "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
+}
+
+if not st.session_state["auth_unlocked"]:
+    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
+    g_left, g_center, g_right = st.columns([0.5, 2.2, 0.5])
+    with g_center:
+        st.markdown(f"""
+        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:24px; border-radius:4px; box-shadow:0 0 45px rgba(245,158,11,0.22);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div>{EAGLE_HERO_SVG}</div>
+                <span class="badge-amber">ARCHITECT: ENRICO BRAGLIA</span>
+            </div>
+            <div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:1.4px;">
+                BEMASK // A.L.P.H.A. SECURITY GATE
+            </div>
+            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
+                MOONBASE ALPHA COMMAND | 12 SECTORS (2^12) + TRAVEL TUBE POD
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
+            play_ems_synth("commlock")
+            st.session_state["auth_unlocked"] = True
+            st.session_state["auth_role"] = "COMMANDER"
+            st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
+            return_to_page_zero()
+            st.rerun()
+
+        c_pin, c_2fa = st.columns(2)
+        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
+        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
+
+        if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
+            master_pin = get_master_pin()
+            secret_2fa = get_totp_secret()
+            ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+            if in_pin.strip() == master_pin:
+                if verify_2fa_code(in_2fa, secret_2fa):
+                    play_ems_synth("commlock")
+                    st.session_state["auth_unlocked"] = True
+                    st.session_state["auth_role"] = "COMMANDER"
+                    st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
+                    st.session_state["pin_code"] = master_pin
+                    return_to_page_zero()
+                    st.rerun()
+                else:
+                    play_ems_synth("klaxon")
+                    st.session_state["breach_log"].append(
+                        f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
+                    )
+                    st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
+
+            elif in_pin.strip() in STAFF_PINS:
+                play_ems_synth("burst")
+                st.session_state["auth_unlocked"] = True
+                st.session_state["auth_role"] = "STAFF"
+                st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
+                st.session_state["pin_code"] = in_pin.strip()
+                return_to_page_zero()
+                st.rerun()
+
+            else:
+                play_ems_synth("klaxon")
+                st.session_state["breach_log"].append(
+                    f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
+                )
+                st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
+
+        if st.button("◈ CHI È IL CREATORE // ARCHITECT DOSSIER (ENRICO BRAGLIA)", use_container_width=True):
+            play_ems_synth("commlock")
+            open_architect_modal()
+
+        if st.session_state.get("show_arch_fallback", False):
+            render_architect_dossier_content()
+
+        st.markdown("""
+        <div style="margin-top:22px; padding:10px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10px; color:#64748B; letter-spacing:1px;">
+            ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · ZERO-TRUST VOLATILE RAM ◈
+        </div>
+        """, unsafe_allow_html=True)
+    st.stop()
+
+# ==============================================================================
+# 8. FILTRO RUOLO ANTI-TALPA (12 BIT = 4096 COMBINAZIONI)
+# ==============================================================================
+is_commander = (st.session_state["auth_role"] == "COMMANDER")
+bits = st.session_state["active_bits_12"]
+
+if is_commander:
+    active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
+    if not active_base:
+        apply_multiverse_preset([True] + [False]*11)
+        active_base = [BASE_VECTORS[0]]
+    all_squares = active_base + st.session_state["custom_squares"]
+else:
+    all_squares = [v for v in BASE_VECTORS if v["staff_allowed"]]
+
+n_sectors = len(all_squares)
+total_micro_modules = n_sectors * 5
+binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
+binary_str = "".join(["1" if b else "0" for b in bits])
+ora_attuale = datetime.now().strftime("%H:%M")
+
+# --- 9. TOP KOENIG BAR + DOSSIER ARCHITETTO ENRICO BRAGLIA ---
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
@@ -806,7 +823,7 @@ with top_c1:
             <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
             <span class="badge-amber">ARCHITECT: E. BRAGLIA</span>
             {breach_badge}
-            <span class="badge-white">1 → 2¹² (#{binary_state_num})</span>
+            <span class="badge-white">1 → 2¹² (#{binary_state_num}/4096)</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -827,11 +844,6 @@ with top_c3:
 if st.session_state.get("show_arch_fallback", False):
     with st.expander("◈ ARCHITECT & GENESIS // ENRICO BRAGLIA", expanded=True):
         render_architect_dossier_content()
-with top_c3:
-    if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
-        st.session_state["auth_unlocked"] = False
-        return_to_page_zero()
-        st.rerun()
 
 st.markdown(f"""
 <div class="mission-bar">
@@ -839,7 +851,7 @@ st.markdown(f"""
         <div>{EAGLE_HERO_SVG}</div>
         <div>
             <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
-            <div class="mission-sub">EAGLE-1 TRANSPORTER COMMAND | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
+            <div class="mission-sub">ARCHITECT: ENRICO BRAGLIA | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
         </div>
     </div>
     <div class="nixie-group">
@@ -1172,7 +1184,7 @@ with col_left:
                 render_alpha_chrono_calendar()
             else:
                 st.markdown("##### 🛸 ALPHA TRAVEL TUBE // SALVACULO CASSA, MULTI-POS vs RT & MOTORE SEMANTICO")
-                st.info("Il **Travel Tube (Settore 12)** opera come Pod ad alta velocità dedicato all'allineamento Fondo Cassa mattina, rilevamento collisioni Storico POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
+                st.info("Il **Travel Tube (Settore 12)** opera come Pod autonomo ad alta velocità dedicato all'allineamento Fondo Cassa mattina, rilevamento collisioni Storico POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
                 st.link_button("🚀 LANCIA POD AUTONOMO TRAVEL TUBE (bemask-travel-tube.streamlit.app)", sec_obj["url"], use_container_width=True)
 
         # ======================================================================
@@ -1484,3 +1496,10 @@ with col_right:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+# --- 12. PUNZONE METALLICO DI PROPRIETÀ INTELLETTUALE ---
+st.markdown("""
+<div style="margin-top:28px; padding:12px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10.5px; color:#64748B; letter-spacing:1.1px;">
+    ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED, DIRECTED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · 3-AXIS FRACTAL CORE · ZERO-TRUST VOLATILE RAM ◈
+</div>
+""", unsafe_allow_html=True)
