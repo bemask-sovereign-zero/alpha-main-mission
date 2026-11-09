@@ -8,13 +8,14 @@ import struct
 import io
 import re
 import urllib.request
+import urllib.error
 from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (AUTO-API KEY & GEMINI 2.5 FLASH)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (AUTODISCOVERY AI OCR EDITION)
 # ==============================================================================
 
 st.set_page_config(
@@ -37,7 +38,6 @@ def get_master_pin():
         return "9999"
 
 def get_gemini_api_key():
-    # Controlla prima i widget attivi a schermo, poi session_state, poi st.secrets
     for k_name in ["api_key_box_DDT", "api_key_box_BANK", "api_key_box_VAULT", "custom_gemini_key"]:
         val = str(st.session_state.get(k_name, "")).strip()
         if len(val) > 15:
@@ -72,18 +72,19 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
-# --- MOTORE OCR VISION IN RAM (CON SUPPORTO MULTI-MODELLO GEMINI 2.5 / 2.0 / 1.5) ---
+# ==============================================================================
+# MOTORE OCR VISION IN RAM CON AUTODISCOVERY DEI MODELLI GOOGLE ATTIVI (ZERO 404)
+# ==============================================================================
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
     clean_key = str(api_key).strip()
     if not clean_key or len(clean_key) < 15:
-        return None, "Incolla la tua chiave AIza... nella casella a destra e clicca direttamente questo bottone!"
+        return None, "Incolla la chiave API nella casella a destra e clicca direttamente questo bottone."
 
     b64_img = base64.b64encode(image_bytes).decode("utf-8")
     prompt_txt = (
         "Sei lo scanner contabile di un bar italiano. Leggi questa foto di scontrino, bolla o ricevuta POS. "
-        "Se vedi solo l'appendice POS o il pagamento, metti una riga con 'Pagamento Scontrino / POS' e l'importo letto. "
-        "Se vedi i prodotti, elencali tutti. "
-        "Rispondi SOLO con un JSON valido (senza commenti) in questo formato esatto: "
+        "Estrai esercente (o email), metodo di pagamento, tutte le singole righe dei prodotti acquistati (o la voce del pagamento POS) e il totale in euro. "
+        "Rispondi SOLO con un JSON valido in questo formato esatto: "
         "{\"esercente\": \"nome o email locale\", \"metodo_pagamento\": \"CARTA DI CREDITO / POS\", "
         "\"righe\": [{\"voce\": \"nome articolo o pagamento\", \"qta\": 1, \"prezzo\": 19.80}], \"totale_euro\": 19.80}"
     )
@@ -96,19 +97,59 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
         }]
     }
 
-    # Prova automaticamente i modelli dal più recente (2026) in giù
-    models_to_try = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]
-    last_err = ""
-    for m_name in models_to_try:
+    # 1. INTERROGA GOOGLE PER SCOPRIRE QUALI MODELLI SONO ATTIVI SULLA TUA CHIAVE
+    candidate_models = []
+    for api_ver in ["v1beta", "v1"]:
         try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{m_name}:generateContent?key={clean_key}"
+            list_url = f"https://generativelanguage.googleapis.com/{api_ver}/models?key={clean_key}"
+            req_list = urllib.request.Request(list_url, method="GET")
+            with urllib.request.urlopen(req_list, timeout=10) as resp_l:
+                models_data = json.loads(resp_l.read().decode("utf-8"))
+                for m in models_data.get("models", []):
+                    m_name = m.get("name", "").replace("models/", "")
+                    methods = m.get("supportedGenerationMethods", [])
+                    if "generateContent" in methods and ("flash" in m_name or "pro" in m_name or "gemini" in m_name):
+                        if (api_ver, m_name) not in candidate_models:
+                            candidate_models.append((api_ver, m_name))
+            if candidate_models:
+                break
+        except urllib.error.HTTPError as he:
+            err_body = ""
+            try:
+                err_body = he.read().decode("utf-8", errors="ignore")
+            except Exception:
+                pass
+            if he.code in [400, 401, 403]:
+                return None, f"⚠️ Chiave rifiutata da Google (HTTP {he.code}). Assicurati di aver copiato la stringa 'AIzaSy...' da Google AI Studio! Dettaglio: {err_body[:160]}"
+        except Exception:
+            continue
+
+    # Fallback se la lista non risponde
+    if not candidate_models:
+        candidate_models = [
+            ("v1beta", "gemini-2.5-flash"),
+            ("v1beta", "gemini-2.0-flash"),
+            ("v1beta", "gemini-2.0-flash-exp"),
+            ("v1beta", "gemini-1.5-flash-latest"),
+            ("v1", "gemini-2.0-flash"),
+            ("v1", "gemini-1.5-flash")
+        ]
+    else:
+        # Dà priorità ai modelli Flash più rapidi nella lettura immagini
+        candidate_models.sort(key=lambda x: (0 if "flash" in x[1] else 1))
+
+    # 2. ESEGUE LA SCANSIONE OTTICA SUL PRIMO MODELLO VALIDO TROVATO
+    last_err = ""
+    for api_ver, m_name in candidate_models:
+        try:
+            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{m_name}:generateContent?key={clean_key}"
             req = urllib.request.Request(
                 url,
                 data=json.dumps(payload).encode("utf-8"),
                 headers={"Content-Type": "application/json"},
                 method="POST"
             )
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=16) as resp:
                 res_data = json.loads(resp.read().decode("utf-8"))
                 raw_reply = res_data["candidates"][0]["content"]["parts"][0]["text"]
                 clean_json = re.sub(r"```json|```", "", raw_reply).strip()
@@ -121,7 +162,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
             last_err = f"[{m_name}] {str(e)}"
             continue
 
-    return None, f"Errore connessione API: {last_err}"
+    return None, f"Impossibile completare la scansione ({last_err}). Verifica che la chiave copiata da Google AI Studio inizi con 'AIzaSy...'."
 
 # --- 2. BLINDAGGIO SESSION STATE ---
 def init_monumental_state():
@@ -468,7 +509,7 @@ WEATHER_5_DAYS = [
     },
 ]
 
-# --- 6. CSS MONUMENTALE (CON OVERRIDE BORDO VERDE SMERALDO SUGLI INPUT ATTIVI!) ---
+# --- 6. CSS MONUMENTALE ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
@@ -487,7 +528,6 @@ st.markdown("""
 header[data-testid="stHeader"] { background: transparent; }
 .block-container { padding-top: 0.7rem; max-width: 96%; }
 
-/* Sostituisce il bordo rosso di Streamlit con il Verde Smeraldo / Ambra Alpha! */
 div[data-baseweb="input"] > div:focus-within {
     border-color: #10B981 !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
@@ -628,7 +668,7 @@ if not st.session_state["auth_unlocked"]:
                 BEMASK // A.L.P.H.A. SECURITY GATE
             </div>
             <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:14px;">
-                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | X-RAY RECEIPT ITEM SCANNER
+                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | AUTODISCOVERY AI OCR
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -840,7 +880,7 @@ if is_commander:
                         st.error(item)
 
 # ==============================================================================
-# VISORE OTTICO RAY-SCAN CON LETTURA IMMEDIATA CHIAVE API (SENZA CONFLITTI)
+# VISORE OTTICO RAY-SCAN CON LETTURA IMMEDIATA CHIAVE API E AUTODISCOVERY
 # ==============================================================================
 def render_live_ram_inspector(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
@@ -875,12 +915,11 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
 
         c_ai1, c_ai2 = st.columns([1.45, 1.55])
         with c_ai2:
-            # Casella univoca con bordo verde che salva istantaneamente la chiave!
             typed_key = st.text_input(
-                "Chiave AIza:",
+                "Chiave API:",
                 value=st.session_state.get("custom_gemini_key", ""),
                 key=f"api_key_box_{module_tag}",
-                placeholder="Incolla qui la chiave AIzaSy...",
+                placeholder="Incolla qui la chiave API Google AI Studio...",
                 label_visibility="collapsed"
             )
             if typed_key and len(typed_key.strip()) > 15:
@@ -890,7 +929,7 @@ def render_live_ram_inspector(stream_obj, module_tag="DDT"):
 
         with c_ai1:
             if st.button("🤖 ESTRAI TUTTE LE RIGHE CON AI VISION", key=f"run_ocr_{module_tag}", use_container_width=True):
-                with st.spinner("Lettura ottica Gemini 2.5 Flash in corso sulla RAM..."):
+                with st.spinner("Autodiscovery modello Google AI e lettura scontrino in RAM..."):
                     parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
                     if parsed_ocr:
                         st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino Acquisito")
