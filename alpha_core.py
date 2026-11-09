@@ -6,13 +6,14 @@ import hashlib
 import base64
 import struct
 import io
+import re
 from datetime import datetime
 import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (SANDRA BENES & MAYA TELEMETRY)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (LIVE RAM RAY-SCAN VIEWER)
 # ==============================================================================
 
 st.set_page_config(
@@ -41,7 +42,7 @@ def generate_totp_token(secret_b32, time_offset=0):
         msg = struct.pack(">Q", interval)
         h = hmac.new(key, msg, hashlib.sha1).digest()
         o = h[19] & 15
-        token = (struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000
+        token = (struct.unpack(">I", h[o:o+4])[0] & 1000000) if False else (struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000
         return f"{token:06d}"
     except Exception:
         return "199975"
@@ -68,7 +69,7 @@ def init_monumental_state():
         "auth_user": "",
         "breach_log": [],
         "active_bits_11": [True, True, True, True, True, True, False, False, False, True, True],
-        "keep_multiverse_open": True,  # Mantiene il selettore sempre aperto mentre configuri!
+        "keep_multiverse_open": True,
         "custom_squares": [],
         "blum_sector": None,
         "selected_sub": None,
@@ -101,7 +102,6 @@ def init_monumental_state():
         if k not in st.session_state:
             st.session_state[k] = v
 
-    # Allinea anche le chiavi dei singoli toggle per evitare il blocco su un solo modulo
     for idx_b in range(11):
         t_key = f"bit_sw_{idx_b}"
         if t_key not in st.session_state:
@@ -109,7 +109,6 @@ def init_monumental_state():
 
 init_monumental_state()
 
-# Funzione atomica per applicare i Preset senza che Streamlit li sovrascriva!
 def apply_multiverse_preset(new_bits_list):
     st.session_state["active_bits_11"] = list(new_bits_list)
     for idx_b, val_b in enumerate(new_bits_list):
@@ -361,7 +360,6 @@ BASE_VECTORS = [
     }
 ]
 
-# --- TELEMETRIA METEO STILE SANDRA BENES / MAYA (DATI ESPLICITI ED OPERATIVI) ---
 WEATHER_5_DAYS = [
     {
         "day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT",
@@ -395,7 +393,7 @@ WEATHER_5_DAYS = [
     },
 ]
 
-# --- 6. CSS MONUMENTALE CON BLUEPRINT DELL'AQUILA SULLO SFONDO ---
+# --- 6. CSS MONUMENTALE ---
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
@@ -517,6 +515,12 @@ div.stButton > button:hover {
 .kpi-custom-sub {
     font-size: 11px; font-weight: 700; margin-top: 8px; font-family: 'Share Tech Mono', monospace;
 }
+.rayscan-box {
+    background: linear-gradient(135deg, #0D1622 0%, #132232 100%);
+    border: 2px solid #10B981; border-left: 6px solid #F59E0B;
+    padding: 16px; border-radius: 4px; margin-top: 10px; margin-bottom: 14px;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.2);
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -543,7 +547,7 @@ if not st.session_state["auth_unlocked"]:
                 BEMASK // A.L.P.H.A. SECURITY GATE
             </div>
             <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:14px;">
-                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | OPTICAL RAM SCANNER
+                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | LIVE RAY-SCAN RAM VIEWER
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -663,7 +667,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# AVVISO AUTOMATICO CHECKPOINT SALVATAGGIO CALENDARIO (OGNI 3 OPERAZIONI IN RAM)
 if st.session_state["unsaved_ops_count"] >= 3:
     al_c1, al_c2 = st.columns([3.2, 1.2])
     with al_c1:
@@ -674,7 +677,6 @@ if st.session_state["unsaved_ops_count"] >= 3:
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
-# --- CONSOLLE TELEMETRICA METEO SANDRA BENES & MAYA (5 GIORNI AD ALTA LEGGIBILITÀ) ---
 w_cols = st.columns(5)
 for idx, w in enumerate(WEATHER_5_DAYS):
     with w_cols[idx]:
@@ -700,8 +702,6 @@ for idx, w in enumerate(WEATHER_5_DAYS):
 if is_commander:
     sec_col1, sec_col2 = st.columns([1.45, 1.0])
     with sec_col1:
-        # NOTA TECNICA: Etichetta fissa dell'expander + parametro expanded legato a session_state
-        # Così NON SI CHIUDE MAI mentre accendi o spegni più interruttori di fila!
         with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹¹ (Configura Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
             st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 2048` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
             sw_cols = st.columns(11)
@@ -715,28 +715,24 @@ if is_commander:
                     )
 
             p1, p2, p3, p4 = st.columns(4)
-            # Preset 1: Bar Sotto Casa (02 LAZERS BEV + 10 BAR DDT + 11 BANK VAMPIRE = 3 Settori!)
             p1.button(
                 "🍸 PACCHETTO BAR (02+10+11)",
                 on_click=apply_multiverse_preset,
                 args=([False, True, False, False, False, False, False, False, False, True, True],),
                 use_container_width=True
             )
-            # Preset 2: Hotel Classico 6 Settori (01 -> 06)
             p2.button(
                 "🛸 PACCHETTO 6 SETTORI (01-06)",
                 on_click=apply_multiverse_preset,
                 args=([True, True, True, True, True, True, False, False, False, False, False],),
                 use_container_width=True
             )
-            # Preset 3: Tutti gli 11 Settori Accesi (55 Micro-Moduli)
             p3.button(
                 "🔥 FULL MULTIVERSE 2¹¹ (TUTTI 11)",
                 on_click=apply_multiverse_preset,
                 args=([True] * 11,),
                 use_container_width=True
             )
-            # Preset 4: Solo Vettore 01 per partire da 1 e accendere a mano
             p4.button(
                 "⚡ SOLO 01 (RESET A 1)",
                 on_click=apply_multiverse_preset,
@@ -767,6 +763,64 @@ if is_commander:
                         st.rerun()
                 else:
                     st.success("Nessun tentativo di accesso non autorizzato rilevato.")
+
+# --- FUNZIONE PER IL VISORE DI ISPEZIONE OTTICA IN RAM (DOVE APPARE LO SCATTO!) ---
+def render_live_ram_inspector(stream_obj, module_tag="DDT"):
+    raw_bytes = stream_obj.getvalue()
+    ram_kb = len(raw_bytes) / 1024.0
+    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
+    f_name = getattr(stream_obj, "name", "SCATTO_FOTOCAMERA_BANCONE.JPG")
+
+    st.markdown(f"""
+    <div class="rayscan-box">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span class="badge-amber">👁️ VISORE OTTICO RAY-SCAN // DOCUMENTO IN RAM VOLATILE</span>
+            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#10B981;">
+                HASH: #{ram_hash} | BUFFER: {ram_kb:.1f} KB | 0 BYTE SU DISCO
+            </span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    v_left, v_right = st.columns([1.3, 1.7])
+    with v_left:
+        if f_name.lower().endswith((".jpg", ".jpeg", ".png")) or "camera" in str(type(stream_obj)).lower():
+            st.image(raw_bytes, caption=f"📸 Lastra Ottica in RAM ({ram_kb:.1f} KB) — Leggi qui i dati e timbra a destra", use_container_width=True)
+        else:
+            st.info(f"📄 Flusso Dati Testuale in RAM: `{f_name}`")
+
+    with v_right:
+        st.markdown("###### 🔍 TELEMETRIA ESTRATTA DAL BUFFER RAM:")
+        # Se è un file CSV/XML/TXT mostra subito la tabella o i numeri estratti automaticamente!
+        if f_name.lower().endswith((".csv", ".txt", ".xml")):
+            try:
+                txt_content = raw_bytes.decode("utf-8", errors="ignore")
+                if f_name.lower().endswith(".csv"):
+                    sep = ";" if ";" in txt_content else ","
+                    df_ram = pd.read_csv(io.StringIO(txt_content), sep=sep)
+                    st.dataframe(df_ram.head(8), use_container_width=True)
+                else:
+                    nums = re.findall(r"\d+[.,]\d{2}", txt_content)
+                    st.code(txt_content[:400], language="xml")
+                    if nums:
+                        st.success(f"Importi rilevati nel testo: {', '.join(nums[:8])}")
+            except Exception:
+                st.caption("Lettura binaria completata.")
+        else:
+            st.markdown("""
+            * **Stato Lastra:** Immagine ad alto contrasto acquisita nella memoria temporanea.
+            * **Azioni Rapide dal Visore:** verifica l'importo o la nota visibile nella foto a sinistra e premi il pulsante qui sotto per **inviare il dato al Calendario Storico e distruggere subito la foto dalla RAM**.
+            """)
+
+        q_desc = st.text_input("Nota / Articolo letto dalla foto:", value="Bolla / Nota da Fotocamera" if module_tag == "DDT" else "Riepilogo Spese POS / E/C", key=f"ray_desc_{module_tag}")
+        q_val = st.number_input("Importo letto dalla foto (€):", min_value=0.0, max_value=100000.0, value=14.80 if module_tag == "DDT" else 198.50, step=0.50, key=f"ray_val_{module_tag}")
+
+        if st.button("⚡ INOLTRA AL CALENDARIO STORICO E SVUOTA SUBITO LA RAM", key=f"ray_commit_{module_tag}", use_container_width=True):
+            add_calendar_event(f"FOTO RAM ({module_tag})", q_desc, -q_val, 1, "ALERT")
+            st.session_state["ram_clear_counter"] += 1
+            play_ems_synth("commlock")
+            st.toast("✅ Dato salvato nel Calendario e foto distrutta dalla RAM!")
+            st.rerun()
 
 # --- FUNZIONE UNIVERSALE PER DISEGNARE IL CALENDARIO STORICO (GIORNO / SETTIMANA / MESE) ---
 def render_alpha_chrono_calendar():
@@ -912,7 +966,7 @@ with col_left:
                     "💶 ALLEGGERIMENTO CONTANTI TITOLARE",
                     "🏁 CHIUSURA FINE GIORNATA / CUMULATIVA"
                 ])
-                giorni_coperti = ch2.selectbox("Quanti giorni copre questo conto?", [1, 2, 3, 4, 5, 6, 7], index=0, help="Se hai saltato venerdì e sabato sera, scegli 3 giorni: il sistema spalma la media in automatico!")
+                giorni_coperti = ch2.selectbox("Quanti giorni copre questo conto?", [1, 2, 3, 4, 5, 6, 7], index=0)
                 incasso_contato = ch3.number_input("Totale Contanti + POS Rilevato (€)", 0.0, 100000.0, 680.0, step=10.0)
 
                 media_giorno = incasso_contato / giorni_coperti
@@ -950,7 +1004,7 @@ with col_left:
                 with cam_col1:
                     use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE (IN RAM)", value=False, key="tog_cam_ddt")
                 with cam_col2:
-                    ddt_file = st.file_uploader("📂 Oppure leggi Foto/CSV/XML da dispositivo (Solo RAM)", type=["jpg", "jpeg", "png", "csv", "xml"], key=f"up_ddt_{rc_id}")
+                    ddt_file = st.file_uploader("📂 Oppure leggi Foto/CSV/XML da dispositivo (Solo RAM)", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
                 with cam_col3:
                     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
                     if st.button("🔥 SVUOTA RAM ORA", key="purge_ddt", use_container_width=True):
@@ -960,10 +1014,10 @@ with col_left:
 
                 cam_ddt_shot = st.camera_input("Inquadra Bolla / Nota a mano (Lettura volatile in RAM)", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
                 active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
+
+                # ECCO DOVE APPARE LA LETTURA OTTICA IN RAM APPENA SCATTI LA FOTO!
                 if active_ddt_stream is not None:
-                    raw_bytes = active_ddt_stream.getvalue()
-                    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:10].upper()
-                    st.success(f"👁️ LETTURA OTTICA IN RAM COMPLETATA (Hash `#{ram_hash}` — 0 Byte su disco).")
+                    render_live_ram_inspector(active_ddt_stream, module_tag="DDT")
 
                 d0, d1, d2, d3, d4 = st.columns([1.2, 1, 1, 1, 1])
                 st.session_state["ddt_codice_art"] = d0.text_input("Cod. Articolo Bolla", st.session_state["ddt_codice_art"])
@@ -1033,10 +1087,10 @@ with col_left:
                 sdd_col = "#10B981"
 
                 active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
+
+                # ECCO DOVE APPARE LA LETTURA OTTICA BANCARIA IN RAM!
                 if active_bank_stream is not None:
-                    raw_b = active_bank_stream.getvalue()
-                    ram_hash = hashlib.sha256(raw_b).hexdigest()[:10].upper()
-                    st.success(f"🛡️ DOCUMENTO BANCARIO LETTO SOLO IN RAM (Hash `#{ram_hash}` — 0 Byte archiviati su disco).")
+                    render_live_ram_inspector(active_bank_stream, module_tag="BANK")
 
                 b1, b2, b3, b4 = st.columns(4)
                 st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
