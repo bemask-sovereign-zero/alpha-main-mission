@@ -15,7 +15,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (100% FULL UNABRIDGED EDITION)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + TRAVEL TUBE)
 # ==============================================================================
 
 st.set_page_config(
@@ -72,21 +72,46 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
+# --- DIZIONARIO SEMANTICO INTEGRATO (PER SMISTAMENTO AUTOMATICO VOCI A-O) ---
+SEMANTIC_KEYWORDS = {
+    "[A] MATERIE PRIME / CAFFÈ": ["CAFF", "MISCELA", "GRANI", "ARABICA", "DECA", "ORZO", "GINSENG", "10001", "ILLY", "LAVAZZA"],
+    "[B] BEVANDE / ALCOLICI": ["APEROL", "CAMPARI", "BITTER", "GIN", "VODKA", "PROSECCO", "VINO", "BIRRA", "COCA", "ACQUA", "AA514", "DORECA", "CL.100", "LT.1"],
+    "[C] LATTE / FRESCHI": ["LATTE", "PANNA", "BURRO", "BRIOCHE", "CORNETT", "PASTE", "YOGURT"],
+    "[D] SNACK / CUCINA": ["PANE", "TRAMEZZIN", "PROSCIUTTO", "MOZZARELLA", "PATATIN", "OLIVE", "FOCACCIA", "PECHINO", "RISO", "INVOLTIN"],
+    "[E] GHIACCIO / CONSUMABILI": ["GHIACCIO", "TOVAGLIOL", "BICCHIER", "CANNUCC", "ZUCCHERO", "CARTA TERMICA"],
+    "[F] PULIZIA / IGIENE": ["DETERSIV", "SAPONE", "CANDEGGINA", "SGRASSATOR", "SPUGN", "SACCHI"],
+    "[G] MANUTENZIONE": ["IDRAULIC", "ELETTRIC", "GUARNIZION", "FILTRO", "TECNICO"],
+    "[H] ACCONTO STAFF": ["ACCONTO", "EXTRA", "CAMERIER", "BARISTA", "TURNO"],
+    "[I] UTENZE / BOLLETTE": ["ENEL", "LUCE", "GAS", "ACQUEDOTTO", "FIBRA", "TIM", "TARI", "SIAE"],
+    "[L] TASSE / BOLLI": ["F24", "BOLLO", "AGENZIA", "INPS", "INAIL", "SUOLO"],
+    "[M] FORNITORE EXTRA": ["SUPERMERCATO", "CONAD", "COOP", "EUROSPIN", "LIDL", "METRO"],
+    "[N] SPESE VARIE": ["FARMACIA", "CANCELLERIA", "MANCIA", "RESTO", "VARIE"],
+    "[O] PRELIEVO TITOLARE": ["TITOLARE", "PRELIEVO", "VERSAMENTO", "SOCIO", "ALLEGGERIMENTO"]
+}
+
+def auto_map_semantic_conto(text_val):
+    up = str(text_val).upper()
+    for c_label, kw_list in SEMANTIC_KEYWORDS.items():
+        for kw in kw_list:
+            if kw in up:
+                return c_label
+    return "[D] SNACK / CUCINA"
+
 # ==============================================================================
-# MOTORE OCR VISION IN RAM CON AUTODISCOVERY DEI MODELLI GOOGLE (ZERO-CLICK)
+# MOTORE OCR VISION IN RAM CON AUTODISCOVERY E MAPPATURA SEMANTICA A-O
 # ==============================================================================
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
     clean_key = str(api_key).strip()
     if not clean_key or len(clean_key) < 15:
-        return None, "Chiave API mancante. Inseriscila nel box 'Chiave AI' o in st.secrets['GEMINI_API_KEY']."
+        return None, "Inserisci la chiave gratuita AIzaSy... nel campo qui sopra per leggere automaticamente la foto!"
 
     b64_img = base64.b64encode(image_bytes).decode("utf-8")
     prompt_txt = (
-        "Sei lo scanner contabile automatico di un bar italiano. Leggi questa foto di scontrino, bolla o ricevuta POS. "
-        "Estrai esercente (o email), metodo di pagamento, tutte le singole righe dei prodotti acquistati (o la voce del pagamento POS) e il totale reale in euro. "
+        "Sei il lettore contabile semantico di un bar italiano. Leggi questa foto di scontrino, bolla o nota spesa. "
+        "Estrai esercente (o email), metodo di pagamento, tutte le singole righe dei prodotti acquistati (se si vede solo il totale POS crea 1 riga col totale) e il totale in euro. "
         "Rispondi SOLO con un JSON valido in questo formato esatto: "
         "{\"esercente\": \"nome o email locale\", \"metodo_pagamento\": \"CARTA DI CREDITO / POS\", "
-        "\"righe\": [{\"voce\": \"nome articolo o pagamento\", \"qta\": 1, \"prezzo\": 19.80}], \"totale_euro\": 19.80}"
+        "\"righe\": [{\"voce\": \"nome articolo\", \"qta\": 1, \"prezzo\": 19.80}], \"totale_euro\": 19.80}"
     )
     payload = {
         "contents": [{
@@ -147,6 +172,9 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
                 if match_j:
                     clean_json = match_j.group(0)
                 parsed = json.loads(clean_json)
+                if "righe" in parsed and isinstance(parsed["righe"], list):
+                    for r in parsed["righe"]:
+                        r["conto"] = auto_map_semantic_conto(r.get("voce", "") + " " + parsed.get("esercente", ""))
                 return parsed, None
         except Exception as e:
             last_err = f"[{m_name}] {str(e)}"
@@ -154,19 +182,20 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
 
     return None, f"Lettura AI non riuscita ({last_err})."
 
-# --- 2. BLINDAGGIO SESSION STATE COMPLETO ---
+# --- 2. BLINDAGGIO SESSION STATE A 12 BIT (2^12 = 4096 STATI) ---
 def init_monumental_state():
     default_labels_ao = {
-        "A": "USCITA A", "B": "USCITA B", "C": "USCITA C", "D": "USCITA D",
-        "E": "USCITA E", "F": "USCITA F", "G": "USCITA G", "H": "USCITA H",
-        "I": "USCITA I", "L": "USCITA L", "M": "USCITA M", "N": "USCITA N", "O": "USCITA O"
+        "A": "MATERIE PRIME / CAFFÈ", "B": "BEVANDE / ALCOLICI", "C": "LATTE / FRESCHI", "D": "SNACK / CUCINA",
+        "E": "GHIACCIO / CONSUMABILI", "F": "PULIZIA / IGIENE", "G": "MANUTENZIONE", "H": "ACCONTO STAFF",
+        "I": "UTENZE / BOLLETTE", "L": "TASSE / BOLLI", "M": "FORNITORE EXTRA", "N": "SPESE VARIE", "O": "PRELIEVO TITOLARE"
     }
     defaults = {
         "auth_unlocked": False,
         "auth_role": None,
         "auth_user": "",
         "breach_log": [],
-        "active_bits_11": [True, True, True, True, True, True, False, False, False, True, True],
+        # 9 Settori attivi di default = Griglia 3x3 perfetta senza buchi!
+        "active_bits_12": [True, True, True, True, True, True, False, False, False, True, True, True],
         "keep_multiverse_open": False,
         "custom_squares": [],
         "blum_sector": None,
@@ -192,48 +221,55 @@ def init_monumental_state():
         "bar_ao_labels": default_labels_ao,
         "unsaved_ops_count": 0,
         "custom_gemini_key": "",
-        "processed_hashes": [],
-        "last_auto_saved_banner": None,
+        "last_scanned_hash": "",
         "ocr_esercente": "Pechino Follonica (pechinofollonica@gmail.com)",
         "ocr_metodo": "CARTA DI CREDITO / POS",
         "ocr_items_df": [
-            {"voce": "Voce 1 Scontrino (Modifica qui il nome prodotto)", "qta": 1, "prezzo": 10.00},
-            {"voce": "Voce 2 Scontrino (Modifica o aggiungi riga +)", "qta": 1, "prezzo": 9.80}
+            {"voce": "Articolo 1 dallo Scontrino", "qta": 1, "prezzo": 10.00, "conto": "[D] SNACK / CUCINA"},
+            {"voce": "Articolo 2 dallo Scontrino", "qta": 1, "prezzo": 9.80, "conto": "[B] BEVANDE / ALCOLICI"}
         ],
         "chrono_ledger": [
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "desc": "Apertura sacchetto grani 1 Kg (Resa attesa ~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:15", "type": "BOLLA DDT", "desc": "Art. 10001 Doreca — Scostamento +€1.90/L", "amount": -14.80, "days_span": 1, "status": "ALERT"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "desc": "Pechino Follonica (Carta di Credito) — Totale € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "conto": "[A] MATERIE PRIME / CAFFÈ", "desc": "Apertura sacchetto grani 1 Kg (Resa attesa ~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:15", "type": "BOLLA DDT", "conto": "[B] BEVANDE / ALCOLICI", "desc": "Art. 10001 Doreca — Scostamento +€1.90/L", "amount": -14.80, "days_span": 1, "status": "ALERT"},
+            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "conto": "[D] SNACK / CUCINA", "desc": "Pechino Follonica (Carta di Credito) — Totale € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
         ]
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-    for idx_b in range(11):
+    for idx_b in range(12):
         t_key = f"bit_sw_{idx_b}"
         if t_key not in st.session_state:
-            st.session_state[t_key] = st.session_state["active_bits_11"][idx_b]
+            st.session_state[t_key] = st.session_state["active_bits_12"][idx_b]
 
 init_monumental_state()
 
+def get_conto_options():
+    return [f"[{k}] {v}" for k, v in st.session_state["bar_ao_labels"].items()] + ["[INCASSO] CASSA / POS", "[BANCA] ONERI & COMMISSIONI"]
+
+def return_to_page_zero():
+    st.session_state["blum_sector"] = None
+    st.session_state["selected_sub"] = None
+
 def apply_multiverse_preset(new_bits_list):
-    st.session_state["active_bits_11"] = list(new_bits_list)
+    st.session_state["active_bits_12"] = list(new_bits_list)
     for idx_b, val_b in enumerate(new_bits_list):
         st.session_state[f"bit_sw_{idx_b}"] = bool(val_b)
-    st.session_state["blum_sector"] = None
+    return_to_page_zero()
     st.session_state["keep_multiverse_open"] = True
 
 def on_single_bit_toggle(idx_b):
-    st.session_state["active_bits_11"][idx_b] = bool(st.session_state[f"bit_sw_{idx_b}"])
-    st.session_state["blum_sector"] = None
+    st.session_state["active_bits_12"][idx_b] = bool(st.session_state[f"bit_sw_{idx_b}"])
+    return_to_page_zero()
     st.session_state["keep_multiverse_open"] = True
 
-def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK"):
+def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK", conto="[N] SPESE VARIE"):
     st.session_state["chrono_ledger"].append({
         "date": datetime.now().strftime("%Y-%m-%d"),
         "time": datetime.now().strftime("%H:%M"),
         "type": ev_type,
+        "conto": conto,
         "desc": ev_desc,
         "amount": round(float(ev_amount), 2),
         "days_span": int(days_span),
@@ -291,7 +327,7 @@ def play_ems_synth(effect_type):
     components.html(js_code, height=0)
 
 # ==============================================================================
-# 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (SVG MONUMENTALI)
+# 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (INCLUSO 12 TRAVEL TUBE)
 # ==============================================================================
 EAGLE_HERO_SVG = """
 <svg width="105" height="52" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -324,10 +360,11 @@ SVG_ICONS = {
     "08": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/><circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/><path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/></svg>""",
     "09": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/><ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/><ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/><circle cx="55" cy="12" r="6" fill="#EF4444"/></svg>""",
     "10": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/><rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/><line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/><line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/><circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/><circle cx="82" cy="29" r="4" fill="#EF4444"/><rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/><rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/></svg>""",
-    "11": """<svg width="86" height="62" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>"""
+    "11": """<svg width="86" height="62" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>""",
+    "12": """<svg width="88" height="62" viewBox="0 0 130 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="65" cy="42" r="35" fill="#0B192C" stroke="#38BDF8" stroke-width="2.2" stroke-dasharray="5 3"/><rect x="12" y="26" width="106" height="32" rx="16" fill="#1E293B" stroke="#F59E0B" stroke-width="2.8"/><rect x="28" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="55" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="82" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><line x1="18" y1="51" x2="112" y2="51" stroke="#F59E0B" stroke-width="2.8"/><circle cx="20" cy="42" r="4" fill="#10B981"/><circle cx="110" cy="42" r="4" fill="#EF4444"/></svg>"""
 }
 
-# --- 5. ARCHITETTURA DEGLI 11 VETTORI PRIMARI ---
+# --- 5. ARCHITETTURA DEI 12 VETTORI PRIMARI (1 -> 2^12 = 4096) ---
 BASE_VECTORS = [
     {
         "bit": 0, "code": "01", "short": "01 FRONT", "name": "FRONT & APEX", "artifact": "EAGLE-1 TRANSPORTER", "staff_allowed": False,
@@ -386,14 +423,20 @@ BASE_VECTORS = [
     {
         "bit": 9, "code": "10", "short": "10 BAR DDT", "name": "BAR & DDT SENTINEL", "artifact": "X5-7 MAIN COMPUTER CONSOLE", "staff_allowed": False,
         "border": "#10B981", "glow": "rgba(16, 185, 129, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F3D33 0%, #10171D 78%)",
-        "kpi": "SCATTA E SALVA 1-CLICK | CASSA A-O | +1KG CAFFÈ", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scatta & Salva + Bolla", "2. 🎹 Tastiera Cassa (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Calendario Storico"]
+        "kpi": "RAGGI-X SCONTRINO | CONTABILITÀ PARALLELA A-O | +1KG CAFFÈ", "url": "https://bemask-lazers.streamlit.app",
+        "subs": ["1. 📸 Scanner & Voci Scontrino", "2. 🎹 Contabilità Rapida (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Bilancio & Calendario"]
     },
     {
         "bit": 10, "code": "11", "short": "11 VAMPIRE", "name": "BANK VAMPIRE SCANNER", "artifact": "KOENIG LASER STUN GUN", "staff_allowed": False,
         "border": "#EF4444", "glow": "rgba(239, 68, 68, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #421820 0%, #151319 78%)",
         "kpi": "AUTOPSIA CONTO | POS REALE & SDD ALERT", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scatta E/C & POS Reale", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Calendario Storico"]
+        "subs": ["1. 📸 Scanner E/C & POS Reale", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Bilancio & Calendario"]
+    },
+    {
+        "bit": 11, "code": "12", "short": "12 TUBE", "name": "TRAVEL TUBE SHIELD", "artifact": "ALPHA HIGH-SPEED ESCAPE POD", "staff_allowed": False,
+        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.45)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F344C 0%, #10151D 78%)",
+        "kpi": "FONDO CASSA | MULTI-POS vs RT | SEMANTICA A-O", "url": "https://bemask-travel-tube.streamlit.app",
+        "subs": ["1. 🛡️ Pareggio Cassa & POS", "2. 🧠 Motore Semantico A-O", "3. ⚡ Giustificativo 3-Sec", "4. 🖨️ Distinta Ispettiva .TXT", "5. 📅 Bilancio & Calendario"]
     }
 ]
 
@@ -532,11 +575,11 @@ div.stButton > button:hover {
 .kpi-custom-value { font-size: 23px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.9px; line-height: 1.2; }
 .kpi-custom-sub { font-size: 11px; font-weight: 700; margin-top: 6px; font-family: 'Share Tech Mono', monospace; }
 
-.autosave-banner {
-    background: linear-gradient(90deg, #064E3B 0%, #0F2922 100%);
+.xray-desk {
+    background: linear-gradient(135deg, #0D1622 0%, #132232 100%);
     border: 2px solid #10B981; border-left: 6px solid #F59E0B;
-    padding: 14px; border-radius: 4px; margin-top: 10px; margin-bottom: 12px;
-    box-shadow: 0 0 25px rgba(16, 185, 129, 0.25);
+    padding: 16px; border-radius: 4px; margin-top: 10px; margin-bottom: 14px;
+    box-shadow: 0 0 25px rgba(16, 185, 129, 0.22);
 }
 
 @media (max-width: 768px) {
@@ -570,7 +613,7 @@ if not st.session_state["auth_unlocked"]:
                 BEMASK // A.L.P.H.A. SECURITY GATE
             </div>
             <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
-                MOONBASE ALPHA COMMAND | COMMLOCK 2FA | ZERO-CLICK AI OCR SCANNER
+                MOONBASE ALPHA COMMAND | 12 SECTORS (2^12) + TRAVEL TUBE POD
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -580,6 +623,7 @@ if not st.session_state["auth_unlocked"]:
             st.session_state["auth_unlocked"] = True
             st.session_state["auth_role"] = "COMMANDER"
             st.session_state["auth_user"] = "ENRICO // ARCHITECT MASTER DEMO"
+            return_to_page_zero()
             st.rerun()
 
         c_pin, c_2fa = st.columns(2)
@@ -598,6 +642,7 @@ if not st.session_state["auth_unlocked"]:
                     st.session_state["auth_role"] = "COMMANDER"
                     st.session_state["auth_user"] = "COMANDANTE / TITOLARE (2FA VERIFIED)"
                     st.session_state["pin_code"] = master_pin
+                    return_to_page_zero()
                     st.rerun()
                 else:
                     play_ems_synth("klaxon")
@@ -612,6 +657,7 @@ if not st.session_state["auth_unlocked"]:
                 st.session_state["auth_role"] = "STAFF"
                 st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
                 st.session_state["pin_code"] = in_pin.strip()
+                return_to_page_zero()
                 st.rerun()
 
             else:
@@ -623,15 +669,15 @@ if not st.session_state["auth_unlocked"]:
     st.stop()
 
 # ==============================================================================
-# 8. FILTRO RUOLO ANTI-TALPA
+# 8. FILTRO RUOLO ANTI-TALPA (12 BIT = 4096 COMBINAZIONI)
 # ==============================================================================
 is_commander = (st.session_state["auth_role"] == "COMMANDER")
-bits = st.session_state["active_bits_11"]
+bits = st.session_state["active_bits_12"]
 
 if is_commander:
     active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
     if not active_base:
-        apply_multiverse_preset([True] + [False]*10)
+        apply_multiverse_preset([True] + [False]*11)
         active_base = [BASE_VECTORS[0]]
     all_squares = active_base + st.session_state["custom_squares"]
 else:
@@ -643,11 +689,11 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 9. TOP KOENIG BAR + AQUILA HERO ---
+# --- 9. TOP KOENIG BAR + PULSANTE DIRETTO PAGINA ZERO ---
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
-top_c1, top_c2 = st.columns([4.1, 0.9])
+top_c1, top_c2, top_c3 = st.columns([3.4, 0.9, 0.7])
 with top_c1:
     st.markdown(f"""
     <div class="koenig-strip">
@@ -659,16 +705,20 @@ with top_c1:
         </div>
         <div style="margin-top:5px;">
             <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
-            <span class="badge-amber">EAGLE-1 ZERO-CLICK OCR</span>
+            <span class="badge-amber">12 TRAVEL TUBE ARMED</span>
             {breach_badge}
-            <span class="badge-white">1 → 2¹¹ (STATE #{binary_state_num}/2048)</span>
+            <span class="badge-white">1 → 2¹² (STATE #{binary_state_num}/4096)</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
 with top_c2:
+    if st.button("🏠 PAGINA ZERO\n(HOME PLANCIA)", use_container_width=True):
+        return_to_page_zero()
+        st.rerun()
+with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
-        st.session_state["blum_sector"] = None
+        return_to_page_zero()
         st.rerun()
 
 st.markdown(f"""
@@ -692,10 +742,10 @@ st.markdown(f"""
 if st.session_state["unsaved_ops_count"] >= 3:
     al_c1, al_c2 = st.columns([3.2, 1.2])
     with al_c1:
-        st.warning(f"⚠️ CHECKPOINT MEMORIA VOLATILE: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nel Calendario in RAM. Scarica una copia di sicurezza sul dispositivo prima di chiudere il turno!")
+        st.warning(f"⚠️ CHECKPOINT MEMORIA VOLATILE: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nella Contabilità in RAM. Scarica una copia di sicurezza sul dispositivo prima di chiudere il turno!")
     with al_c2:
         cal_json = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        if st.download_button("💾 SALVA CALENDARIO (.JSON)", cal_json, file_name=f"alpha_calendario_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
+        if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json, file_name=f"alpha_contabilita_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
@@ -720,26 +770,26 @@ with st.expander("🌤️ RADAR METEO TELEMETRICO 5 GIORNI (SANDRA BENES / MAYA)
             """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 10. PANNELLI DEL COMANDANTE (SCALABILITÀ MULTIVERSO + CASSAFORTE 2FA COMPLETA)
+# 10. PANNELLI DEL COMANDANTE (SCALABILITÀ MULTIVERSO 1 -> 2^12 + CASSAFORTE 2FA)
 # ==============================================================================
 if is_commander:
     sec_col1, sec_col2 = st.columns([1.45, 1.0])
     with sec_col1:
-        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹¹ (Configura Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
-            st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 2048` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
-            sw_cols = st.columns(11)
+        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
+            st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 4096` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
+            sw_cols = st.columns(6)
             for i, vec in enumerate(BASE_VECTORS):
-                with sw_cols[i]:
+                with sw_cols[i % 6]:
                     st.toggle(vec["short"], key=f"bit_sw_{i}", on_change=on_single_bit_toggle, args=(i,))
 
             p1, p2, p3, p4 = st.columns(4)
-            p1.button("🍸 PACCHETTO BAR (02+10+11)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True],), use_container_width=True)
-            p2.button("🛸 PACCHETTO 6 SETTORI (01-06)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, False, False],), use_container_width=True)
-            p3.button("🔥 FULL MULTIVERSE 2¹¹ (TUTTI 11)", on_click=apply_multiverse_preset, args=([True] * 11,), use_container_width=True)
-            p4.button("⚡ SOLO 01 (RESET A 1)", on_click=apply_multiverse_preset, args=([True] + [False] * 10,), use_container_width=True)
+            p1.button("🍸 PACCHETTO BAR (02+10+11+12)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True, True],), use_container_width=True)
+            p2.button("🛸 GRIGLIA 3x3 PERFETTA (9 SETTORI)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, True, True, True],), use_container_width=True)
+            p3.button("🔥 FULL MULTIVERSE 2¹² (TUTTI 12)", on_click=apply_multiverse_preset, args=([True] * 12,), use_container_width=True)
+            p4.button("⚡ SOLO 12 TRAVEL TUBE", on_click=apply_multiverse_preset, args=([False]*11 + [True],), use_container_width=True)
 
     with sec_col2:
-        with st.expander(f"🛡️ CASSAFORTE 2FA & MOTORE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
+        with st.expander(f"🛡️ CASSAFORTE 2FA & CHIAVE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
             q1, q2 = st.columns([1, 2])
             secret_now = get_totp_secret()
             otp_uri = f"otpauth://totp/BEMASK_ALPHA:TITOLARE?secret={secret_now}&issuer=BEMASK_ALPHA"
@@ -756,138 +806,151 @@ if is_commander:
                 v_key = st.text_input("🤖 Chiave Google AI Studio (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key="api_key_box_VAULT", type="password")
                 if v_key and len(v_key.strip()) > 15:
                     st.session_state["custom_gemini_key"] = v_key.strip()
-                if st.session_state["breach_log"]:
-                    for item in reversed(st.session_state["breach_log"]):
-                        st.error(item)
-                    if st.button("🧹 AZZERA REGISTRO INTRUSIONI"):
-                        st.session_state["breach_log"] = []
-                        st.rerun()
 
 # ==============================================================================
-# AUTOMAZIONE ZERO-CLICK + VISORE RAGGI-X COMPLETO
+# TAVOLO DI SMISTAMENTO SCONTRINO IN RAM (CON AUTO-SEMANTICA A-O)
 # ==============================================================================
-def process_photo_zero_click(stream_obj, module_tag="DDT"):
+def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
     ram_kb = len(raw_bytes) / 1024.0
     ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
     active_key = get_gemini_api_key()
+    conto_opts = get_conto_options()
 
-    # Appena scatti la foto, se c'è la chiave AI legge e salva subito nel Calendario senza premere altri bottoni!
-    if ram_hash not in st.session_state["processed_hashes"]:
-        if active_key:
-            with st.spinner("🤖 Lettura automatica scontrino e salvataggio nel Calendario in corso..."):
-                parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
-                if parsed_ocr:
-                    eser = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                    met = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
-                    tot_letto = float(parsed_ocr.get("totale_euro", 19.80))
-                    righe_ai = parsed_ocr.get("righe", [])
+    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
+        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
+            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
+            if parsed_ocr:
+                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
+                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
+                righe_ai = parsed_ocr.get("righe", [])
+                if isinstance(righe_ai, list) and len(righe_ai) > 0:
+                    st.session_state["ocr_items_df"] = righe_ai
+                st.session_state["last_scanned_hash"] = ram_hash
+                play_ems_synth("commlock")
+            else:
+                st.warning(f"⚠️ {err_msg}")
 
-                    st.session_state["ocr_esercente"] = eser
-                    st.session_state["ocr_metodo"] = met
-                    if isinstance(righe_ai, list) and len(righe_ai) > 0:
-                        st.session_state["ocr_items_df"] = righe_ai
-                        voci_str = " + ".join([f"{r.get('qta',1)}x {r.get('voce','')} (€{r.get('prezzo',0)})" for r in righe_ai])
-                    else:
-                        voci_str = f"Totale € {tot_letto:.2f}"
-
-                    full_desc = f"{eser} [{met}] -> {voci_str}"[:140]
-                    add_calendar_event(f"AUTO-SCAN ({module_tag})", full_desc, -tot_letto, 1, "OK")
-                    st.session_state["processed_hashes"].append(ram_hash)
-                    st.session_state["last_auto_saved_banner"] = {
-                        "eser": eser, "met": met, "tot": tot_letto, "voci": voci_str, "hash": ram_hash, "kb": ram_kb
-                    }
-                    play_ems_synth("commlock")
-                else:
-                    st.warning(f"⚠️ {err_msg}")
-        else:
-            st.info("👇 Inserisci la chiave `AIzaSy...` nel cassetto qui sotto per attivare la lettura automatica istantanea a ogni scatto!")
-
-    if st.session_state.get("last_auto_saved_banner") and st.session_state["last_auto_saved_banner"]["hash"] == ram_hash:
-        b_info = st.session_state["last_auto_saved_banner"]
-        st.markdown(f"""
-        <div class="autosave-banner">
-            <div style="font-size:12px; color:#F59E0B; font-weight:900;">
-                ✅ SCANSIONE E SALVATAGGIO AUTOMATICO COMPLETATI (ZERO-CLICK!)
-            </div>
-            <div style="font-size:20px; font-weight:900; color:#FFFFFF; margin-top:4px;">
-                {b_info['eser']} — € {b_info['tot']:.2f} ({b_info['met']})
-            </div>
-            <div style="font-size:12px; color:#6EE7B7; font-family:'Share Tech Mono', monospace; margin-top:4px;">
-                🧾 Voci già registrate nel Calendario: {b_info['voci']}
-            </div>
+    st.markdown(f"""
+    <div class="xray-desk">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+            <span class="badge-amber">👁️ CONTENUTO INTERNO SCONTRINO & IMPUTAZIONE SEMANTICA PARALLELA (IN RAM)</span>
+            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#10B981;">
+                HASH: #{ram_hash} | {ram_kb:.1f} KB IN RAM | 0 BYTE SU DISCO
+            </span>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """, unsafe_allow_html=True)
 
-        if st.button("📸 PRONTO PER UN ALTRO SCONTRINO (SVUOTA MIRINO)", key=f"next_shot_{module_tag}", use_container_width=True):
-            st.session_state["ram_clear_counter"] += 1
-            st.rerun()
+    desk_left, desk_right = st.columns([1.15, 1.85])
+    with desk_left:
+        st.image(raw_bytes, caption="📸 Lastra Scontrino in RAM", use_container_width=True)
 
-    with st.expander("👁️ ISPEZIONA FOTO INGRANDITA / TABELLA VOCI RAGGI-X / CHIAVE AI", expanded=(not bool(active_key))):
-        c_k1, c_k2 = st.columns([1.6, 1.4])
-        with c_k1:
+    with desk_right:
+        k_c1, k_c2 = st.columns([1.6, 1.4])
+        with k_c1:
             typed_k = st.text_input(
-                "🔑 Chiave Google AI Studio (AIzaSy...):",
+                "🔑 Chiave AI Vision (AIzaSy...):",
                 value=st.session_state.get("custom_gemini_key", ""),
                 key=f"api_key_box_{module_tag}",
-                placeholder="Incolla qui la chiave AIzaSy..."
+                placeholder="Incolla chiave AIzaSy..."
             )
             if typed_k and len(typed_k.strip()) > 15:
                 st.session_state["custom_gemini_key"] = typed_k.strip()
-        with c_k2:
+        with k_c2:
             st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-            if st.button("🤖 RILEGGI FOTO CON AI VISION", key=f"re_ocr_{module_tag}", use_container_width=True):
-                if ram_hash in st.session_state["processed_hashes"]:
-                    st.session_state["processed_hashes"].remove(ram_hash)
-                st.rerun()
+            if st.button("🤖 LEGGI E CLASSIFICA VOCI CON AI", key=f"btn_ai_{module_tag}", use_container_width=True):
+                parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, get_gemini_api_key())
+                if parsed_ocr:
+                    st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
+                    st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
+                    if parsed_ocr.get("righe"):
+                        st.session_state["ocr_items_df"] = parsed_ocr["righe"]
+                    play_ems_synth("commlock")
+                    st.rerun()
+                else:
+                    st.warning(err_msg)
 
-        v_left, v_right = st.columns([1.15, 1.85])
-        with v_left:
-            st.image(raw_bytes, caption=f"📸 Lastra in RAM ({ram_kb:.1f} KB — Hash #{ram_hash})", use_container_width=True)
-        with v_right:
+        es_c1, es_c2 = st.columns([1.7, 1.3])
+        with es_c1:
             st.session_state["ocr_esercente"] = st.text_input("🏪 Esercente / Fornitore:", value=st.session_state["ocr_esercente"], key=f"eser_{module_tag}")
-            df_items = pd.DataFrame(st.session_state["ocr_items_df"])
-            edited_items = st.data_editor(
-                df_items,
-                num_rows="dynamic",
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="large"),
-                    "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1),
-                    "prezzo": st.column_config.NumberColumn("PREZZO (€)", format="€ %.2f", step=0.10)
-                },
-                key=f"items_ed_{module_tag}"
-            )
-            tot_man = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
-            if st.button(f"💾 SALVA SCONTRINO MODIFICATO (€ {tot_man:.2f}) NEL CALENDARIO", key=f"man_save_{module_tag}", use_container_width=True):
-                add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']} (€ {tot_man:.2f})", -tot_man, 1, "OK")
+        with es_c2:
+            st.session_state["ocr_metodo"] = st.selectbox("💳 Pagamento:", ["CARTA DI CREDITO / POS", "CONTANTI DA CASSETTO", "BONIFICO / SDD"], index=0, key=f"met_{module_tag}")
+
+        st.markdown("###### 🧾 TABELLA VOCI DELLO SCONTRINO (Smistamento Semantico `A–O`):")
+        df_items = pd.DataFrame(st.session_state["ocr_items_df"])
+        if "conto" not in df_items.columns:
+            df_items["conto"] = conto_opts[0]
+
+        edited_items = st.data_editor(
+            df_items,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="medium"),
+                "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1, width="small"),
+                "prezzo": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10, width="small"),
+                "conto": st.column_config.SelectboxColumn("CONTO PARALLELO (A-O)", options=conto_opts, width="medium")
+            },
+            key=f"items_ed_{module_tag}"
+        )
+
+        totale_scontrino = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
+
+        st.markdown(f"""
+        <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
+            <div class="kpi-custom-title">TOTALE VOCI SCONTRINO ({st.session_state['ocr_metodo']})</div>
+            <div class="kpi-custom-value" style="font-size:22px;">€ {totale_scontrino:.2f}</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        b_imp1, b_imp2 = st.columns(2)
+        with b_imp1:
+            if st.button("⚡ IMPUTA SINGOLE VOCI SUI CONTI (A-O) E SVUOTA RAM", key=f"split_save_{module_tag}", use_container_width=True):
+                for _, r in edited_items.iterrows():
+                    v_nome = str(r.get("voce", "Voce")).strip()
+                    v_qta = int(r.get("qta", 1) or 1)
+                    v_prz = float(r.get("prezzo", 0.0) or 0.0)
+                    v_cnt = str(r.get("conto", conto_opts[0]))
+                    if v_prz > 0:
+                        add_calendar_event("VOCE SCONTRINO", f"{st.session_state['ocr_esercente']}: {v_qta}x {v_nome} [{st.session_state['ocr_metodo']}]", -v_prz, 1, "OK", conto=v_cnt)
                 st.session_state["ram_clear_counter"] += 1
                 play_ems_synth("commlock")
-                st.toast(f"✅ Registrato € {tot_man:.2f} nel Calendario!")
+                st.toast(f"✅ Voci imputate nei conti A-O (€ {totale_scontrino:.2f})!")
+                st.rerun()
+
+        with b_imp2:
+            if st.button(f"📦 REGISTRA SCONTRINO UNICO (€ {totale_scontrino:.2f})", key=f"single_save_{module_tag}", use_container_width=True):
+                riep = " + ".join([f"{int(r.get('qta',1) or 1)}x {r.get('voce','')} (€{float(r.get('prezzo',0) or 0):.2f})" for _, r in edited_items.iterrows()])
+                primo_conto = str(edited_items.iloc[0].get("conto", conto_opts[0])) if not edited_items.empty else conto_opts[0]
+                add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']}: {riep}"[:140], -totale_scontrino, 1, "OK", conto=primo_conto)
+                st.session_state["ram_clear_counter"] += 1
+                play_ems_synth("commlock")
+                st.toast(f"✅ Scontrino unico da € {totale_scontrino:.2f} registrato!")
                 st.rerun()
 
 # ==============================================================================
-# CALENDARIO STORICO COMPLETO (SCHEDE MOBILE + VISTE GIORNO / SETTIMANA / MESE)
+# CONTABILITÀ PARALLELA & CALENDARIO STORICO
 # ==============================================================================
 def render_alpha_chrono_calendar():
-    st.markdown("##### 📅 ALPHA CHRONO-CALENDAR // STORICO GIORNO · SETTIMANA · MESE")
+    st.markdown("##### 📅 CONTABILITÀ PARALLELA IN RAM & CALENDARIO STORICO (GIORNO · SETTIMANA · MESE)")
     cal_top1, cal_top2, cal_top3 = st.columns([1.6, 1.2, 1.2])
     with cal_top1:
-        cal_view = st.radio("Lente Temporale:", ["GIORNO (Schede & Modifica)", "SETTIMANA (7 Giorni)", "MESE (Griglia 30gg)"], horizontal=True)
+        cal_view = st.radio("Vista Contabile:", ["GIORNO (Movimenti & Modifica)", "BILANCIO PER CONTO (A-O)", "MESE (Riepilogo Giorni)"], horizontal=True)
     with cal_top2:
         cal_json_str = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        if st.download_button("💾 SALVA STORICO MESE (.JSON)", cal_json_str, file_name=f"calendario_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
+        if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json_str, file_name=f"contabilita_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
             st.session_state["unsaved_ops_count"] = 0
-            st.toast("✅ Calendario salvato sul tuo dispositivo!")
+            st.toast("✅ Contabilità salvata sul tuo dispositivo!")
     with cal_top3:
-        up_cal = st.file_uploader("📂 Ricarica Storico (.json)", type=["json"], label_visibility="collapsed")
+        up_cal = st.file_uploader("📂 Ricarica Contabilità (.json)", type=["json"], label_visibility="collapsed")
         if up_cal is not None:
             try:
                 loaded_list = json.loads(up_cal.getvalue().decode("utf-8"))
                 if isinstance(loaded_list, list):
                     st.session_state["chrono_ledger"] = loaded_list
-                    st.success("Storico ripristinato!")
+                    st.success("Contabilità ripristinata!")
             except Exception:
                 pass
 
@@ -895,6 +958,8 @@ def render_alpha_chrono_calendar():
     if df_cal.empty:
         st.info("Nessun movimento registrato.")
         return
+    if "conto" not in df_cal.columns:
+        df_cal["conto"] = "[N] SPESE VARIE"
 
     tot_entrate = df_cal[df_cal["amount"] > 0]["amount"].sum()
     tot_uscite = df_cal[df_cal["amount"] < 0]["amount"].sum()
@@ -902,58 +967,45 @@ def render_alpha_chrono_calendar():
 
     c_m1, c_m2, c_m3 = st.columns(3)
     with c_m1:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI / RESA TEORICA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI & RESA TEORICA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
     with c_m2:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">USCITE CASSA, SCONTRINI & BOLLE</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">TOTALE COSTI IMPUTATI (A-O & BOLLE)</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
     with c_m3:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">SALDO CONSOLIDATO CALENDARIO</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">UTILE / SALDO CONTABILITÀ PARALLELA</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
 
-    if cal_view.startswith("GIORNO"):
-        st.markdown("###### 📋 ULTIMI MOVIMENTI REGISTRATI (VISTA STABILE ANTI-SCORRIMENTO PER TELEFONINO):")
-        for _, row_c in df_cal.iloc[::-1].iterrows():
-            col_bar = "#10B981" if row_c["amount"] > 0 else "#EF4444"
-            st.markdown(f"""
-            <div style="background:#151B24; border:1px solid #283344; border-left:4px solid {col_bar}; padding:10px 12px; border-radius:3px; margin-bottom:6px;">
-                <div style="display:flex; justify-content:space-between; font-size:11px; color:#94A3B8; font-family:'Share Tech Mono', monospace;">
-                    <span>📅 {row_c['date']} · 🕒 {row_c['time']} · <b>{row_c['type']}</b></span>
-                    <span style="color:{col_bar}; font-size:14px; font-weight:900;">€ {row_c['amount']:+.2f}</span>
-                </div>
-                <div style="font-size:12px; color:#FFFFFF; margin-top:3px; font-family:'Share Tech Mono', monospace;">
-                    {row_c['desc']}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+    if cal_view.startswith("BILANCIO"):
+        st.markdown("###### 📊 SPACCATO CONTABILITÀ PARALLELA PER SINGOLA VOCE / CENTRO DI COSTO (A → O):")
+        grp_c = df_cal.groupby("conto", as_index=False).agg(Numero_Voci=("amount", "count"), Totale_Euro=("amount", "sum"))
+        st.dataframe(grp_c, use_container_width=True, hide_index=True)
 
-        with st.expander("✏️ Apri Tabella Interattiva per Modificare o Cancellare Righe", expanded=False):
-            edited_df = st.data_editor(
-                df_cal,
-                num_rows="dynamic",
-                use_container_width=True,
-                hide_index=True,
-                column_config={
-                    "date": st.column_config.TextColumn("DATA"),
-                    "time": st.column_config.TextColumn("ORA"),
-                    "type": st.column_config.TextColumn("OPERAZIONE"),
-                    "desc": st.column_config.TextColumn("CONTENUTO INTERNO SCONTRINO / NOTA", width="large"),
-                    "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
-                    "days_span": st.column_config.NumberColumn("GIORNI", min_value=1, max_value=30),
-                    "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
-                },
-                key="cal_editor_live"
-            )
-            if not edited_df.equals(df_cal):
-                st.session_state["chrono_ledger"] = edited_df.to_dict("records")
-                st.rerun()
-
-    elif cal_view.startswith("SETTIMANA"):
-        grp_w = df_cal.groupby(["date", "type"], as_index=False)["amount"].sum()
-        st.dataframe(grp_w, use_container_width=True, hide_index=True)
-    else:
+    elif cal_view.startswith("MESE"):
         grp_m = df_cal.groupby("date", as_index=False).agg(Operazioni=("type", "count"), Saldo_Giorno=("amount", "sum"), Giorni_Coperti=("days_span", "max"))
         st.dataframe(grp_m, use_container_width=True, hide_index=True)
 
+    else:
+        edited_df = st.data_editor(
+            df_cal,
+            num_rows="dynamic",
+            use_container_width=True,
+            hide_index=True,
+            column_config={
+                "date": st.column_config.TextColumn("DATA"),
+                "time": st.column_config.TextColumn("ORA"),
+                "conto": st.column_config.SelectboxColumn("CONTO IMPUTATO (A-O)", options=get_conto_options(), width="medium"),
+                "type": st.column_config.TextColumn("TIPO"),
+                "desc": st.column_config.TextColumn("DETTAGLIO VOCE SCONTRINO / NOTA", width="large"),
+                "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
+                "days_span": st.column_config.NumberColumn("GG", min_value=1, max_value=30),
+                "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
+            },
+            key="cal_editor_live"
+        )
+        if not edited_df.equals(df_cal):
+            st.session_state["chrono_ledger"] = edited_df.to_dict("records")
+            st.rerun()
+
 # ==============================================================================
-# 11. CORPO PRINCIPALE COMPLETO (COLONNA SINISTRA + COLONNA DESTRA CON QR TELEPORT)
+# 11. CORPO PRINCIPALE: PAGINA ZERO (12 QUADRATI) vs INGRESSO MODULO SPECIFICO
 # ==============================================================================
 col_left, col_right = st.columns([3.25, 1.15])
 rc_id = st.session_state["ram_clear_counter"]
@@ -963,9 +1015,8 @@ with col_left:
         sec_obj = next((s for s in all_squares if s["code"] == st.session_state["blum_sector"]), all_squares[0])
         svg_blum = SVG_ICONS.get(sec_obj["code"], SVG_ICONS["01"])
 
-        if st.button("▲ RIEMERGI ALLA MATRICE CENTRALE A.L.P.H.A. (CHIUDI BLUM)", key="exit_blum_top", use_container_width=True):
-            st.session_state["blum_sector"] = None
-            st.session_state["selected_sub"] = None
+        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (MATRICE INIZIALE A.L.P.H.A.)", key="exit_blum_top", use_container_width=True):
+            return_to_page_zero()
             st.rerun()
 
         st.markdown(f"""
@@ -974,63 +1025,79 @@ with col_left:
                 <div>{svg_blum}</div>
                 <div>
                     <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono'; letter-spacing:1.3px;">
-                        {sec_obj['artifact']} // SETTORE {sec_obj['code']} // ZERO-CLICK RAM SESSION
+                        {sec_obj['artifact']} // SETTORE {sec_obj['code']} // CONTABILITÀ PARALLELA RAM
                     </div>
                     <div style="font-size:22px; font-weight:900; color:#FFFFFF; letter-spacing:1.3px; margin-top:2px;">
                         {sec_obj['name']}
                     </div>
                     <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono'; margin-top:4px;">
-                        {sec_obj['kpi']} | FOCUS: {st.session_state['selected_sub']}
+                        {sec_obj['kpi']} | SOTTOMENU ATTIVO: {st.session_state['selected_sub']}
                     </div>
                 </div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        sub_cols = st.columns(5)
+        sub_cols = st.columns(6)
         for idx_s, sub_label in enumerate(sec_obj["subs"]):
             with sub_cols[idx_s]:
                 if st.button(sub_label, key=f"blum_sub_{sec_obj['code']}_{idx_s}", use_container_width=True):
                     st.session_state["selected_sub"] = sub_label
                     st.rerun()
+        with sub_cols[5]:
+            if st.button("🏠 0. Pagina Zero", key=f"sub_zero_{sec_obj['code']}", use_container_width=True):
+                return_to_page_zero()
+                st.rerun()
 
         st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
         curr_sub = str(st.session_state.get("selected_sub", sec_obj["subs"][0]))
 
         # ======================================================================
-        # MODULO 10: BAR & DDT SENTINEL (COMPLETO AL 100%)
+        # MODULO 12: TRAVEL TUBE SHIELD (PONTE DI LANCIO AL POD STANDALONE)
         # ======================================================================
-        if sec_obj["code"] == "10":
+        if sec_obj["code"] == "12":
+            if "5." in curr_sub:
+                render_alpha_chrono_calendar()
+            else:
+                st.markdown("##### 🛸 ALPHA TRAVEL TUBE // SALVACULO CASSA, MULTI-POS vs RT & MOTORE SEMANTICO")
+                st.info("Il **Travel Tube (Settore 12)** opera come Pod ad alta velocità dedicato all'allineamento Fondo Cassa mattina, rilevamento collisioni Storico POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
+                st.link_button("🚀 LANCIA POD AUTONOMO TRAVEL TUBE (bemask-travel-tube.streamlit.app)", sec_obj["url"], use_container_width=True)
+
+        # ======================================================================
+        # MODULO 10: BAR & DDT SENTINEL
+        # ======================================================================
+        elif sec_obj["code"] == "10":
             if "5." in curr_sub:
                 render_alpha_chrono_calendar()
 
             elif "2." in curr_sub:
-                st.markdown("##### 🎹 TASTIERA CASSA UNIVERSALE (A → O) // TOCCHI RAPIDI SENZA SCRIVERE CAUSALI")
-                with st.expander("⚙️ Personalizza i nomi dei Tasti A-O per questo Bar (Opzionale)", expanded=False):
+                st.markdown("##### 🎹 CONTABILITÀ PARALLELA RAPIDA (CONTI A → O) // TIMBRA USCITA PER CATEGORIA")
+                with st.expander("⚙️ Personalizza i nomi dei Conti A-O della tua Contabilità Parallela", expanded=False):
                     cfg_cols = st.columns(4)
                     keys_list = list(st.session_state["bar_ao_labels"].keys())
                     for idx_k, k_let in enumerate(keys_list):
                         with cfg_cols[idx_k % 4]:
-                            st.session_state["bar_ao_labels"][k_let] = st.text_input(f"Tasto {k_let}", st.session_state["bar_ao_labels"][k_let], key=f"cfg_ao_{k_let}")
+                            st.session_state["bar_ao_labels"][k_let] = st.text_input(f"Conto {k_let}", st.session_state["bar_ao_labels"][k_let], key=f"cfg_ao_{k_let}")
 
-                imp_col1, imp_col2 = st.columns([1.5, 2.5])
+                imp_col1, imp_col2 = st.columns([1.4, 2.6])
                 with imp_col1:
-                    uscita_euro = st.number_input("💶 Importo Uscita Cassetto (€)", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
+                    uscita_euro = st.number_input("💶 Importo Spesa / Uscita (€)", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
                 with imp_col2:
-                    st.info("Tocca una lettera qui sotto per timbrare subito l'uscita nel Calendario del Giorno:")
+                    nota_opz = st.text_input("📝 Nota veloce (Opzionale):", placeholder="Es. Ghiaccio, Latte, Acconto...")
 
                 ao_keys = list(st.session_state["bar_ao_labels"].keys())
                 row1 = st.columns(4)
                 for i, k_let in enumerate(ao_keys):
                     lbl = st.session_state["bar_ao_labels"][k_let]
                     if row1[i % 4].button(f"[{k_let}] {lbl}", key=f"btn_ao_{k_let}", use_container_width=True):
-                        add_calendar_event(f"CASSA [{k_let}]", f"Uscita rapida {lbl}", -uscita_euro, 1, "OK")
+                        dettaglio = f"{lbl} ({nota_opz})" if nota_opz.strip() else f"Imputazione diretta {lbl}"
+                        add_calendar_event(f"CASSA [{k_let}]", dettaglio, -uscita_euro, 1, "OK", conto=f"[{k_let}] {lbl}")
                         play_ems_synth("commlock")
-                        st.toast(f"✅ Registrato nel Calendario: [{k_let}] {lbl} (-€ {uscita_euro:.2f})")
+                        st.toast(f"✅ Imputato su [{k_let}] {lbl}: -€ {uscita_euro:.2f}")
                         st.rerun()
 
             elif "3." in curr_sub:
-                st.markdown("##### 🏁 CONTROLLO CASSA MULTI-TURNO & CHIUSURA A FISARMONICA (RECUPERO GIORNI SALTATI)")
+                st.markdown("##### 🏁 CONTROLLO CASSA MULTI-TURNO & CHIUSURA A FISARMONICA")
                 ch1, ch2, ch3 = st.columns(3)
                 tipo_punto = ch1.selectbox("Tipo Controllo Cassetto", [
                     "⏱️ PARZIALE / CAMBIO TURNO (Mattina -> Pomeriggio)",
@@ -1041,22 +1108,23 @@ with col_left:
                 incasso_contato = ch3.number_input("Totale Contanti + POS Rilevato (€)", 0.0, 100000.0, 680.0, step=10.0)
 
                 media_giorno = incasso_contato / giorni_coperti
-                if st.button("📅 TIMBRA PUNTO CASSA NEL CALENDARIO STORICO", use_container_width=True):
+                if st.button("📅 TIMBRA PUNTO CASSA NELLA CONTABILITÀ PARALLELA", use_container_width=True):
                     segno = -incasso_contato if "ALLEGGERIMENTO" in tipo_punto else incasso_contato
-                    add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg — Media €{media_giorno:.2f}/gg)", segno, giorni_coperti, "OK")
+                    conto_dest = "[O] PRELIEVO TITOLARE" if "ALLEGGERIMENTO" in tipo_punto else "[INCASSO] CASSA / POS"
+                    add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg — Media €{media_giorno:.2f}/gg)", segno, giorni_coperti, "OK", conto=conto_dest)
                     play_ems_synth("commlock")
-                    st.success(f"Registrato nel Calendario! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
+                    st.success(f"Registrato! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
 
             else:
-                st.markdown("##### 📸 SCATTA E SALVA AUTOMATICO (1-CLICK) + CONTATORE SACCHETTI CAFFÈ (1 KG)")
+                st.markdown("##### 📸 SCANNER SCONTRINI / BOLLE CON SCOMPOSIZIONE VOCI PER CONTABILITÀ PARALLELA")
                 cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
                 with cf1:
                     if st.button("☕ +1 KG CAFFÈ APERTO (TIMBRA ORA)", use_container_width=True):
                         st.session_state["bar_kg_caffe_aperti"] += 1.0
                         resa_sacchetto = st.session_state["bar_tazzine_per_kg"] * st.session_state["bank_prezzo_caffe"]
-                        add_calendar_event("CAFFÈ (+1 KG)", f"Aperto sacchetto 1 Kg (~{st.session_state['bar_tazzine_per_kg']} caffè attesi)", resa_sacchetto, 1, "OK")
+                        add_calendar_event("CAFFÈ (+1 KG)", f"Aperto sacchetto 1 Kg (~{st.session_state['bar_tazzine_per_kg']} caffè attesi)", resa_sacchetto, 1, "OK", conto="[A] MATERIE PRIME / CAFFÈ")
                         play_ems_synth("commlock")
-                        st.toast(f"☕ +1 Kg registrato nel Calendario! (+€ {resa_sacchetto:.2f} attesi)")
+                        st.toast(f"☕ +1 Kg registrato! (+€ {resa_sacchetto:.2f} attesi)")
                         st.rerun()
                 with cf2:
                     st.session_state["bar_kg_caffe_aperti"] = st.number_input("Totale Kg Caffè Aperti nel Periodo", 0.5, 500.0, st.session_state["bar_kg_caffe_aperti"], step=0.5)
@@ -1072,7 +1140,7 @@ with col_left:
 
                 cam_col1, cam_col2, cam_col3 = st.columns([1.4, 2.0, 1.0])
                 with cam_col1:
-                    use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE (AUTO-SCAN)", value=False, key="tog_cam_ddt")
+                    use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE", value=False, key="tog_cam_ddt")
                 with cam_col2:
                     ddt_file = st.file_uploader("📂 Oppure carica Foto Scontrino/CSV/XML da dispositivo", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
                 with cam_col3:
@@ -1082,11 +1150,11 @@ with col_left:
                         play_ems_synth("burst")
                         st.rerun()
 
-                cam_ddt_shot = st.camera_input("Tocca 'Take Photo': legge e salva nel Calendario da solo!", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
+                cam_ddt_shot = st.camera_input("Inquadra lo Scontrino o la Bolla", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
                 active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
 
                 if active_ddt_stream is not None:
-                    process_photo_zero_click(active_ddt_stream, module_tag="DDT")
+                    render_receipt_parallel_accounting_desk(active_ddt_stream, module_tag="DDT")
 
                 st.markdown("---")
                 d0, d1, d2, d3, d4 = st.columns([1.2, 1, 1, 1, 1])
@@ -1125,14 +1193,14 @@ with col_left:
                     </div>
                     """, unsafe_allow_html=True)
 
-                if st.button("📅 ARCHIVIA QUESTA BOLLA NEL CALENDARIO DI OGGI", use_container_width=True):
-                    add_calendar_event("BOLLA DDT", f"Art. {st.session_state['ddt_codice_art']} (€{dna_litro_reale:.2f}/L | Scost. {scostamento_bott:+.2f}€)", -st.session_state["ddt_prezzo_fattura"], 1, "ALERT" if scostamento_bott > 0 else "OK")
+                if st.button("📅 IMPUTA QUESTA BOLLA SU [B] BEVANDE / ALCOLICI", use_container_width=True):
+                    add_calendar_event("BOLLA DDT", f"Art. {st.session_state['ddt_codice_art']} (€{dna_litro_reale:.2f}/L | Scost. {scostamento_bott:+.2f}€)", -st.session_state["ddt_prezzo_fattura"], 1, "ALERT" if scostamento_bott > 0 else "OK", conto="[B] BEVANDE / ALCOLICI")
                     play_ems_synth("commlock")
-                    st.toast("✅ Bolla registrata nel Calendario Storico!")
+                    st.toast("✅ Bolla registrata nella Contabilità Parallela!")
                     st.rerun()
 
         # ======================================================================
-        # MODULO 11: BANK VAMPIRE SCANNER (COMPLETO AL 100%)
+        # MODULO 11: BANK VAMPIRE SCANNER
         # ======================================================================
         elif sec_obj["code"] == "11":
             if "5." in curr_sub:
@@ -1141,7 +1209,7 @@ with col_left:
                 st.markdown("##### 🔫 BANK VAMPIRE SCANNER // ANALISI COSTI BANCARI & VERO TASSO POS (RAM-ONLY)")
                 ec_col1, ec_col2, ec_col3 = st.columns([1.4, 2.0, 1.0])
                 with ec_col1:
-                    use_cam_bank = st.toggle("📸 FOTOGRAFA ESTRATTO CONTO (AUTO-SCAN)", value=False, key="tog_cam_bank")
+                    use_cam_bank = st.toggle("📸 FOTOGRAFA ESTRATTO CONTO", value=False, key="tog_cam_bank")
                 with ec_col2:
                     bank_file = st.file_uploader("📂 Oppure leggi Foto/CSV Estratto Conto (Solo RAM)", type=["csv", "txt", "jpg", "jpeg", "png"], key=f"up_bank_{rc_id}")
                 with ec_col3:
@@ -1151,14 +1219,14 @@ with col_left:
                         play_ems_synth("burst")
                         st.rerun()
 
-                cam_bank_shot = st.camera_input("Inquadra il riepilogo spese dell'Estratto Conto (Lettura e salvataggio automatico)", key=f"cam_bank_{rc_id}") if use_cam_bank else None
+                cam_bank_shot = st.camera_input("Inquadra il riepilogo spese dell'Estratto Conto", key=f"cam_bank_{rc_id}") if use_cam_bank else None
                 sdd_alert_txt = "0 DOPPI ADDEBITI"
                 sdd_sub_txt = "✔ Controllo flussi SDD attivo"
                 sdd_col = "#10B981"
 
                 active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
                 if active_bank_stream is not None:
-                    process_photo_zero_click(active_bank_stream, module_tag="BANK")
+                    render_receipt_parallel_accounting_desk(active_bank_stream, module_tag="BANK")
 
                 b1, b2, b3, b4 = st.columns(4)
                 st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
@@ -1198,13 +1266,13 @@ with col_left:
                     </div>
                     """, unsafe_allow_html=True)
 
-                if st.button("📅 REGISTRA ANALISI BANCARIA NEL CALENDARIO DEL MESE", use_container_width=True):
-                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine per pareggio)", -prelievo_totale_banca, 30, "ALERT")
+                if st.button("📅 IMPUTA ONERI BANCARI NELLA CONTABILITÀ DEL MESE", use_container_width=True):
+                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine per pareggio)", -prelievo_totale_banca, 30, "ALERT", conto="[BANCA] ONERI & COMMISSIONI")
                     play_ems_synth("commlock")
-                    st.toast("✅ Analisi bancaria salvata nel Calendario!")
+                    st.toast("✅ Oneri bancari imputati nella Contabilità Parallela!")
                     st.rerun()
 
-        # --- TUTTI GLI ALTRI MODULI (01 -> 09) COMPLETI DI CALCOLATORE ROP 96H ---
+        # --- TUTTI GLI ALTRI MODULI (01 -> 09) ---
         else:
             st.markdown(f"##### ⚡ TELEMETRIA ESECUTIVA // {sec_obj['name']} — {curr_sub}")
             c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.2, 1.4])
@@ -1222,7 +1290,12 @@ with col_left:
                 """, unsafe_allow_html=True)
             st.link_button(f"🚀 APRI CONSOLLE ESTERNA DEDICATA ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
 
-    # --- VISTA MATRICE CENTRALE PULITA CON I GRANDI SIMBOLI DI SPAZIO 1999 ---
+        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
+        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (HOME PLANCIA)", key="exit_blum_bottom", use_container_width=True):
+            return_to_page_zero()
+            st.rerun()
+
+    # --- PAGINA ZERO: VISTA MATRICE CENTRALE PULITA (9 O 12 QUADRATI SENZA BUCHI!) ---
     else:
         n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
         for r in range(0, n_sectors, n_cols):
