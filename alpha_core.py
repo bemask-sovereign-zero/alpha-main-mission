@@ -1,5 +1,6 @@
 import os
 import glob
+import html
 import json
 import time
 import hmac
@@ -128,20 +129,20 @@ GENETIC_MODES = {
 
 # --- FLOTTA DOCK RAPIDA SUPERIORE (COMPATIBILE CON ?mask=...) ---
 DOCK_FLEET = [
-    {"code": "00", "short": "00 ALPHA HUB",  "url": "https://alpha-main-mission.streamlit.app"},
-    {"code": "01", "short": "01 FRONT",      "url": "https://bemask-sovereign-zero.streamlit.app"},
-    {"code": "02", "short": "02 BEV",        "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "03", "short": "03 FOOD",       "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "04", "short": "04 BEACH",      "url": "https://ska-boschetto.streamlit.app"},
-    {"code": "05", "short": "05 SPA",        "url": "https://ska-boschetto.streamlit.app"},
-    {"code": "06", "short": "06 SKA",        "url": "https://ska-boschetto.streamlit.app"},
-    {"code": "07", "short": "07 ROP",        "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "08", "short": "08 HACCP",      "url": "https://ska-boschetto.streamlit.app"},
-    {"code": "09", "short": "09 GOPPAR",     "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "10", "short": "10 BAR DDT",    "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "11", "short": "11 VAMPIRE",    "url": "https://bemask-lazers.streamlit.app"},
-    {"code": "12", "short": "12 TUBE",       "url": "https://bemask-travel-tube.streamlit.app"},
-    {"code": "DW", "short": "◎ DATA WAFER",  "url": "#"}
+    {"code": "00", "short": "00 ALPHA HUB", "url": "https://alpha-main-mission.streamlit.app"},
+    {"code": "01", "short": "01 FRONT", "url": "https://bemask-sovereign-zero.streamlit.app"},
+    {"code": "02", "short": "02 BEV", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "03", "short": "03 FOOD", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "04", "short": "04 BEACH", "url": "https://ska-boschetto.streamlit.app"},
+    {"code": "05", "short": "05 SPA", "url": "https://ska-boschetto.streamlit.app"},
+    {"code": "06", "short": "06 SKA", "url": "https://ska-boschetto.streamlit.app"},
+    {"code": "07", "short": "07 ROP", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "08", "short": "08 HACCP", "url": "https://ska-boschetto.streamlit.app"},
+    {"code": "09", "short": "09 GOPPAR", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "10", "short": "10 BAR DDT", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "11", "short": "11 VAMPIRE", "url": "https://bemask-lazers.streamlit.app"},
+    {"code": "12", "short": "12 TUBE", "url": "https://bemask-travel-tube.streamlit.app"},
+    {"code": "DW", "short": "◎ DATA WAFER", "url": "#"}
 ]
 
 def auto_map_semantic_conto(text_val):
@@ -160,7 +161,11 @@ def parse_license_url():
 
     allowed = None
     if raw_mask:
-        tokens = {t.strip().upper().zfill(2) if t.strip().isdigit() else t.strip().upper() for t in raw_mask.split(",") if t.strip()}
+        tokens = {
+            t.strip().upper().zfill(2) if t.strip().isdigit() else t.strip().upper()
+            for t in raw_mask.split(",")
+            if t.strip()
+        }
         tokens.add("DW")
         allowed = tokens
 
@@ -494,7 +499,6 @@ def play_ems_synth(effect_type):
             osc.connect(gain); gain.connect(ctx.destination);
             osc.start(now); osc.stop(now + 0.52);
         }} else if ("{effect_type}" === "hydraulic") {{
-            // Sgancio pistoni piattaforma circolare + discesa idraulica Hangar Alpha
             const lockOsc = ctx.createOscillator();
             const lockGain = ctx.createGain();
             lockOsc.type = "square";
@@ -576,24 +580,19 @@ def build_eagle_launch_pad_svg(is_descending=False, open_count=0):
             <span style="color:{ring_stroke}; font-weight:bold;">{lift_state}</span>
         </div>
         <svg viewBox="0 0 380 185" width="100%" style="max-height:175px;" xmlns="http://www.w3.org/2000/svg">
-            <!-- Pozzo Hangar Sotterraneo -->
             <ellipse cx="190" cy="144" rx="138" ry="30" fill="#07090D" stroke="#38BDF8" stroke-width="1.4" stroke-dasharray="5 3"/>
             <line x1="52" y1="78" x2="52" y2="144" stroke="#334155" stroke-width="2.2"/>
             <line x1="328" y1="78" x2="328" y2="144" stroke="#334155" stroke-width="2.2"/>
-            <!-- 4 Pistoni Idraulici -->
             <rect x="92" y="84" width="9" height="62" fill="#1E293B" stroke="{ring_stroke}" stroke-width="1"/>
             <rect x="154" y="96" width="9" height="58" fill="#1E293B" stroke="{ring_stroke}" stroke-width="1"/>
             <rect x="217" y="96" width="9" height="58" fill="#1E293B" stroke="{ring_stroke}" stroke-width="1"/>
             <rect x="279" y="84" width="9" height="62" fill="#1E293B" stroke="{ring_stroke}" stroke-width="1"/>
-
-            <!-- Piattaforma Circolare Eagle Launch Pad + Sagoma Aquila -->
             <g class="{anim_cls}">
                 <ellipse cx="190" cy="78" rx="140" ry="36" fill="#151C28" stroke="{ring_stroke}" stroke-width="2.6"/>
                 <ellipse cx="190" cy="78" rx="112" ry="27" fill="#10151F" stroke="#F59E0B" stroke-width="1.4" stroke-dasharray="9 4"/>
                 <ellipse cx="190" cy="78" rx="72" ry="17" fill="#0B0F17" stroke="#38BDF8" stroke-width="1.4"/>
                 <line x1="66" y1="78" x2="314" y2="78" stroke="#F59E0B" stroke-width="1" opacity="0.6"/>
                 <line x1="190" y1="44" x2="190" y2="112" stroke="#F59E0B" stroke-width="1" opacity="0.6"/>
-                <!-- Micro-Aquila al centro del Pad -->
                 <rect x="156" y="70" width="68" height="14" rx="2" fill="#1E293B" stroke="#E2E8F0" stroke-width="1.4"/>
                 <polygon points="190,62 208,77 190,91 172,77" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/>
                 <circle cx="144" cy="77" r="4" fill="#EF4444"/>
@@ -664,7 +663,6 @@ div[data-baseweb="input"] > div:focus-within, textarea:focus {
     box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
 }
 
-/* Dock Rapida Superiore Zero-Rimbalzi */
 .quick-dock {
     background-color: #141922; border: 1px solid #2A3648; border-left: 4px solid #38BDF8;
     padding: 6px 10px; margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
@@ -721,8 +719,8 @@ div.stButton > button:hover, div.stDownloadButton > button:hover {
 .hangar-card.urgent { border-left-color: #EF4444; box-shadow: inset 0 0 16px rgba(239, 68, 68, 0.14); }
 
 @keyframes hydraulicDropAnim {
-    0%   { transform: translateY(0px); }
-    45%  { transform: translateY(22px) scale(0.94); }
+    0% { transform: translateY(0px); }
+    45% { transform: translateY(22px) scale(0.94); }
     100% { transform: translateY(0px); }
 }
 .pad-hydraulic-drop { animation: hydraulicDropAnim 1.3s ease-in-out 1; }
@@ -743,7 +741,6 @@ if st.session_state.get("pending_sound"):
 # 7. DOSSIER ARCHITETTO & GENESI (CON AUTO-SCANNER BINARIO .MP4 IN RAM)
 # ==============================================================================
 def find_and_read_creator_mp4_in_ram():
-    """Auto-scanner binario in RAM: trova qualsiasi .mp4 nel repo (anche con doppi punti o sottocartelle)."""
     base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
     found_paths = (
         glob.glob(os.path.join(base_dir, "*.mp4"))
@@ -964,7 +961,6 @@ ora_attuale = datetime.now().strftime("%H:%M")
 total_wafers = len(st.session_state["hangar_wafers"])
 open_wafers = sum(1 for w in st.session_state["hangar_wafers"] if not w["taken"])
 
-# --- DOCK RAPIDA SUPERIORE (FILTRATA DA ?mask=... O COMPLETA) ---
 dock_links_html = []
 for node in DOCK_FLEET:
     if LICENSE_INFO["is_filtered"] and node["code"] not in LICENSE_INFO["allowed_codes"]:
@@ -990,14 +986,14 @@ with top_c1:
         <div>
             <span class="badge-amber">DATA WAFER POD</span>
             <span style="font-size:12px; font-weight:900; letter-spacing:1px; color:#FFFFFF;">
-                EAGLE LAUNCH PAD // {st.session_state['auth_user']}
+                EAGLE LAUNCH PAD // {html.escape(str(st.session_state['auth_user']))}
             </span>
         </div>
         <div style="margin-top:5px;">
             <span class="badge-cyan">{mode_cfg['badge']}</span>
             <span class="badge-amber">ARCHITECT: E. BRAGLIA</span>
             {breach_badge}
-            <span class="badge-white">ENTITY: {st.session_state['entity_id']}</span>
+            <span class="badge-white">ENTITY: {html.escape(str(st.session_state['entity_id']))}</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -1034,7 +1030,6 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# --- PANNELLI COMMANDER (SELETTORE GENETICO A 3 ASSETTI + CASSAFORTE 2FA & CHIAVE AI) ---
 if is_commander and not LICENSE_INFO["is_filtered"]:
     sec_c1, sec_c2 = st.columns([1.45, 1.0])
     with sec_c1:
@@ -1084,8 +1079,7 @@ col_left, col_right = st.columns([3.25, 1.15])
 rc_id = st.session_state["ram_clear_counter"]
 
 with col_left:
-    # --- LIVELLO 1: SUPERFICIE (EAGLE LAUNCH PAD — ATTERRAGGIO RAPIDO) ---
-    st.markdown(f"""
+    st.markdown("""
     <div class="blum-stage" style="border: 2px solid #F59E0B; border-left: 6px solid #F59E0B; box-shadow: inset 0 0 36px rgba(245, 158, 11, 0.25);">
         <div style="font-size:11px; color:#F59E0B; font-family:'Share Tech Mono'; letter-spacing:1.3px;">
             LIVELLO SUPERFICIE // EAGLE LAUNCH PAD & HYDRAULIC HANGAR LIFT // ZERO DISTRAZIONI
@@ -1130,7 +1124,6 @@ with col_left:
             "⚡ 3. NOTA LAMPO TESTUALE"
         ])
 
-        # --- TAB 1: FOTO AL FOGLIETTO SCRITTO A MANO -> OCR AI IN RAM ---
         with t_foto:
             use_cam_pad = st.toggle("📸 ATTIVA FOTOCAMERA SMARTPHONE / BANCONE", value=False, key="tog_cam_pad")
             cam_shot = st.camera_input("Inquadra il foglietto scritto a mano", key=f"cam_pad_{rc_id}") if use_cam_pad else None
@@ -1162,7 +1155,6 @@ with col_left:
                             play_ems_synth("klaxon")
                             st.warning(f"⚠️ {err_w}")
 
-        # --- TAB 2: DETTATURA VOCALE RAPIDA -> TRASCRIZIONE AI IN RAM ---
         with t_voce:
             if hasattr(st, "audio_input"):
                 audio_clip = st.audio_input("🎙️ Premi e detta la consegna, spesa o manutenzione (RAM-Only)", key=f"aud_pad_{rc_id}")
@@ -1194,7 +1186,6 @@ with col_left:
                             play_ems_synth("klaxon")
                             st.warning(f"⚠️ {err_v}")
 
-        # --- TAB 3: NOTA LAMPO TESTUALE (100% ATTIVA ANCHE OFFLINE) ---
         with t_lampo:
             flash_txt = st.text_area(
                 "⚡ Scrivi nota lampo, ordine, temperatura o spesa (riconosce da sola quantità, °C, € e conto A-O):",
@@ -1213,7 +1204,7 @@ with col_left:
                 else:
                     active_k = get_gemini_api_key()
                     if active_k:
-                        parsed_f, err_f = process_wafer_in_ram_with_ai(active_k, raw_text=flash_txt, default_dept=selected_dept, default_channel=ov_chan)
+                        parsed_f, _ = process_wafer_in_ram_with_ai(active_k, raw_text=flash_txt, default_dept=selected_dept, default_channel=ov_chan)
                         if not parsed_f:
                             parsed_f = local_heuristic_wafer_parser(flash_txt, selected_dept, ov_chan)
                     else:
@@ -1230,9 +1221,6 @@ with col_left:
                     st.toast(f"✅ Wafer {atom['id']} sceso nell'Hangar RAM!")
                     st.rerun()
 
-    # ==========================================================================
-    # LIVELLO 2: INFERIORE — HYDRAULIC HANGAR RAM (TESTO PULITO A 3 ASSI + SPUNTA)
-    # ==========================================================================
     st.markdown("""
     <div class="xray-desk">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
@@ -1281,7 +1269,6 @@ with col_left:
         </div>
         """, unsafe_allow_html=True)
 
-    # --- FILTRI HANGAR SOTTERRANEO ---
     f1, f2, f3, f4 = st.columns([1.1, 1.2, 1.2, 1.3])
     flt_state = f1.selectbox("Stato Spunta:", ["TUTTI", "DA PRENDERE IN CARICO", "PRESI IN CARICO"])
     flt_dept = f2.selectbox("Filtra Reparto:", ["TUTTI"] + mode_cfg["depts"])
@@ -1315,23 +1302,23 @@ with col_left:
                 y_badge = '<span class="badge-red">ASSE Y: 🔒 RISERVATO COMMANDER</span>'
             else:
                 fee_str = f" · FEE CUBO €{y.get('royalty_eur', 0):.2f}" if st.session_state["genetic_mode"] == "PARTNER" and y.get("royalty_eur", 0) > 0 else ""
-                y_badge = f'<span class="badge-green">Y: € {y["euro"]:.2f} · {y["channel"]} · {y["conto"]}{fee_str}</span>'
+                y_badge = f'<span class="badge-green">Y: € {y["euro"]:.2f} · {html.escape(str(y["channel"]))} · {html.escape(str(y["conto"]))}{fee_str}</span>'
 
             urg_badge = '<span class="badge-red">🚨 URGENTE</span>' if x.get("urgent") and not w["taken"] else ""
-            taken_line = f"<div style='font-family:Share Tech Mono,monospace;font-size:10.5px;color:#10B981;margin-top:5px;'>✔ PRESO IN CARICO ({w['taken_by']})</div>" if w["taken"] else ""
+            taken_line = f"<div style='font-family:Share Tech Mono,monospace;font-size:10.5px;color:#10B981;margin-top:5px;'>✔ PRESO IN CARICO ({html.escape(str(w['taken_by']))})</div>" if w["taken"] else ""
 
             c_card, c_act = st.columns([4.1, 1.15])
             with c_card:
                 st.markdown(f"""
                 <div class="{cls_card}">
                     <div>
-                        <span class="badge-cyan">Z: {wid} · {z['time']} · {z['shift']} · {z['source']}</span>
-                        <span class="badge-amber">X: {x['dept']} · {x['op_tag']} · {x['matter']}</span>
+                        <span class="badge-cyan">Z: {html.escape(str(wid))} · {html.escape(str(z['time']))} · {html.escape(str(z['shift']))} · {html.escape(str(z['source']))}</span>
+                        <span class="badge-amber">X: {html.escape(str(x['dept']))} · {html.escape(str(x['op_tag']))} · {html.escape(str(x['matter']))}</span>
                         {y_badge}
                         {urg_badge}
                     </div>
                     <div style="font-family:'Share Tech Mono', monospace; font-size:14px; color:#FFFFFF; margin-top:6px; line-height:1.45;">
-                        {x['clean_text']}
+                        {html.escape(str(x['clean_text']))}
                     </div>
                     {taken_line}
                 </div>
@@ -1348,7 +1335,6 @@ with col_left:
                         st.session_state["hangar_wafers"] = [item for item in st.session_state["hangar_wafers"] if item["id"] != wid]
                         st.rerun()
 
-    # --- EXPORT .TXT / .JSON (3-ASSI + BRIDGE ALPHA_CORE) & DISTRUZIONE RAM ---
     st.markdown("---")
     txt_lines = [
         f"BEMASK DATA WAFER // REPORT HANGAR RAM — {datetime.now().strftime('%d/%m/%Y %H:%M')}",
@@ -1418,7 +1404,7 @@ with col_left:
             except Exception as ex_err:
                 st.error(f"Errore lettura JSON: {ex_err}")
 
-# --- COLONNA DESTRA IDENTICA A ALPHA_CORE.PY (+ TASTO HYDRAULIC LIFT + QR TELEPORT) ---
+# --- COLONNA DESTRA COMPLETA (EMS-1975 SYNTH + LIFT + KLAXON + RITORNO HUB + QR) ---
 with col_right:
     st.markdown("""
     <div class="ems-panel">
@@ -1448,6 +1434,8 @@ with col_right:
         play_ems_synth("klaxon")
         st.warning("🚨 ALLERTA PRIORITÀ ALTA IN HANGAR RAM")
 
+    st.link_button("🏠 TORNA A ALPHA MAIN MISSION", "https://alpha-main-mission.streamlit.app", use_container_width=True)
+
     teleport_opts = [f"{n['short']}" for n in DOCK_FLEET if (not LICENSE_INFO["is_filtered"] or n["code"] in LICENSE_INFO["allowed_codes"])]
     chosen_tp = st.selectbox("SELEZIONA NODO TELEPORT", teleport_opts, label_visibility="collapsed")
 
@@ -1474,7 +1462,7 @@ with col_right:
     </div>
     """, unsafe_allow_html=True)
 
-# --- 11. PUNZONE METALLICO DI PROPRIETÀ INTELLETTUALE (IDENTICO A ALPHA_CORE.PY) ---
+# --- 11. PUNZONE METALLICO DI PROPRIETÀ INTELLETTUALE ---
 st.markdown("""
 <div style="margin-top:28px; padding:12px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10.5px; color:#64748B; letter-spacing:1.1px;">
     ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED, DIRECTED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · 3-AXIS FRACTAL CORE · ZERO-TRUST VOLATILE RAM ◈
