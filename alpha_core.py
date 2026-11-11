@@ -19,7 +19,6 @@ import hashlib
 import hmac
 import html
 import json
-import math
 import re
 import struct
 import time
@@ -45,10 +44,11 @@ ARCHITECT_NAME = "ENRICO BRAGLIA"
 ARCHITECT_ID = "EB-BEMASK-2026-ALPHA"
 POD_CODE = "DW-EAGLE-LIFT"
 POD_REPO = "bemask-data-wafer"
-POD_VERSION = "1.0.1-SOVEREIGN-RAM"
+POD_VERSION = "1.0.0-SOVEREIGN-RAM"
 
+# Demo Security Defaults (Modificabili in RAM dal Commander)
 DEFAULT_COMMANDER_PIN = "1975"
-DEFAULT_TOTP_SECRET = "BEMASKALPHA1975SOVEREIGNZERO2026"
+DEFAULT_TOTP_SECRET = "BEMASKALPHA1975SOVEREIGNZERO2026"  # Base32 RFC 4648 valida
 
 # Matrice Frattale 2^12 + Hub Centrale + Pod Trasversale per Dock Rapida & ?mask=
 SECTOR_MATRIX = [
@@ -68,7 +68,7 @@ SECTOR_MATRIX = [
     {"bit": 13, "code": "DW", "icon": "◎", "label": "DATA WAFER",     "repo": "bemask-data-wafer"},
 ]
 
-# I 13 Conti Semantici [A]-[O]
+# I 13 Conti Semantici [A]-[O] (Alfabeto Italiano Classico: A,B,C,D,E,F,G,H,I,L,M,N,O)
 SEMANTIC_ACCOUNTS = {
     "[A]": {
         "name": "Caffè, Torrefazione & Materie Prime Bar",
@@ -145,6 +145,7 @@ OPERATIONAL_TAGS = [
     "INCASSO_EXTRA",
 ]
 
+# Configurazione dei 3 Assetti Genetici
 GENETIC_ASSETS = {
     "STANDALONE": {
         "title": "1) STANDALONE GENERALISTA",
@@ -188,12 +189,6 @@ def human_time_now() -> str:
     return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
 
-def svg_to_data_uri(svg_markup: str) -> str:
-    """Converte markup SVG puro in URI Base64 immune a CommonMark e DOMPurify di Streamlit Cloud."""
-    b64 = base64.b64encode(svg_markup.encode("utf-8")).decode("ascii")
-    return f"data:image/svg+xml;base64,{b64}"
-
-
 def normalize_base32(secret: str) -> bytes:
     clean = re.sub(r"[^A-Z2-7]", "", secret.upper())
     if not clean:
@@ -203,6 +198,7 @@ def normalize_base32(secret: str) -> bytes:
 
 
 def generate_totp_rfc6238(secret: str, for_time: int = None, step: int = 30, digits: int = 6) -> str:
+    """Implementazione pura RFC 6238 HMAC-SHA1 in RAM senza librerie esterne."""
     if for_time is None:
         for_time = int(time.time())
     key = normalize_base32(secret)
@@ -226,6 +222,7 @@ def verify_totp_rfc6238(secret: str, user_code: str, window: int = 1) -> bool:
 
 
 def parse_url_license_mask() -> dict:
+    """Legge i parametri URL (?mask=..., ?asset=..., ?entity=..., ?base_url=...) per licenze su misura."""
     qp = st.query_params if hasattr(st, "query_params") else {}
     raw_mask = str(qp.get("mask", "")).strip()
     raw_asset = str(qp.get("asset", "")).strip().upper()
@@ -235,13 +232,10 @@ def parse_url_license_mask() -> dict:
 
     allowed_codes = None
     if raw_mask:
+        # Supporta sia lista codici (?mask=00,02,08,12,DW) sia bitmask esadecimale/intera 2^12 (?mask=0x1085)
         if "," in raw_mask or raw_mask.upper() in {s["code"] for s in SECTOR_MATRIX}:
-            tokens = {
-                t.strip().upper().zfill(2) if t.strip().isdigit() else t.strip().upper()
-                for t in raw_mask.split(",")
-                if t.strip()
-            }
-            tokens.add("DW")
+            tokens = {t.strip().upper().zfill(2) if t.strip().isdigit() else t.strip().upper() for t in raw_mask.split(",") if t.strip()}
+            tokens.add("DW")  # Il pod corrente è sempre attivo
             allowed_codes = tokens
         else:
             try:
@@ -274,10 +268,10 @@ def init_ram_state() -> None:
         "partner_royalty_pct": lic["forced_royalty"] if lic["forced_royalty"] is not None else 12.0,
         "current_shift": "MATTINA",
         "current_weather": "SERENO // FLUSSO REGOLARE",
-        "role": "STAFF",
+        "role": "STAFF",  # "STAFF" (filtro anti-talpa attivo) | "COMMANDER" (accesso totale)
         "commander_pin": DEFAULT_COMMANDER_PIN,
         "totp_secret": DEFAULT_TOTP_SECRET,
-        "require_totp": False,
+        "require_totp": False,  # Attivabile dal Commander per blindatura doppia PIN+2FA
         "intrusion_log": [],
         "gemini_api_key": "",
         "gemini_discovered_model": "",
@@ -293,6 +287,7 @@ def init_ram_state() -> None:
         if k not in st.session_state:
             st.session_state[k] = v
 
+    # Se la licenza URL forza asset o entity, riallinea in RAM
     if lic["forced_asset"]:
         st.session_state.genetic_asset = lic["forced_asset"]
     if lic["forced_entity"]:
@@ -329,6 +324,7 @@ def render_ems_1975_synth() -> None:
             const effect = "__EFFECT__";
 
             if (effect === "hydraulic_descent") {
+                // 1) Sgancio meccanico pistoni piattaforma Eagle Pad
                 const clickOsc = ctx.createOscillator();
                 const clickGain = ctx.createGain();
                 clickOsc.type = "square";
@@ -340,6 +336,7 @@ def render_ems_1975_synth() -> None:
                 clickOsc.start(now);
                 clickOsc.stop(now + 0.12);
 
+                // 2) Discesa idraulica analogica EMS-1975 (Sub-Bass + Filtro risonante)
                 const liftOsc1 = ctx.createOscillator();
                 const liftOsc2 = ctx.createOscillator();
                 const filter = ctx.createBiquadFilter();
@@ -370,6 +367,7 @@ def render_ems_1975_synth() -> None:
                 liftOsc1.stop(now + 1.46);
                 liftOsc2.stop(now + 1.46);
 
+                // 3) Telemetria aggancio Hangar Base Lunare Alpha (Bip cristallino)
                 [987.77, 1318.51].forEach((freq, idx) => {
                     const ping = ctx.createOscillator();
                     const pGain = ctx.createGain();
@@ -431,6 +429,7 @@ def render_ems_1975_synth() -> None:
 # 3. MOTORE SEMANTICO [A]-[O] + GEMINI AUTODISCOVERY OCR & AUDIO IN RAM
 # ==============================================================================
 def discover_gemini_model_in_ram(api_key: str) -> str:
+    """Interroga l'endpoint modelli Gemini in RAM e seleziona automaticamente il miglior modello multimodale."""
     if not api_key:
         return ""
     if st.session_state.gemini_discovered_model:
@@ -449,7 +448,14 @@ def discover_gemini_model_in_ram(api_key: str) -> str:
             if "generateContent" in methods and "gemini" in name.lower():
                 candidates.append(name)
 
-        for pref in ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-pro", "gemini-1.5-flash", "gemini-1.5-pro"]:
+        priority_order = [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+        ]
+        for pref in priority_order:
             for c in candidates:
                 if c == pref or c.startswith(pref):
                     st.session_state.gemini_discovered_model = c
@@ -463,11 +469,17 @@ def discover_gemini_model_in_ram(api_key: str) -> str:
 
 
 def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel: str) -> dict:
+    """Motore deterministico locale (Zero-Cloud / Fallback istantaneo) per strutturazione a 3 Assi."""
     clean = re.sub(r"\s+", " ", (raw_text or "").strip())
     lower = clean.lower()
 
+    # 1. Estrazione Valore Finanziario Euro (Asse Y)
     euro_val = 0.0
-    for pat in [r"(?:€|eur|euro)\s*([0-9]+(?:[.,][0-9]{1,2})?)", r"([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|eur|euro)"]:
+    euro_patterns = [
+        r"(?:€|eur|euro)\s*([0-9]+(?:[.,][0-9]{1,2})?)",
+        r"([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|eur|euro)",
+    ]
+    for pat in euro_patterns:
         m = re.search(pat, lower)
         if m:
             try:
@@ -476,10 +488,11 @@ def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel
             except ValueError:
                 pass
 
+    # 2. Estrazione Materia Fisica / Temperatura / Unità (Asse X)
     matter_unit = "1 NOTA OPERATIVA"
     temp_match = re.search(r"([+-]?\d+(?:[.,]\d+)?\s*°\s*c)", lower)
     qty_match = re.search(
-        r"([+-]?\d+(?:[.,]\d+)?\s*(?:kg|g|lt|l|pz|pezzi|casse|cartoni|fusti|bottiglie|ombrelloni|lettini|camere|sacchi))",
+        r"([+-]?\d+(?:[.,]\d+)?\s*(?:kg|g|lt|l|pz|pezzi|casse| cartoni|fusti|bottiglie|ombrelloni|lettini|camere|sacchi))",
         lower,
     )
     if temp_match:
@@ -487,6 +500,7 @@ def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel
     elif qty_match:
         matter_unit = qty_match.group(1).upper()
 
+    # 3. Classificazione Tag Operativo
     op_tag = "CONSEGNA_TURNO"
     if temp_match or any(w in lower for w in ["haccp", "frigo", "cella", "abbattitore", "temperatura"]):
         op_tag = "HACCP_TEMP"
@@ -497,6 +511,7 @@ def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel
     if any(w in lower for w in ["incasso", "venduto", "extra", "pagato da", "camera "]) and euro_val > 0:
         op_tag = "INCASSO_EXTRA"
 
+    # 4. Smistamento automatico sui 13 Conti Semantici [A]-[O]
     best_acc = "[A]" if op_tag == "SPESA_ORDINE" else "[E]" if op_tag == "MANUTENZIONE" else "[B]" if op_tag == "HACCP_TEMP" else "[N]"
     best_score = 0
     for acc_code, meta in SEMANTIC_ACCOUNTS.items():
@@ -505,6 +520,7 @@ def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel
             best_score = score
             best_acc = acc_code
 
+    # 5. Canale Finanziario
     channel = default_channel
     if euro_val > 0 and channel.startswith("NESSUNO"):
         if "pos" in lower or "carta" in lower:
@@ -539,11 +555,15 @@ def gemini_multimodal_wafer_in_ram(
     default_dept: str = "BAR & BANCO",
     default_channel: str = "NESSUNO (SOLO NOTA)",
 ) -> dict:
+    """
+    Elabora Foto Pizzino (OCR) o Voce (Audio) o Testo direttamente in RAM tramite Gemini REST API.
+    Nessun file temporaneo su disco. Rilascio immediato dei buffer volatili.
+    """
     if not api_key:
         if media_bytes and not raw_text:
             raise RuntimeError(
                 "Chiave API Gemini in RAM necessaria per OCR Foto Pizzino o Trascrizione Vocale. "
-                "Inseriscila nel pannello KOENIG / ASSET oppure usa la Nota Lampo 3-Assi (attiva anche 100% offline)."
+                "Inseriscila nel pannello Koenig/AI oppure usa la Nota Lampo testuale (attiva anche 100% offline)."
             )
         return heuristic_wafer_structurer(raw_text, default_dept, default_channel)
 
@@ -564,7 +584,7 @@ def gemini_multimodal_wafer_in_ram(
         f"- op_tag: uno tra {json.dumps(OPERATIONAL_TAGS)}\n"
         f"- department: uno tra {json.dumps(asset_cfg['departments'], ensure_ascii=False)}\n"
         "- priority: 'ALTA' oppure 'NORMALE'\n"
-        f"Assetto genetico attuale: {asset_cfg['title']} (Se STANDALONE non citare mai camere o hotel)."
+        f" Assetto genetico attuale: {asset_cfg['title']} (Se STANDALONE non citare mai camere o hotel)."
     )
 
     parts = [{"text": system_prompt}]
@@ -632,10 +652,12 @@ def gemini_multimodal_wafer_in_ram(
         err_detail = e.read().decode("utf-8", errors="ignore")[:220]
         raise RuntimeError(f"Errore API Gemini ({e.code}): {err_detail}")
     finally:
+        # Azzeramento esplicito dei riferimenti ai buffer binari in RAM
         media_bytes = None
 
 
 def forge_3axis_wafer(structured: dict, source_vector: str) -> dict:
+    """Costruisce l'Atomo Dati Universale a 3 Assi (Standard JSON X-Y-Z) e lo cala nell'Hangar RAM."""
     asset_mode = st.session_state.genetic_asset
     euro = float(structured.get("euro_amount", 0.0) or 0.0)
     royalty_pct = float(st.session_state.partner_royalty_pct) if asset_mode == "PARTNER" else 0.0
@@ -691,6 +713,10 @@ def forge_3axis_wafer(structured: dict, source_vector: str) -> dict:
 # 4. AUTO-SCANNER BINARIO MP4 IN RAM & GENERATORE MATRICE OTTICA ZERO-CLOUD
 # ==============================================================================
 def scan_mp4_binary_in_ram(raw_bytes: bytes, filename: str) -> dict:
+    """
+    Analizzatore forense ISO-BMFF / MP4 100% in RAM:
+    estrae impronta SHA-256, box strutturali (ftyp, moov, mdat, udta, meta) e sigilli BEMASK.
+    """
     size_bytes = len(raw_bytes)
     sha256_hex = hashlib.sha256(raw_bytes).hexdigest().upper()
     boxes = []
@@ -717,6 +743,7 @@ def scan_mp4_binary_in_ram(raw_bytes: bytes, filename: str) -> dict:
             break
         offset += box_size
 
+    # Ricerca pattern d'autore nei metadati binari in RAM
     upper_stream = raw_bytes.upper()
     signatures_found = []
     for marker in [b"BEMASK", b"ENRICO BRAGLIA", b"EB-BEMASK", b"SOVEREIGN ZERO"]:
@@ -735,14 +762,15 @@ def scan_mp4_binary_in_ram(raw_bytes: bytes, filename: str) -> dict:
     }
 
 
-def generate_optical_matrix_img_html(payload_text: str, accent_hex: str = "#F59E0B", size: int = 136) -> str:
-    """Genera un tag <img> con Matrice Ottica SVG Base64 100% immune a DOMPurify e CommonMark."""
+def generate_optical_matrix_svg(payload_text: str, accent_hex: str = "#F59E0B", size: int = 136) -> str:
+    """
+    Genera una matrice ottica deterministica SVG Zero-Cloud (0 chiamate esterne)
+    con finder patterns standard per verifica visiva/sincronizzazione locale e punzonatura.
+    """
     digest = hashlib.sha512(payload_text.encode("utf-8")).digest()
     grid_n = 21
-    pad = 8
-    inner = size - (pad * 2)
-    cell = inner / grid_n
-    rects = [f'<rect x="0" y="0" width="{size}" height="{size}" rx="6" fill="#0B0E14" stroke="{accent_hex}" stroke-opacity="0.45" stroke-width="1.5"/>']
+    cell = size / grid_n
+    rects = []
 
     def is_finder(r: int, c: int) -> str:
         for fr, fc in [(0, 0), (0, grid_n - 7), (grid_n - 7, 0)]:
@@ -767,271 +795,254 @@ def generate_optical_matrix_img_html(payload_text: str, accent_hex: str = "#F59E
                 bit_idx += 1
                 fill = "#E2E8F0" if (r + c) % 3 else accent_hex
             if active:
-                x_pos = pad + c * cell
-                y_pos = pad + r * cell
                 rects.append(
-                    f'<rect x="{x_pos:.2f}" y="{y_pos:.2f}" width="{cell * 0.90:.2f}" '
-                    f'height="{cell * 0.90:.2f}" rx="0.8" fill="{fill}"/>'
+                    f'<rect x="{c * cell:.2f}" y="{r * cell:.2f}" width="{cell * 0.92:.2f}" '
+                    f'height="{cell * 0.92:.2f}" rx="0.8" fill="{fill}" />'
                 )
 
-    svg_raw = f'<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="{size}" height="{size}" viewBox="0 0 {size} {size}">{"".join(rects)}</svg>'
-    uri = svg_to_data_uri(svg_raw)
-    return f'<img src="{uri}" width="{size}" height="{size}" alt="BEMASK Optical Seal" style="display:inline-block;border-radius:6px;"/>'
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        f'xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" style="background:#0B0E14;padding:6px;'
+        f'border:1px solid {accent_hex}55;border-radius:6px;">'
+        + "".join(rects)
+        + "</svg>"
+    )
 
 
 # ==============================================================================
 # 5. ESTETICA DARK LUXURY / MOONBASE ALPHA 1975 & BLOCCO SCROLL ORIZZONTALE
 # ==============================================================================
 def inject_moonbase_1975_css() -> None:
-    css = """<style>
-@import url('[https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap](https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap)');
-:root {
-    --bg-void: #101319;
-    --bg-panel: #161B24;
-    --bg-elevated: #1D2432;
-    --amber: #F59E0B;
-    --emerald: #10B981;
-    --cyan: #38BDF8;
-    --red-alert: #EF4444;
-    --text-hi: #F8FAFC;
-    --text-dim: #94A3B8;
-    --border-tech: rgba(245, 158, 11, 0.28);
-}
-html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .main {
-    background-color: var(--bg-void) !important;
-    color: var(--text-hi) !important;
-    font-family: 'Share Tech Mono', monospace !important;
-    overflow-x: hidden !important;
-    max-width: 100vw !important;
-}
-.block-container {
-    padding-top: 1.1rem !important;
-    padding-bottom: 2.5rem !important;
-    padding-left: 1rem !important;
-    padding-right: 1rem !important;
-    max-width: 1280px !important;
-    overflow-x: hidden !important;
-}
-header[data-testid="stHeader"] {
-    background: transparent !important;
-}
-h1, h2, h3, .orbitron {
-    font-family: 'Orbitron', sans-serif !important;
-    letter-spacing: 0.06em !important;
-}
-.bemask-dock {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    padding: 8px 10px;
-    background: linear-gradient(180deg, #171C26 0%, #101319 100%);
-    border: 1px solid rgba(56, 189, 248, 0.25);
-    border-left: 4px solid var(--amber);
-    border-radius: 6px;
-    margin-bottom: 12px;
-    align-items: center;
-}
-.dock-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 4px 8px;
-    font-size: 0.73rem;
-    border-radius: 4px;
-    background: #1B2230;
-    color: #CBD5E1 !important;
-    text-decoration: none !important;
-    border: 1px solid rgba(148, 163, 184, 0.2);
-    white-space: nowrap;
-    transition: all 0.15s ease;
-}
-.dock-chip:hover {
-    border-color: var(--cyan);
-    color: var(--cyan) !important;
-}
-.dock-chip.active {
-    background: rgba(245, 158, 11, 0.18);
-    border: 1px solid var(--amber);
-    color: var(--amber) !important;
-    font-weight: bold;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
-}
-.alpha-banner {
-    background: radial-gradient(circle at 85% 20%, rgba(245,158,11,0.10), transparent 55%),
-                linear-gradient(135deg, #151A24 0%, #0D1017 100%);
-    border: 1px solid var(--border-tech);
-    border-top: 3px solid var(--amber);
-    border-radius: 8px;
-    padding: 14px 18px;
-    margin-bottom: 14px;
-}
-.wafer-card {
-    background: linear-gradient(180deg, #171D28 0%, #121720 100%);
-    border: 1px solid rgba(148, 163, 184, 0.20);
-    border-left: 4px solid var(--amber);
-    border-radius: 6px;
-    padding: 12px 14px;
-    margin-bottom: 10px;
-}
-.wafer-card.done {
-    border-left-color: var(--emerald);
-    opacity: 0.86;
-}
-.wafer-card.urgent {
-    border-left-color: var(--red-alert);
-    box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.08);
-}
-.axis-pill {
-    display: inline-block;
-    padding: 2px 7px;
-    font-size: 0.72rem;
-    border-radius: 3px;
-    margin-right: 5px;
-    margin-bottom: 4px;
-    border: 1px solid rgba(255,255,255,0.12);
-}
-.pill-z { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border-color: rgba(56,189,248,0.35); }
-.pill-x { background: rgba(245, 158, 11, 0.13); color: #F59E0B; border-color: rgba(245,158,11,0.38); }
-.pill-y { background: rgba(16, 185, 129, 0.13); color: #10B981; border-color: rgba(16,185,129,0.38); }
-.pill-alert { background: rgba(239, 68, 68, 0.16); color: #EF4444; border-color: rgba(239,68,68,0.45); }
-.stButton > button, .stDownloadButton > button {
-    font-family: 'Orbitron', sans-serif !important;
-    font-size: 0.76rem !important;
-    letter-spacing: 0.05em !important;
-    border-radius: 5px !important;
-    border: 1px solid rgba(245, 158, 11, 0.45) !important;
-    background: linear-gradient(180deg, #1E2636 0%, #141923 100%) !important;
-    color: #F8FAFC !important;
-    transition: all 0.16s ease !important;
-}
-.stButton > button:hover, .stDownloadButton > button:hover {
-    border-color: #F59E0B !important;
-    color: #F59E0B !important;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
-}
-.metallic-punch {
-    margin-top: 28px;
-    padding: 14px 18px;
-    background: linear-gradient(135deg, #0D1016 0%, #1A212E 50%, #0D1016 100%);
-    border: 1px solid rgba(245, 158, 11, 0.40);
-    border-top: 2px solid #F59E0B;
-    border-bottom: 2px solid #38BDF8;
-    border-radius: 6px;
-    text-align: center;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 20px rgba(0,0,0,0.55);
-}
-</style>"""
+    css = """
+    <style>
+    @import url('[https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap](https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap)');
+
+    :root {
+        --bg-void: #101319;
+        --bg-panel: #161B24;
+        --bg-elevated: #1D2432;
+        --amber: #F59E0B;
+        --emerald: #10B981;
+        --cyan: #38BDF8;
+        --red-alert: #EF4444;
+        --text-hi: #F8FAFC;
+        --text-dim: #94A3B8;
+        --border-tech: rgba(245, 158, 11, 0.28);
+    }
+
+    /* Blocco totale scroll orizzontale mobile & pulizia container */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .main {
+        background-color: var(--bg-void) !important;
+        color: var(--text-hi) !important;
+        font-family: 'Share Tech Mono', monospace !important;
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+    }
+
+    .block-container {
+        padding-top: 1.1rem !important;
+        padding-bottom: 2.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 1280px !important;
+        overflow-x: hidden !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
+    h1, h2, h3, .orbitron {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 0.06em !important;
+    }
+
+    /* Dock Rapida Superiore */
+    .bemask-dock {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        background: linear-gradient(180deg, #171C26 0%, #101319 100%);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-left: 4px solid var(--amber);
+        border-radius: 6px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .dock-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        font-size: 0.73rem;
+        border-radius: 4px;
+        background: #1B2230;
+        color: #CBD5E1 !important;
+        text-decoration: none !important;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
+    .dock-chip:hover {
+        border-color: var(--cyan);
+        color: var(--cyan) !important;
+    }
+    .dock-chip.active {
+        background: rgba(245, 158, 11, 0.18);
+        border: 1px solid var(--amber);
+        color: var(--amber) !important;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
+    }
+
+    /* Header Moonbase Alpha */
+    .alpha-banner {
+        background: radial-gradient(circle at 85% 20%, rgba(245,158,11,0.10), transparent 55%),
+                    linear-gradient(135deg, #151A24 0%, #0D1017 100%);
+        border: 1px solid var(--border-tech);
+        border-top: 3px solid var(--amber);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 14px;
+    }
+
+    /* Card Wafer Hangar Sotterraneo */
+    .wafer-card {
+        background: linear-gradient(180deg, #171D28 0%, #121720 100%);
+        border: 1px solid rgba(148, 163, 184, 0.20);
+        border-left: 4px solid var(--amber);
+        border-radius: 6px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+    }
+    .wafer-card.done {
+        border-left-color: var(--emerald);
+        opacity: 0.86;
+    }
+    .wafer-card.urgent {
+        border-left-color: var(--red-alert);
+        box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.08);
+    }
+
+    .axis-pill {
+        display: inline-block;
+        padding: 2px 7px;
+        font-size: 0.72rem;
+        border-radius: 3px;
+        margin-right: 5px;
+        margin-bottom: 4px;
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+    .pill-z { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border-color: rgba(56,189,248,0.35); }
+    .pill-x { background: rgba(245, 158, 11, 0.13); color: #F59E0B; border-color: rgba(245,158,11,0.38); }
+    .pill-y { background: rgba(16, 185, 129, 0.13); color: #10B981; border-color: rgba(16,185,129,0.38); }
+    .pill-alert { background: rgba(239, 68, 68, 0.16); color: #EF4444; border-color: rgba(239,68,68,0.45); }
+
+    /* Pulsanti Streamlit Moonbase 1975 */
+    .stButton > button, .stDownloadButton > button {
+        font-family: 'Orbitron', sans-serif !important;
+        font-size: 0.76rem !important;
+        letter-spacing: 0.05em !important;
+        border-radius: 5px !important;
+        border: 1px solid rgba(245, 158, 11, 0.45) !important;
+        background: linear-gradient(180deg, #1E2636 0%, #141923 100%) !important;
+        color: #F8FAFC !important;
+        transition: all 0.16s ease !important;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        border-color: #F59E0B !important;
+        color: #F59E0B !important;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
+    }
+
+    /* Animazione Piattaforma Idraulica Eagle Launch Pad */
+    @keyframes padDescentPulse {
+        0%   { transform: translateY(0px) scale(1.0); opacity: 1; }
+        45%  { transform: translateY(10px) scale(0.95); opacity: 0.88; }
+        100% { transform: translateY(0px) scale(1.0); opacity: 1; }
+    }
+    .hydraulic-active {
+        animation: padDescentPulse 1.35s ease-in-out 1;
+    }
+
+    /* Punzone Metallico d'Autore in Calce */
+    .metallic-punch {
+        margin-top: 28px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #0D1016 0%, #1A212E 50%, #0D1016 100%);
+        border: 1px solid rgba(245, 158, 11, 0.40);
+        border-top: 2px solid #F59E0B;
+        border-bottom: 2px solid #38BDF8;
+        border-radius: 6px;
+        text-align: center;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 20px rgba(0,0,0,0.55);
+    }
+    </style>
+    """
     st.markdown(css, unsafe_allow_html=True)
 
 
 def render_eagle_launch_pad_svg(descending: bool, total_wafers: int, pending_wafers: int) -> None:
-    """
-    Manufatto Space: 1999 - EAGLE LAUNCH PAD & HYDRAULIC HANGAR LIFT.
-    Renderizzato come vettoriale SVG Base64 ad alta precisione con 12 settori radiali,
-    4 cilindri idraulici telescopici e animazione nativa <animateTransform>.
-    """
+    """Manufatto Space: 1999 - Piattaforma Circolare Eagle Launch Pad & Hydraulic Hangar Lift."""
     ring_color = "#10B981" if descending else "#F59E0B"
     elevation_txt = "ELEVATOR: -18.4m HANGAR LOCK" if descending else "SURFACE PAD: 0.0m READY"
+    anim_class = "hydraulic-active" if descending else ""
     status_led = "#EF4444" if pending_wafers > 0 else "#10B981"
 
-    # Costruzione dei 12 raggi radiali isometrici della piattaforma circolare Moonbase Alpha
-    spokes = []
-    beacons = []
-    cx, cy = 190, 94
-    rx_outer, ry_outer = 134, 44
-    rx_inner, ry_inner = 34, 11
-    for i in range(12):
-        ang = (i * 30.0) * math.pi / 180.0
-        x1 = cx + rx_inner * math.cos(ang)
-        y1 = cy + ry_inner * math.sin(ang)
-        x2 = cx + rx_outer * math.cos(ang)
-        y2 = cy + ry_outer * math.sin(ang)
-        spokes.append(
-            f'<line x1="{x1:.1f}" y1="{y1:.1f}" x2="{x2:.1f}" y2="{y2:.1f}" '
-            f'stroke="#F59E0B" stroke-width="1.0" stroke-opacity="0.42"/>'
-        )
-        bx = cx + (rx_outer - 5) * math.cos(ang)
-        by = cy + (ry_outer - 2) * math.sin(ang)
-        b_col = "#38BDF8" if i % 3 == 0 else ring_color
-        beacons.append(f'<circle cx="{bx:.1f}" cy="{by:.1f}" r="2.1" fill="{b_col}"/>')
+    svg_html = f"""
+    <div style="background:#0C0F15;border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px;text-align:center;">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94A3B8;margin-bottom:4px;">
+            <span>MOONBASE ALPHA // PAD-01</span>
+            <span style="color:{ring_color};font-weight:bold;">{elevation_txt}</span>
+        </div>
+        <svg viewBox="0 0 360 210" width="100%" style="max-height:205px;" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+            <defs>
+                <radialGradient id="hangarGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="{ring_color}" stop-opacity="0.24"/>
+                    <stop offset="70%" stop-color="#38BDF8" stop-opacity="0.06"/>
+                    <stop offset="100%" stop-color="#0C0F15" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
 
-    lift_anim = (
-        '<animateTransform attributeName="transform" type="translate" '
-        'values="0 0; 0 28; 0 28; 0 0" keyTimes="0; 0.42; 0.72; 1" dur="1.8s" repeatCount="1"/>'
-        if descending
-        else ""
-    )
+            <!-- Pozzo Cilindrico Sotterraneo Hangar -->
+            <ellipse cx="180" cy="152" rx="124" ry="38" fill="#080A0E" stroke="#38BDF8" stroke-width="1.2" stroke-dasharray="5,4" opacity="0.75"/>
+            <line x1="56" y1="88" x2="56" y2="152" stroke="#334155" stroke-width="2"/>
+            <line x1="304" y1="88" x2="304" y2="152" stroke="#334155" stroke-width="2"/>
 
-    svg_doc = (
-        f'<svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" viewBox="0 0 380 232" width="380" height="232">'
-        f'<defs>'
-        f'<radialGradient id="padGlow" cx="50%" cy="50%" r="52%">'
-        f'<stop offset="0%" stop-color="{ring_color}" stop-opacity="0.30"/>'
-        f'<stop offset="65%" stop-color="#38BDF8" stop-opacity="0.09"/>'
-        f'<stop offset="100%" stop-color="#0B0E14" stop-opacity="0"/>'
-        f'</radialGradient>'
-        f'<linearGradient id="shaftWall" x1="0%" y1="0%" x2="100%" y2="0%">'
-        f'<stop offset="0%" stop-color="#090C12"/>'
-        f'<stop offset="50%" stop-color="#151C28"/>'
-        f'<stop offset="100%" stop-color="#090C12"/>'
-        f'</linearGradient>'
-        f'</defs>'
-        f'<rect x="0" y="0" width="380" height="232" rx="6" fill="#0B0E14"/>'
-        # Griglia telemetrica sottile di sfondo
-        f'<line x1="18" y1="36" x2="362" y2="36" stroke="#1E293B" stroke-width="0.7" stroke-dasharray="3,3"/>'
-        f'<line x1="18" y1="194" x2="362" y2="194" stroke="#1E293B" stroke-width="0.8"/>'
-        # Pozzo cilindrico Hangar Sotterraneo
-        f'<path d="M56,94 L56,162 A134,42 0 0,0 324,162 L324,94 Z" fill="url(#shaftWall)" stroke="#1E293B" stroke-width="1.2"/>'
-        f'<ellipse cx="190" cy="162" rx="134" ry="42" fill="#07090D" stroke="#38BDF8" stroke-width="1.3" stroke-dasharray="6,4" stroke-opacity="0.78"/>'
-        f'<ellipse cx="190" cy="162" rx="92" ry="28" fill="none" stroke="#F59E0B" stroke-width="0.9" stroke-dasharray="3,4" stroke-opacity="0.45"/>'
-        # 4 Pistoni Idraulici Telescopici
-        f'<rect x="92" y="96" width="10" height="70" rx="2" fill="#1E293B" stroke="{ring_color}" stroke-width="1.1"/>'
-        f'<rect x="152" y="108" width="10" height="68" rx="2" fill="#1E293B" stroke="{ring_color}" stroke-width="1.1"/>'
-        f'<rect x="218" y="108" width="10" height="68" rx="2" fill="#1E293B" stroke="{ring_color}" stroke-width="1.1"/>'
-        f'<rect x="278" y="96" width="10" height="70" rx="2" fill="#1E293B" stroke="{ring_color}" stroke-width="1.1"/>'
-        # Basi di ancoraggio pistoni nell'Hangar
-        f'<ellipse cx="97" cy="166" rx="10" ry="3.5" fill="#0F172A" stroke="#38BDF8" stroke-width="1"/>'
-        f'<ellipse cx="157" cy="176" rx="10" ry="3.5" fill="#0F172A" stroke="#38BDF8" stroke-width="1"/>'
-        f'<ellipse cx="223" cy="176" rx="10" ry="3.5" fill="#0F172A" stroke="#38BDF8" stroke-width="1"/>'
-        f'<ellipse cx="283" cy="166" rx="10" ry="3.5" fill="#0F172A" stroke="#38BDF8" stroke-width="1"/>'
-        # Gruppo Mobile: Piattaforma Circolare Eagle Launch Pad
-        f'<g>'
-        f'{lift_anim}'
-        # Spessore metallico bordo piattaforma
-        f'<path d="M56,94 L56,103 A134,44 0 0,0 324,103 L324,94 Z" fill="#1E2636" stroke="{ring_color}" stroke-width="1.2"/>'
-        # Disco principale
-        f'<ellipse cx="190" cy="94" rx="134" ry="44" fill="#121824" stroke="{ring_color}" stroke-width="2.2"/>'
-        f'<ellipse cx="190" cy="94" rx="134" ry="44" fill="url(#padGlow)"/>'
-        # Anelli concentrici deflettori di scarico Aquila
-        f'<ellipse cx="190" cy="94" rx="108" ry="35" fill="none" stroke="#F59E0B" stroke-width="1.2" stroke-dasharray="9,5"/>'
-        f'<ellipse cx="190" cy="94" rx="74" ry="24" fill="#0D121B" stroke="#38BDF8" stroke-width="1.2"/>'
-        f'{"".join(spokes)}'
-        f'{"".join(beacons)}'
-        # Mirino centrale aggancio Wafer
-        f'<ellipse cx="190" cy="94" rx="34" ry="11" fill="#0B0F17" stroke="{ring_color}" stroke-width="1.8"/>'
-        f'<circle cx="190" cy="94" r="4" fill="{ring_color}">'
-        f'<animate attributeName="opacity" values="1;0.35;1" dur="2.2s" repeatCount="indefinite"/>'
-        f'</circle>'
-        f'<text x="190" y="77" fill="#F8FAFC" font-size="9.5" font-family="monospace" font-weight="bold" text-anchor="middle" letter-spacing="1.5">EAGLE-DW PAD</text>'
-        f'</g>'
-        # Barra Telemetria Inferiore
-        f'<circle cx="24" cy="213" r="5" fill="{status_led}"/>'
-        f'<text x="36" y="217" fill="#E2E8F0" font-size="10.5" font-family="monospace">HANGAR RAM: {total_wafers} WAFER // DA EVADERE: {pending_wafers}</text>'
-        f'<text x="362" y="217" fill="#38BDF8" font-size="10" font-family="monospace" text-anchor="end">0B CLOUD</text>'
-        f'</svg>'
-    )
+            <!-- 4 Pistoni Idraulici Verticali -->
+            <rect x="92"  y="96" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="148" y="108" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="204" y="108" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="260" y="96" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
 
-    img_uri = svg_to_data_uri(svg_doc)
-    pad_card_html = (
-        f'<div style="background:#0C0F15;border:1px solid rgba(245,158,11,0.35);border-radius:8px;padding:10px;margin-bottom:8px;">'
-        f'<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.73rem;color:#94A3B8;margin-bottom:6px;">'
-        f'<span>MOONBASE ALPHA // PAD-01</span>'
-        f'<span style="color:{ring_color};font-weight:bold;">{elevation_txt}</span>'
-        f'</div>'
-        f'<img src="{img_uri}" alt="Eagle Launch Pad Hydraulic Lift" style="width:100%;max-height:225px;display:block;margin:0 auto;border-radius:4px;"/>'
-        f'</div>'
-    )
-    st.markdown(pad_card_html, unsafe_allow_html=True)
+            <!-- Piattaforma Circolare Mobile Eagle Launch Pad -->
+            <g class="{anim_class}">
+                <ellipse cx="180" cy="92" rx="128" ry="42" fill="url(#hangarGlow)" stroke="{ring_color}" stroke-width="2.2"/>
+                <ellipse cx="180" cy="92" rx="104" ry="33" fill="#131924" stroke="#F59E0B" stroke-width="1.3" stroke-dasharray="10,5"/>
+                <ellipse cx="180" cy="92" rx="68" ry="21" fill="#0E131C" stroke="#38BDF8" stroke-width="1.2"/>
+
+                <!-- Croce di Centraggio Aquila -->
+                <line x1="72" y1="92" x2="288" y2="92" stroke="#F59E0B" stroke-width="0.9" opacity="0.65"/>
+                <line x1="180" y1="54" x2="180" y2="130" stroke="#F59E0B" stroke-width="0.9" opacity="0.65"/>
+
+                <!-- Nucleo Centrale Wafer -->
+                <ellipse cx="180" cy="92" rx="26" ry="9" fill="{ring_color}" fill-opacity="0.22" stroke="{ring_color}" stroke-width="1.5"/>
+                <text x="180" y="95" fill="#F8FAFC" font-size="9" font-family="Orbitron, monospace" text-anchor="middle" font-weight="bold">EAGLE-DW</text>
+            </g>
+
+            <!-- Telemetria Base Hangar RAM -->
+            <circle cx="28" cy="192" r="5" fill="{status_led}"/>
+            <text x="40" y="196" fill="#CBD5E1" font-size="10" font-family="Share Tech Mono, monospace">
+                HANGAR RAM: {total_wafers} WAFER // DA EVADERE: {pending_wafers}
+            </text>
+            <text x="342" y="196" fill="#38BDF8" font-size="9.5" font-family="Share Tech Mono, monospace" text-anchor="end">
+                ZERO-CLOUD 0 BYTE
+            </text>
+        </svg>
+    </div>
+    """
+    st.markdown(svg_html, unsafe_allow_html=True)
     if st.session_state.lift_descending:
         st.session_state.lift_descending = False
 
@@ -1068,20 +1079,30 @@ def render_top_quick_dock() -> None:
         else '<span style="margin-left:auto;font-size:0.70rem;color:#38BDF8;">MATRICE 2^12 COMPLETA</span>'
     )
 
-    st.markdown(f'<div class="bemask-dock">{"".join(chips_html)}{lic_badge}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="bemask-dock">{"".join(chips_html)}{lic_badge}</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def render_architect_dossier_body() -> None:
-    dossier_html = (
-        f'<div style="background:#121722;border:1px solid #F59E0B88;border-left:5px solid #F59E0B;padding:14px;border-radius:6px;margin-bottom:12px;">'
-        f'<div class="orbitron" style="color:#F59E0B;font-size:1.05rem;font-weight:700;">◈ ARCHITECT & CREATOR: {ARCHITECT_NAME}</div>'
-        f'<div style="color:#38BDF8;font-size:0.82rem;margin-top:3px;">SIGILLO ID: <b>{ARCHITECT_ID}</b> // ECOSISTEMA: BEMASK SOVEREIGN ZERO</div>'
-        f'<p style="color:#CBD5E1;font-size:0.84rem;margin-top:8px;margin-bottom:0;">'
-        f'30+ anni in Direzione Alberghiera, Revenue Management, TRevPAR Optimization, F&B Direction, Media & AI Lab.<br/>'
-        f'Architettura frattale 3x3x3 basata sulla meccanica del Cubo di Rubik: dal singolo esercizio autonomo fino al Mega-Resort integrato e Holding multi-societaria, governata dal principio non negoziabile di <b>Sovranità Assoluta Zero-Trust RAM-Only</b>.'
-        f'</p></div>'
+    st.markdown(
+        f"""
+        <div style="background:#121722;border:1px solid #F59E0B88;border-left:5px solid #F59E0B;padding:14px;border-radius:6px;margin-bottom:12px;">
+            <div class="orbitron" style="color:#F59E0B;font-size:1.05rem;font-weight:700;">
+                ◈ ARCHITECT & CREATOR: {ARCHITECT_NAME}
+            </div>
+            <div style="color:#38BDF8;font-size:0.82rem;margin-top:3px;">
+                SIGILLO ID: <b>{ARCHITECT_ID}</b> // ECOSISTEMA: BEMASK SOVEREIGN ZERO
+            </div>
+            <p style="color:#CBD5E1;font-size:0.84rem;margin-top:8px;margin-bottom:0;">
+                30+ anni in Direzione Alberghiera, Revenue Management, TRevPAR Optimization, F&B Direction, Media & AI Lab.<br/>
+                Architettura frattale 3x3x3 basata sulla meccanica del Cubo di Rubik: dal singolo esercizio autonomo fino al Mega-Resort integrato e Holding multi-societaria, governata dal principio non negoziabile di <b>Sovranità Assoluta Zero-Trust RAM-Only</b>.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.markdown(dossier_html, unsafe_allow_html=True)
 
     col_qr, col_manifesto = st.columns([1, 2.2])
     with col_qr:
@@ -1089,13 +1110,12 @@ def render_architect_dossier_body() -> None:
             f"BEMASK_ARCHITECT|{ARCHITECT_NAME}|ID:{ARCHITECT_ID}|"
             f"ORG:bemask-sovereign-zero|POD:{POD_REPO}|ZERO_TRUST_RAM"
         )
-        qr_box = (
-            f'<div style="text-align:center;">'
-            f'{generate_optical_matrix_img_html(qr_payload, "#F59E0B", 148)}'
-            f'<div style="font-size:0.72rem;color:#94A3B8;margin-top:6px;">MATRICE IDENTITÀ OTTICA<br/>(Zero-Cloud Offline Seal)</div>'
-            f'</div>'
+        st.markdown(
+            "<div style='text-align:center;'>"
+            + generate_optical_matrix_svg(qr_payload, "#F59E0B", 148)
+            + "<div style='font-size:0.72rem;color:#94A3B8;margin-top:6px;'>MATRICE IDENTITÀ OTTICA<br/>(Zero-Cloud Offline Seal)</div></div>",
+            unsafe_allow_html=True,
         )
-        st.markdown(qr_box, unsafe_allow_html=True)
     with col_manifesto:
         st.markdown("**MANIFESTO TECNICO COSTITUZIONALE**")
         st.code(
@@ -1122,14 +1142,14 @@ def render_architect_dossier_body() -> None:
     if mp4_file is not None:
         raw_video = mp4_file.getvalue()
         report = scan_mp4_binary_in_ram(raw_video, mp4_file.name)
-        raw_video = None
+        raw_video = None  # Rilascio immediato buffer RAM
         c1, c2, c3 = st.columns(3)
         c1.metric("Dimensione in RAM", f"{report['ram_mb']} MB")
         c2.metric("Major Brand ISO", report["major_brand"])
         c3.metric("Punzone BEMASK", "RILEVATO ✓" if report["bemask_signatures"] else "ESTERNO / RAW")
         st.code(
-            f"FILE      : {report['filename']}\n"
-            f"SHA-256   : {report['sha256']}\n"
+            f"FILE     : {report['filename']}\n"
+            f"SHA-256  : {report['sha256']}\n"
             f"SIGNATURES: {', '.join(report['bemask_signatures']) if report['bemask_signatures'] else 'Nessun marker ASCII BEMASK incorporato'}\n"
             f"ISO BOXES : " + " -> ".join([f"[{b['type']}:{b['size']}B]" for b in report["top_boxes"][:10]]),
             language="text",
@@ -1145,16 +1165,18 @@ else:
 
 
 def render_koenig_security_and_genetics() -> None:
+    """Pannello Koenig Security Gate (PIN + 2FA RFC 6238 + Log Antintrusione) + Selettore Genetico + Gemini Key RAM."""
     with st.container():
         st.markdown(
-            '<div style="background:#141923;border:1px solid #38BDF855;border-radius:6px;padding:12px;margin-bottom:14px;">'
-            '<span class="orbitron" style="color:#38BDF8;font-size:0.9rem;">🛡️ KOENIG SECURITY GATE & CONFIGURAZIONE GENETICA POD</span>'
-            '</div>',
+            "<div style='background:#141923;border:1px solid #38BDF855;border-radius:6px;padding:12px;margin-bottom:14px;'>"
+            "<span class='orbitron' style='color:#38BDF8;font-size:0.9rem;'>🛡️ KOENIG SECURITY GATE & CONFIGURAZIONE GENETICA POD</span>"
+            "</div>",
             unsafe_allow_html=True,
         )
 
         k_col1, k_col2, k_col3 = st.columns([1.2, 1.2, 1.3])
 
+        # --- Colonna 1: Autenticazione Ruolo Staff vs Commander ---
         with k_col1:
             st.markdown("**1. RUOLO & FILTRO ANTI-TALPA**")
             st.caption(
@@ -1203,6 +1225,7 @@ def render_koenig_security_and_genetics() -> None:
                 with st.expander("URI Provisioning Google Authenticator"):
                     st.code(otpauth_uri, language="text")
 
+        # --- Colonna 2: Selettore Genetico a 3 Assetti (Nascosto se licenza URL bloccata e non Commander) ---
         with k_col2:
             st.markdown("**2. SELETTORE GENETICO A 3 ASSETTI**")
             if LICENSE_CTX["licensed"] and st.session_state.role != "COMMANDER":
@@ -1234,6 +1257,7 @@ def render_koenig_security_and_genetics() -> None:
                         step=0.5,
                     )
 
+        # --- Colonna 3: Motore Gemini OCR/Voce in RAM & Log Antintrusione ---
         with k_col3:
             st.markdown("**3. MOTORE AI GEMINI IN RAM & TELEMETRIA**")
             api_in = st.text_input(
@@ -1344,29 +1368,38 @@ th {{ background:#1D2432; color:#38BDF8; }}
 # ==============================================================================
 inject_moonbase_1975_css()
 render_ems_1975_synth()
+
+# --- Barra Dock Rapida Multi-Modulo ---
 render_top_quick_dock()
 
+# --- Testata Comando Eagle Launch Pad ---
 asset_info = GENETIC_ASSETS[st.session_state.genetic_asset]
 hdr_left, hdr_right = st.columns([2.6, 1.4])
 
 with hdr_left:
-    role_col = "#10B981" if st.session_state.role == "COMMANDER" else "#F59E0B"
-    banner_html = (
-        f'<div class="alpha-banner">'
-        f'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">'
-        f'<span class="orbitron" style="color:#F59E0B;font-size:1.18rem;font-weight:900;">◎ BEMASK DATA WAFER // EAGLE LAUNCH PAD</span>'
-        f'<span style="font-size:0.74rem;padding:3px 8px;border-radius:4px;background:rgba(16,185,129,0.14);color:#10B981;border:1px solid #10B98155;">{html.escape(asset_info["badge"])}</span>'
-        f'</div>'
-        f'<div style="color:#94A3B8;font-size:0.80rem;margin-top:5px;">'
-        f'Piattaforma Anti-Pizzini Volanti • Foto OCR + Voce + Nota Lampo → Discesa Idraulica Hangar RAM a 3 Assi (Zero Cloud • Zero Distrazioni)'
-        f'</div>'
-        f'<div style="margin-top:7px;font-size:0.74rem;color:#38BDF8;">'
-        f'ENTITY: <b>{html.escape(st.session_state.entity_id)}</b>  |  '
-        f'RUOLO: <b style="color:{role_col};">{st.session_state.role}</b>  |  '
-        f'SOVRANITÀ: <b>0 BYTE CLOUD</b>'
-        f'</div></div>'
+    st.markdown(
+        f"""
+        <div class="alpha-banner">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span class="orbitron" style="color:#F59E0B;font-size:1.18rem;font-weight:900;">
+                    ◎ BEMASK DATA WAFER // EAGLE LAUNCH PAD
+                </span>
+                <span style="font-size:0.74rem;padding:3px 8px;border-radius:4px;background:rgba(16,185,129,0.14);color:#10B981;border:1px solid #10B98155;">
+                    {html.escape(asset_info['badge'])}
+                </span>
+            </div>
+            <div style="color:#94A3B8;font-size:0.80rem;margin-top:5px;">
+                Piattaforma Anti-Pizzini Volanti • Foto OCR + Voce + Nota Lampo → Discesa Idraulica Hangar RAM a 3 Assi (Zero Cloud • Zero Distrazioni)
+            </div>
+            <div style="margin-top:7px;font-size:0.74rem;color:#38BDF8;">
+                ENTITY: <b>{html.escape(st.session_state.entity_id)}</b>  | 
+                RUOLO: <b style="color:{'#10B981' if st.session_state.role == 'COMMANDER' else '#F59E0B'};">{st.session_state.role}</b>  | 
+                SOVRANITÀ: <b>0 BYTE CLOUD</b>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
     )
-    st.markdown(banner_html, unsafe_allow_html=True)
 
 with hdr_right:
     b_col1, b_col2, b_col3 = st.columns([1.15, 1.15, 0.7])
@@ -1403,17 +1436,19 @@ surf_left, surf_right = st.columns([1.25, 1.95])
 
 with surf_left:
     render_eagle_launch_pad_svg(
-        descending=bool(st.session_state.lift_descending),
+        descending=bool(st.session_state.last_landed_wafer_id),
         total_wafers=len(st.session_state.wafers_ram),
         pending_wafers=pending_count,
     )
+    # Selettori rapidi Asse Z (Turno, Contesto, Reparto Predefinito)
     z_c1, z_c2 = st.columns(2)
     with z_c1:
-        shifts = ["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"]
         st.session_state.current_shift = st.selectbox(
             "Turno Attivo (Asse Z)",
-            options=shifts,
-            index=shifts.index(st.session_state.current_shift) if st.session_state.current_shift in shifts else 0,
+            options=["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"],
+            index=["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"].index(st.session_state.current_shift)
+            if st.session_state.current_shift in ["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"]
+            else 0,
         )
     with z_c2:
         st.session_state.current_weather = st.selectbox(
@@ -1434,8 +1469,9 @@ with surf_left:
 
 with surf_right:
     st.markdown(
-        '<div class="orbitron" style="color:#F59E0B;font-size:0.92rem;margin-bottom:6px;">'
-        '▲ LIVELLO SUPERFICIE // ATTERRAGGIO RAPIDO ANTI-PIZZINO</div>',
+        "<div class='orbitron' style='color:#F59E0B;font-size:0.92rem;margin-bottom:6px;'>"
+        "▲ LIVELLO SUPERFICIE // ATTERRAGGIO RAPIDO ANTI-PIZZINO"
+        "</div>",
         unsafe_allow_html=True,
     )
 
@@ -1445,13 +1481,16 @@ with surf_right:
         "⚡ 3) NOTA LAMPO 3-ASSI",
     ])
 
+    # --- VETTORE 1: FOTO AL FOGLIETTO SCRITTO A MANO -> OCR AI IN RAM ---
     with tab_photo:
         st.caption(
             "Inquadra il foglietto volante scritto a mano o carica uno scatto rapido: "
             "Gemini converte la grafia in RAM e cala l'atomo pulito nell'Hangar."
         )
         cam_mode = st.toggle("Attiva Fotocamera Diretta Smartphone/PC", value=False, key="toggle_cam_pad")
-        img_source = st.camera_input("Scatta Foto al Pizzino", key="pad_camera_shot") if cam_mode else None
+        img_source = None
+        if cam_mode:
+            img_source = st.camera_input("Scatta Foto al Pizzino", key="pad_camera_shot")
         uploaded_img = st.file_uploader(
             "Oppure seleziona foto rapida dalla galleria",
             type=["jpg", "jpeg", "png", "webp"],
@@ -1486,11 +1525,13 @@ with surf_right:
                     queue_sound("koenig_alarm")
                     st.error(str(exc))
 
+    # --- VETTORE 2: DETTATURA VOCALE RAPIDA -> TRASCRIZIONE AI IN RAM ---
     with tab_voice:
         st.caption(
             "Detta a voce la consegna, l'ordine fornitore o l'anomalia tecnica in 3 secondi: "
             "trascrizione neurale in RAM e classificazione automatica [A]-[O]."
         )
+        voice_clip = None
         if hasattr(st, "audio_input"):
             voice_clip = st.audio_input("Premi il microfono e detta il Wafer vocale", key="pad_voice_input")
         else:
@@ -1524,6 +1565,7 @@ with surf_right:
                     queue_sound("koenig_alarm")
                     st.error(str(exc))
 
+    # --- VETTORE 3: NOTA LAMPO TESTUALE (ATTIVA ANCHE 100% OFFLINE) ---
     with tab_flash:
         st.caption(
             "Scrittura lampo in 1 gesto: riconosce automaticamente quantità, temperature °C, Euro e conto [A]-[O] "
@@ -1579,14 +1621,16 @@ with surf_right:
 # ==============================================================================
 st.markdown("---")
 st.markdown(
-    '<div class="orbitron" style="color:#38BDF8;font-size:1.0rem;margin-bottom:8px;">'
-    '▼ LIVELLO INFERIORE // HYDRAULIC HANGAR RAM (ATOMI STRUTTURATI X-Y-Z)</div>',
+    "<div class='orbitron' style='color:#38BDF8;font-size:1.0rem;margin-bottom:8px;'>"
+    "▼ LIVELLO INFERIORE // HYDRAULIC HANGAR RAM (ATOMI STRUTTURATI X-Y-Z)"
+    "</div>",
     unsafe_allow_html=True,
 )
 
 is_commander = st.session_state.role == "COMMANDER"
 all_wafers = st.session_state.wafers_ram
 
+# --- Striscia Telemetria Hangar (con rispetto Filtro Anti-Talpa Staff vs Commander) ---
 total_euro_ram = sum(w["axis_y"]["euro_amount"] for w in all_wafers)
 total_royalty_ram = sum(w["axis_y"]["cube_royalty_fee_eur"] for w in all_wafers)
 total_room_comp = sum(
@@ -1605,8 +1649,10 @@ if st.session_state.genetic_asset == "PARTNER":
 elif st.session_state.genetic_asset == "CUBE_DEPT":
     kpi4.metric("Sync Alpha-Main-Mission", "PRONTO (.JSON X-Y-Z)")
 else:
-    kpi4.metric("Wafer Evasi nel Turno", len(all_wafers) - pending_count)
+    evasi_cnt = len(all_wafers) - pending_count
+    kpi4.metric("Wafer Evasi nel Turno", evasi_cnt)
 
+# --- Barra Filtri Rapidi Hangar ---
 f_c1, f_c2, f_c3, f_c4, f_c5 = st.columns([1.1, 1.1, 1.1, 1.0, 1.3])
 with f_c1:
     flt_status = st.selectbox("Stato Spunta", ["TUTTI", "DA_EVADERE", "EVASO"])
@@ -1636,16 +1682,17 @@ for w in all_wafers:
             continue
     filtered_wafers.append(w)
 
+# --- Lista Operativa dei Wafer nell'Hangar ---
 if not filtered_wafers:
     st.markdown(
-        '<div style="background:#131822;border:1px dashed #334155;border-radius:6px;padding:22px;text-align:center;color:#94A3B8;">'
-        'HANGAR SOTTERRANEO VUOTO O NESSUN WAFER CORRISPONDENTE AI FILTRI.<br/>'
-        '<small>Atterra una Foto Pizzino, una Nota Vocale o una Nota Lampo sulla piattaforma superiore per attivare l\'elevatore idraulico.</small>'
-        '</div>',
+        "<div style='background:#131822;border:1px dashed #334155;border-radius:6px;padding:22px;text-align:center;color:#94A3B8;'>"
+        "HANGAR SOTTERRANEO VUOTO O NESSUN WAFER CORRISPONDENTE AI FILTRI.<br/>"
+        "<small>Atterra una Foto Pizzino, una Nota Vocale o una Nota Lampo sulla piattaforma superiore per attivare l'elevatore idraulico.</small>"
+        "</div>",
         unsafe_allow_html=True,
     )
 else:
-    for w in filtered_wafers:
+    for idx, w in enumerate(filtered_wafers):
         wid = w["wafer_id"]
         z, x, y = w["axis_z"], w["axis_x"], w["axis_y"]
         is_done = w["status"] == "EVASO"
@@ -1671,25 +1718,30 @@ else:
 
         urgent_html = '<span class="axis-pill pill-alert">⚡ PRIORITÀ ALTA</span>' if is_urgent else ""
         ack_html = (
-            f'<div style="font-size:0.73rem;color:#10B981;margin-top:4px;">✓ PRESA IN CARICO: {html.escape(str(w["ack_at"]))} ({html.escape(str(w["ack_by"]))})</div>'
+            f"<div style='font-size:0.73rem;color:#10B981;margin-top:4px;'>✓ PRESA IN CARICO: {html.escape(str(w['ack_at']))} ({html.escape(str(w['ack_by']))})</div>"
             if is_done
             else ""
         )
 
         row_left, row_right = st.columns([4.1, 1.1])
         with row_left:
-            card_html = (
-                f'<div class="{card_cls}">'
-                f'<div>'
-                f'<span class="axis-pill pill-z">Z: {html.escape(wid)} • {html.escape(z["timestamp_human"])} • {html.escape(z["shift"])} • {html.escape(z["capture_vector"])}</span>'
-                f'<span class="axis-pill pill-x">X: [{html.escape(x["department"])}] {html.escape(x["op_tag"])} • {html.escape(x["matter_unit"])}</span>'
-                f'{y_badge_html}{urgent_html}'
-                f'</div>'
-                f'<div style="font-size:0.96rem;color:#F8FAFC;margin-top:6px;line-height:1.4;">{html.escape(x["clean_text"])}</div>'
-                f'{ack_html}</div>'
+            st.markdown(
+                f"""
+                <div class="{card_cls}">
+                    <div>
+                        <span class="axis-pill pill-z">Z: {html.escape(wid)} • {html.escape(z['timestamp_human'])} • {html.escape(z['shift'])} • {html.escape(z['capture_vector'])}</span>
+                        <span class="axis-pill pill-x">X: [{html.escape(x['department'])}] {html.escape(x['op_tag'])} • {html.escape(x['matter_unit'])}</span>
+                        {y_badge_html}
+                        {urgent_html}
+                    </div>
+                    <div style="font-size:0.96rem;color:#F8FAFC;margin-top:6px;line-height:1.4;">
+                        {html.escape(x['clean_text'])}
+                    </div>
+                    {ack_html}
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-            st.markdown(card_html, unsafe_allow_html=True)
-
         with row_right:
             toggle_lbl = "↩ RIAPRI" if is_done else "✓ PRENDI IN CARICO"
             if st.button(toggle_lbl, key=f"ack_{wid}", use_container_width=True):
@@ -1718,7 +1770,9 @@ else:
                     ensure_ascii=False,
                 )
                 st.markdown(
-                    f'<div style="text-align:center;">{generate_optical_matrix_img_html(compact_atom, "#38BDF8", 112)}</div>',
+                    "<div style='text-align:center;'>"
+                    + generate_optical_matrix_svg(compact_atom, "#38BDF8", 112)
+                    + "</div>",
                     unsafe_allow_html=True,
                 )
                 if not mask_financial:
@@ -1732,8 +1786,9 @@ else:
 # ==============================================================================
 st.markdown("---")
 st.markdown(
-    '<div class="orbitron" style="color:#10B981;font-size:0.88rem;margin-bottom:8px;">'
-    '⟐ PONTE DATI ZERO-CLOUD (EXPORT .JSON / .TXT / .HTML • IMPORT LOCALE • PURGE RAM)</div>',
+    "<div class='orbitron' style='color:#10B981;font-size:0.88rem;margin-bottom:8px;'>"
+    "⟐ PONTE DATI ZERO-CLOUD (EXPORT .JSON / .TXT / .HTML • IMPORT LOCALE • PURGE RAM)"
+    "</div>",
     unsafe_allow_html=True,
 )
 
@@ -1812,13 +1867,16 @@ with st.expander("📥 IMPORTA PACCHETTO WAFER .JSON TRA DISPOSITIVI (ZERO-CLOUD
 # ==============================================================================
 # 10. PUNZONE METALLICO IN CALCE (SIGILLO D'AUTORE OBBLIGATORIO SU OGNI SCHERMATA)
 # ==============================================================================
-punch_html = (
-    f'<div class="metallic-punch">'
-    f'<div class="orbitron" style="color:#F59E0B;font-size:0.86rem;font-weight:700;letter-spacing:0.10em;">'
-    f'◈ ARCHITECT: {ARCHITECT_NAME}  //  ID: {ARCHITECT_ID}'
-    f'</div>'
-    f'<div style="color:#94A3B8;font-size:0.74rem;margin-top:4px;">'
-    f'BEMASK SOVEREIGN ZERO • POD: {POD_REPO} ({POD_VERSION}) • MOONBASE ALPHA 1975 TELEMETRY • ZERO-TRUST RAM-ONLY SOVEREIGNTY'
-    f'</div></div>'
+st.markdown(
+    f"""
+    <div class="metallic-punch">
+        <div class="orbitron" style="color:#F59E0B;font-size:0.86rem;font-weight:700;letter-spacing:0.10em;">
+            ◈ ARCHITECT: {ARCHITECT_NAME}  //  ID: {ARCHITECT_ID}
+        </div>
+        <div style="color:#94A3B8;font-size:0.74rem;margin-top:4px;">
+            BEMASK SOVEREIGN ZERO • POD: {POD_REPO} ({POD_VERSION}) • MOONBASE ALPHA 1975 TELEMETRY • ZERO-TRUST RAM-ONLY SOVEREIGNTY
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
-st.markdown(punch_html, unsafe_allow_html=True)
