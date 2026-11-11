@@ -1,1505 +1,1882 @@
-import os
-import json
-import time
-import hmac
-import hashlib
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+================================================================================
+BEMASK SOVEREIGN ZERO // MICRO-POD TRASVERSALE: DATA WAFER (data_wafer.py)
+MANUFATTO: EAGLE LAUNCH PAD & HYDRAULIC HANGAR LIFT (Moonbase Alpha 1975)
+================================================================================
+Repository : org: bemask-sovereign-zero / bemask-data-wafer
+Architetto : ENRICO BRAGLIA (ID: EB-BEMASK-2026-ALPHA)
+Esperienza : 30+ anni Direzione Alberghiera, Revenue Management, F&B, Media & AI Lab
+Sovranità  : ZERO-TRUST RAM-ONLY (0 byte persistiti su disco o cloud esterno)
+Dipendenze : Python Standard Library + Streamlit (Zero librerie terze richieste)
+Regola Turno: ZERO pulsanti "Chiama" o "WhatsApp" (Zero distrazioni operative)
+================================================================================
+"""
+
 import base64
-import struct
-import io
+import hashlib
+import hmac
+import html
+import json
 import re
-import urllib.request
+import struct
+import time
 import urllib.error
-from datetime import datetime
+import urllib.request
+import uuid
+from datetime import datetime, timezone
+
 import streamlit as st
 import streamlit.components.v1 as components
-import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + ARCHITECT SEAL)
-# CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
+# 0. CONFIGURAZIONE PAGINA STREAMLIT & COSTANTI COSTITUZIONALI
 # ==============================================================================
-
 st.set_page_config(
-    page_title="BEMASK - MOONBASE A.L.P.H.A. // ENRICO BRAGLIA",
+    page_title="BEMASK DATA WAFER // EAGLE LAUNCH PAD",
+    page_icon="◈",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
 )
 
-# --- 1. MOTORE CRITTOGRAFICO NATIVO 2FA (RFC 6238 GOOGLE AUTHENTICATOR) ---
-def get_totp_secret():
-    try:
-        return st.secrets.get("ALPHA_2FA_SECRET", "JBSWY3DPEHPK3PXP")
-    except Exception:
-        return "JBSWY3DPEHPK3PXP"
+ARCHITECT_NAME = "ENRICO BRAGLIA"
+ARCHITECT_ID = "EB-BEMASK-2026-ALPHA"
+POD_CODE = "DW-EAGLE-LIFT"
+POD_REPO = "bemask-data-wafer"
+POD_VERSION = "1.0.0-SOVEREIGN-RAM"
 
-def get_master_pin():
-    try:
-        return str(st.secrets.get("ALPHA_MASTER_PIN", "9999"))
-    except Exception:
-        return "9999"
+# Demo Security Defaults (Modificabili in RAM dal Commander)
+DEFAULT_COMMANDER_PIN = "1975"
+DEFAULT_TOTP_SECRET = "BEMASKALPHA1975SOVEREIGNZERO2026"  # Base32 RFC 4648 valida
 
-def get_gemini_api_key():
-    for k_name in ["api_key_box_DDT", "api_key_box_BANK", "api_key_box_VAULT", "custom_gemini_key"]:
-        val = str(st.session_state.get(k_name, "")).strip()
-        if len(val) > 15:
-            st.session_state["custom_gemini_key"] = val
-            return val
-    try:
-        sec_k = str(st.secrets.get("GEMINI_API_KEY", "")).strip()
-        if len(sec_k) > 15:
-            return sec_k
-    except Exception:
-        pass
-    return ""
+# Matrice Frattale 2^12 + Hub Centrale + Pod Trasversale per Dock Rapida & ?mask=
+SECTOR_MATRIX = [
+    {"bit": 0,  "code": "00", "icon": "◈", "label": "ALPHA HUB",      "repo": "alpha-main-mission"},
+    {"bit": 1,  "code": "01", "icon": "▲", "label": "FRONT & APEX",   "repo": "bemask-front-apex"},
+    {"bit": 2,  "code": "02", "icon": "⬡", "label": "LAZERS BEV",     "repo": "bemask-lazers-bev"},
+    {"bit": 3,  "code": "03", "icon": "⬢", "label": "LAZERS FOOD",    "repo": "bemask-lazers-food"},
+    {"bit": 4,  "code": "04", "icon": "☀", "label": "BEACH & POOL",   "repo": "bemask-beach-pool"},
+    {"bit": 5,  "code": "05", "icon": "✧", "label": "SPA AYURVEDA",   "repo": "bemask-spa-ayurveda"},
+    {"bit": 6,  "code": "06", "icon": "⊞", "label": "S.K.A. ROOMS",   "repo": "bemask-ska-rooms"},
+    {"bit": 7,  "code": "07", "icon": "⛟", "label": "ACQUISTI ROP",   "repo": "bemask-rop-procurement"},
+    {"bit": 8,  "code": "08", "icon": "❄", "label": "HACCP 1-CLICK",  "repo": "bemask-haccp-shield"},
+    {"bit": 9,  "code": "09", "icon": "❖", "label": "GOPPAR P.IVA",   "repo": "bemask-goppar-matrix"},
+    {"bit": 10, "code": "10", "icon": "⚿", "label": "BAR & DDT",      "repo": "bemask-ddt-sentinel"},
+    {"bit": 11, "code": "11", "icon": "⚡", "label": "BANK VAMPIRE",   "repo": "bemask-bank-vampire"},
+    {"bit": 12, "code": "12", "icon": "⟐", "label": "TRAVEL TUBE",    "repo": "bemask-travel-tube"},
+    {"bit": 13, "code": "DW", "icon": "◎", "label": "DATA WAFER",     "repo": "bemask-data-wafer"},
+]
 
-def generate_totp_token(secret_b32, time_offset=0):
-    try:
-        key = base64.b32decode(secret_b32.upper().replace(" ", ""), True)
-        interval = int(time.time() // 30) + time_offset
-        msg = struct.pack(">Q", interval)
-        h = hmac.new(key, msg, hashlib.sha1).digest()
-        o = h[19] & 15
-        token = (struct.unpack(">I", h[o:o+4])[0] & 0x7fffffff) % 1000000
-        return f"{token:06d}"
-    except Exception:
-        return "199975"
+# I 13 Conti Semantici [A]-[O] (Alfabeto Italiano Classico: A,B,C,D,E,F,G,H,I,L,M,N,O)
+SEMANTIC_ACCOUNTS = {
+    "[A]": {
+        "name": "Caffè, Torrefazione & Materie Prime Bar",
+        "sensitive": False,
+        "keywords": ["caffè", "caffe", "miscela", "latte", "zucchero", "brioche", "cornetti", "ghiaccio", "sciroppo", "bar"],
+    },
+    "[B]": {
+        "name": "Food, Cucina & Derrate Alimentari Fresche",
+        "sensitive": False,
+        "keywords": ["cucina", "pesce", "carne", "verdura", "frutta", "farina", "olio", "pasta", "pane", "chef", "dispensa", "frigo"],
+    },
+    "[C]": {
+        "name": "Cantina, Vini, Champagne & Spirits",
+        "sensitive": False,
+        "keywords": ["vino", "bottiglie", "prosecco", "champagne", "gin", "vodka", "rum", "amaro", "birra", "fusto", "cantina"],
+    },
+    "[D]": {
+        "name": "Materiali Consumo, Monouso & Detergenza",
+        "sensitive": False,
+        "keywords": ["tovaglioli", "carta", "detergente", "sapone", "guanti", "sacchi", "bicchieri", "cannucce", "pulizia", "chimici"],
+    },
+    "[E]": {
+        "name": "Manutenzione, Ricambi & Impianti Tecnici",
+        "sensitive": False,
+        "keywords": ["guasto", "rotto", "riparazione", "idraulico", "elettricista", "lampadina", "perdita", "condizionatore", "pompa", "tecnico", "manutenzione"],
+    },
+    "[F]": {
+        "name": "Utenze, Energia, Gas & Connettività",
+        "sensitive": True,
+        "keywords": ["bolletta", "luce", "enel", "gas", "acqua", "fibra", "internet", "utenza", "kw", "contatore"],
+    },
+    "[G]": {
+        "name": "Personale, Extra Turni & Rimborsi Staff",
+        "sensitive": True,
+        "keywords": ["acconto", "extra", "turno", "stipendio", "busta", "rimborso", "cameriere", "barista", "bagnino", "ferie"],
+    },
+    "[H]": {
+        "name": "Servizi Esterni, Lavanderia & Vigilanza",
+        "sensitive": False,
+        "keywords": ["lavanderia", "tovagliato", "lenzuola", "spugne", "vigilanza", "giardiniere", "disinfestazione", "noleggio"],
+    },
+    "[I]": {
+        "name": "Marketing, Eventi, DJ Set & Commissioni",
+        "sensitive": True,
+        "keywords": ["evento", "musica", "dj", "siae", "locandina", "sponsor", "adv", "commissione", "ota", "promo"],
+    },
+    "[L]": {
+        "name": "Dotazioni Spiaggia, Piscina, Spa & Reparti",
+        "sensitive": False,
+        "keywords": ["ombrellone", "ombrelloni", "lettino", "sdraio", "cabina", "piscina", "cloro", "massaggio", "olio essenziale", "camera"],
+    },
+    "[M]": {
+        "name": "Imposte, Tasse, Tassa Soggiorno & Licenze",
+        "sensitive": True,
+        "keywords": ["f24", "iva", "tassa", "soggiorno", "comune", "dogane", "bollo", "demanio", "diritti"],
+    },
+    "[N]": {
+        "name": "Oneri Bancari, Cassa, POS & Differenze RT",
+        "sensitive": True,
+        "keywords": ["pos", "banca", "commissioni", "fondo cassa", "resto", "chiusura", "scontrino", "rt", "sdd", "bonifico"],
+    },
+    "[O]": {
+        "name": "Prelievo Titolare / Giroconto Holding",
+        "sensitive": True,
+        "keywords": ["prelievo", "titolare", "proprietà", "holding", "versamento", "cassaforte", "dividendo", "società"],
+    },
+}
 
-def verify_2fa_code(input_code, secret_b32):
-    clean = str(input_code).strip()
-    if clean == "199975":
-        return True
-    for offset in [-1, 0, 1]:
-        if clean == generate_totp_token(secret_b32, offset):
+OPERATIONAL_TAGS = [
+    "CONSEGNA_TURNO",
+    "SPESA_ORDINE",
+    "MANUTENZIONE",
+    "HACCP_TEMP",
+    "INCASSO_EXTRA",
+]
+
+# Configurazione dei 3 Assetti Genetici
+GENETIC_ASSETS = {
+    "STANDALONE": {
+        "title": "1) STANDALONE GENERALISTA",
+        "badge": "MERCATO APERTO // P.IVA SINGOLA",
+        "desc": "Bar, Ristoranti, Stabilimenti, Spa o Imprese esterne (Zero riferimenti a camere/hotel).",
+        "departments": ["BAR & BANCO", "CUCINA & LAB", "SALA / SPIAGGIA", "MAGAZZINO", "MANUTENZIONE", "DIREZIONE"],
+        "channels": ["NESSUNO (SOLO NOTA)", "CONTANTI", "POS / CARTA", "SDD / BONIFICO"],
+    },
+    "PARTNER": {
+        "title": "2) PARTNER IN CONCESSIONE",
+        "badge": "AFFITTO DI RAMO // FEE & COMPENSAZIONE CUBO",
+        "desc": "Gestore con propria P.IVA dentro il Resort: attiva Addebiti Camera e calcolo Royalty verso il Cubo Madre.",
+        "departments": ["LOUNGE BAR PARTNER", "RISTORANTE PARTNER", "BEACH CLUB", "SPA CONCESSIONE", "MANUTENZIONE", "AMMINISTRAZIONE"],
+        "channels": ["NESSUNO (SOLO NOTA)", "ADDEBITO CAMERA (COMPENSAZIONE)", "CONTANTI", "POS PARTNER", "SDD / BONIFICO"],
+    },
+    "CUBE_DEPT": {
+        "title": "3) REPARTO DIRETTO CUBO",
+        "badge": "COLLEGAMENTO DIRETTO // ALPHA-MAIN-MISSION",
+        "desc": "Reparto interno dell'Albergo Madre / Mega-Resort collegato nativamente al 27° Cubo Centrale.",
+        "departments": ["FRONT & CONCIERGE", "F&B LAZERS", "HOUSEKEEPING / S.K.A.", "BEACH & POOL", "SPA & WELLNESS", "TECNICO / ECONOMATO"],
+        "channels": ["NESSUNO (SOLO NOTA)", "ADDEBITO CAMERA", "CONTANTI CASSA", "POS HOTEL", "SDD / ECONOMATO"],
+    },
+}
+
+
+# ==============================================================================
+# 1. UTILITÀ SISTEMA, TOTP NATIVO RFC 6238 & INIZIALIZZAZIONE RAM
+# ==============================================================================
+def safe_rerun() -> None:
+    if hasattr(st, "rerun"):
+        st.rerun()
+    elif hasattr(st, "experimental_rerun"):
+        st.experimental_rerun()
+
+
+def utc_iso_now() -> str:
+    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
+def human_time_now() -> str:
+    return datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+
+
+def normalize_base32(secret: str) -> bytes:
+    clean = re.sub(r"[^A-Z2-7]", "", secret.upper())
+    if not clean:
+        clean = "BEMASKALPHA1975SOVEREIGN"
+    padding = (8 - len(clean) % 8) % 8
+    return base64.b32decode(clean + ("=" * padding), casefold=True)
+
+
+def generate_totp_rfc6238(secret: str, for_time: int = None, step: int = 30, digits: int = 6) -> str:
+    """Implementazione pura RFC 6238 HMAC-SHA1 in RAM senza librerie esterne."""
+    if for_time is None:
+        for_time = int(time.time())
+    key = normalize_base32(secret)
+    counter = int(for_time // step)
+    msg = struct.pack(">Q", counter)
+    digest = hmac.new(key, msg, hashlib.sha1).digest()
+    offset = digest[-1] & 0x0F
+    code_int = struct.unpack(">I", digest[offset:offset + 4])[0] & 0x7FFFFFFF
+    return str(code_int % (10 ** digits)).zfill(digits)
+
+
+def verify_totp_rfc6238(secret: str, user_code: str, window: int = 1) -> bool:
+    code_clean = re.sub(r"\D", "", user_code or "")
+    if len(code_clean) != 6:
+        return False
+    now_ts = int(time.time())
+    for delta in range(-window, window + 1):
+        if hmac.compare_digest(generate_totp_rfc6238(secret, now_ts + delta * 30), code_clean):
             return True
     return False
 
-# --- DIZIONARIO SEMANTICO INTEGRATO (PER SMISTAMENTO AUTOMATICO VOCI A-O) ---
-SEMANTIC_KEYWORDS = {
-    "[A] MATERIE PRIME / CAFFÈ": ["CAFF", "MISCELA", "GRANI", "ARABICA", "DECA", "ORZO", "GINSENG", "10001", "ILLY", "LAVAZZA"],
-    "[B] BEVANDE / ALCOLICI": ["APEROL", "CAMPARI", "BITTER", "GIN", "VODKA", "PROSECCO", "VINO", "BIRRA", "COCA", "ACQUA", "AA514", "DORECA", "CL.100", "LT.1"],
-    "[C] LATTE / FRESCHI": ["LATTE", "PANNA", "BURRO", "BRIOCHE", "CORNETT", "PASTE", "YOGURT"],
-    "[D] SNACK / CUCINA": ["PANE", "TRAMEZZIN", "PROSCIUTTO", "MOZZARELLA", "PATATIN", "OLIVE", "FOCACCIA", "PECHINO", "RISO", "INVOLTIN"],
-    "[E] GHIACCIO / CONSUMABILI": ["GHIACCIO", "TOVAGLIOL", "BICCHIER", "CANNUCC", "ZUCCHERO", "CARTA TERMICA"],
-    "[F] PULIZIA / IGIENE": ["DETERSIV", "SAPONE", "CANDEGGINA", "SGRASSATOR", "SPUGN", "SACCHI"],
-    "[G] MANUTENZIONE": ["IDRAULIC", "ELETTRIC", "GUARNIZION", "FILTRO", "TECNICO"],
-    "[H] ACCONTO STAFF": ["ACCONTO", "EXTRA", "CAMERIER", "BARISTA", "TURNO"],
-    "[I] UTENZE / BOLLETTE": ["ENEL", "LUCE", "GAS", "ACQUEDOTTO", "FIBRA", "TIM", "TARI", "SIAE"],
-    "[L] TASSE / BOLLI": ["F24", "BOLLO", "AGENZIA", "INPS", "INAIL", "SUOLO"],
-    "[M] FORNITORE EXTRA": ["SUPERMERCATO", "CONAD", "COOP", "EUROSPIN", "LIDL", "METRO"],
-    "[N] SPESE VARIE": ["FARMACIA", "CANCELLERIA", "MANCIA", "RESTO", "VARIE"],
-    "[O] PRELIEVO TITOLARE": ["TITOLARE", "PRELIEVO", "VERSAMENTO", "SOCIO", "ALLEGGERIMENTO"]
-}
 
-def auto_map_semantic_conto(text_val):
-    up = str(text_val).upper()
-    for c_label, kw_list in SEMANTIC_KEYWORDS.items():
-        for kw in kw_list:
-            if kw in up:
-                return c_label
-    return "[D] SNACK / CUCINA"
+def parse_url_license_mask() -> dict:
+    """Legge i parametri URL (?mask=..., ?asset=..., ?entity=..., ?base_url=...) per licenze su misura."""
+    qp = st.query_params if hasattr(st, "query_params") else {}
+    raw_mask = str(qp.get("mask", "")).strip()
+    raw_asset = str(qp.get("asset", "")).strip().upper()
+    raw_entity = str(qp.get("entity", "")).strip()
+    raw_royalty = str(qp.get("royalty", "")).strip()
+    base_url = str(qp.get("hub", "")).strip()
 
-# ==============================================================================
-# MOTORE OCR VISION IN RAM CON AUTODISCOVERY E MAPPATURA SEMANTICA A-O
-# ==============================================================================
-def scan_receipt_in_ram_with_ai(image_bytes, api_key):
-    clean_key = str(api_key).strip()
-    if not clean_key or len(clean_key) < 15:
-        return None, "Inserisci la chiave gratuita AIzaSy... nel campo qui sopra per leggere automaticamente la foto!"
+    allowed_codes = None
+    if raw_mask:
+        # Supporta sia lista codici (?mask=00,02,08,12,DW) sia bitmask esadecimale/intera 2^12 (?mask=0x1085)
+        if "," in raw_mask or raw_mask.upper() in {s["code"] for s in SECTOR_MATRIX}:
+            tokens = {t.strip().upper().zfill(2) if t.strip().isdigit() else t.strip().upper() for t in raw_mask.split(",") if t.strip()}
+            tokens.add("DW")  # Il pod corrente è sempre attivo
+            allowed_codes = tokens
+        else:
+            try:
+                bit_val = int(raw_mask, 16) if raw_mask.lower().startswith("0x") else int(raw_mask)
+                codes = {"DW"}
+                for s in SECTOR_MATRIX:
+                    if s["bit"] == 0 or (bit_val & (1 << (s["bit"] - 1))):
+                        codes.add(s["code"])
+                allowed_codes = codes
+            except ValueError:
+                allowed_codes = None
 
-    b64_img = base64.b64encode(image_bytes).decode("utf-8")
-    prompt_txt = (
-        "Sei il lettore contabile semantico di un bar italiano. Leggi questa foto di scontrino, bolla o nota spesa. "
-        "Estrai esercente (o email), metodo di pagamento, tutte le singole righe dei prodotti acquistati (se si vede solo il totale POS crea 1 riga col totale) e il totale in euro. "
-        "Rispondi SOLO con un JSON valido in questo formato esatto: "
-        "{\"esercente\": \"nome o email locale\", \"metodo_pagamento\": \"CARTA DI CREDITO / POS\", "
-        "\"righe\": [{\"voce\": \"nome articolo\", \"qta\": 1, \"prezzo\": 19.80}], \"totale_euro\": 19.80}"
-    )
-    payload = {
-        "contents": [{
-            "parts": [
-                {"text": prompt_txt},
-                {"inline_data": {"mime_type": "image/jpeg", "data": b64_img}}
-            ]
-        }]
+    return {
+        "licensed": allowed_codes is not None,
+        "allowed_codes": allowed_codes,
+        "forced_asset": raw_asset if raw_asset in GENETIC_ASSETS else None,
+        "forced_entity": raw_entity if raw_entity else None,
+        "forced_royalty": float(raw_royalty) if raw_royalty.replace(".", "", 1).isdigit() else None,
+        "base_url": base_url,
+        "raw_mask": raw_mask,
     }
 
-    candidate_models = []
-    for api_ver in ["v1beta", "v1"]:
-        try:
-            list_url = f"https://generativelanguage.googleapis.com/{api_ver}/models?key={clean_key}"
-            req_list = urllib.request.Request(list_url, method="GET")
-            with urllib.request.urlopen(req_list, timeout=8) as resp_l:
-                models_data = json.loads(resp_l.read().decode("utf-8"))
-                for m in models_data.get("models", []):
-                    m_name = m.get("name", "").replace("models/", "")
-                    methods = m.get("supportedGenerationMethods", [])
-                    if "generateContent" in methods and ("flash" in m_name or "pro" in m_name or "gemini" in m_name):
-                        if (api_ver, m_name) not in candidate_models:
-                            candidate_models.append((api_ver, m_name))
-            if candidate_models:
-                break
-        except urllib.error.HTTPError as he:
-            if he.code in [400, 401, 403]:
-                return None, f"Chiave API non riconosciuta (HTTP {he.code}). Assicurati che inizi con 'AIzaSy...'."
-        except Exception:
-            continue
 
-    if not candidate_models:
-        candidate_models = [
-            ("v1beta", "gemini-2.5-flash"),
-            ("v1beta", "gemini-2.0-flash"),
-            ("v1beta", "gemini-1.5-flash-latest"),
-            ("v1", "gemini-2.0-flash"),
-            ("v1", "gemini-1.5-flash")
-        ]
-    else:
-        candidate_models.sort(key=lambda x: (0 if "flash" in x[1] else 1))
-
-    last_err = ""
-    for api_ver, m_name in candidate_models:
-        try:
-            url = f"https://generativelanguage.googleapis.com/{api_ver}/models/{m_name}:generateContent?key={clean_key}"
-            req = urllib.request.Request(
-                url,
-                data=json.dumps(payload).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-                method="POST"
-            )
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                res_data = json.loads(resp.read().decode("utf-8"))
-                raw_reply = res_data["candidates"][0]["content"]["parts"][0]["text"]
-                clean_json = re.sub(r"```json|```", "", raw_reply).strip()
-                match_j = re.search(r"\{.*\}", clean_json, re.DOTALL)
-                if match_j:
-                    clean_json = match_j.group(0)
-                parsed = json.loads(clean_json)
-                if "righe" in parsed and isinstance(parsed["righe"], list):
-                    for r in parsed["righe"]:
-                        r["conto"] = auto_map_semantic_conto(r.get("voce", "") + " " + parsed.get("esercente", ""))
-                return parsed, None
-        except Exception as e:
-            last_err = f"[{m_name}] {str(e)}"
-            continue
-
-    return None, f"Lettura AI non riuscita ({last_err})."
-
-# --- 2. BLINDAGGIO SESSION STATE A 12 BIT (2^12 = 4096 STATI) ---
-def init_monumental_state():
-    default_labels_ao = {
-        "A": "MATERIE PRIME / CAFFÈ", "B": "BEVANDE / ALCOLICI", "C": "LATTE / FRESCHI", "D": "SNACK / CUCINA",
-        "E": "GHIACCIO / CONSUMABILI", "F": "PULIZIA / IGIENE", "G": "MANUTENZIONE", "H": "ACCONTO STAFF",
-        "I": "UTENZE / BOLLETTE", "L": "TASSE / BOLLI", "M": "FORNITORE EXTRA", "N": "SPESE VARIE", "O": "PRELIEVO TITOLARE"
-    }
+def init_ram_state() -> None:
+    lic = parse_url_license_mask()
     defaults = {
-        "auth_unlocked": False,
-        "auth_role": None,
-        "auth_user": "",
-        "breach_log": [],
-        "show_arch_fallback": False,
-        # 9 Settori attivi di default = Griglia 3x3 perfetta senza buchi!
-        "active_bits_12": [True, True, True, True, True, True, False, False, False, True, True, True],
-        "keep_multiverse_open": False,
-        "custom_squares": [],
-        "blum_sector": None,
-        "selected_sub": None,
-        "pin_code": "9999",
-        "visitors_log": 42,
-        "rop_cons_gg": 45,
-        "rop_lead_gg": 2,
-        "rop_stock": 490,
-        "bocche_96h": 137,
-        "ddt_codice_art": "10001 / AA514",
-        "ddt_prezzo_fattura": 14.80,
-        "ddt_prezzo_pattuito": 12.90,
-        "ddt_litri_bottiglia": 1.0,
-        "ddt_omaggio_finto_iva": 3.25,
-        "bank_transato_pos": 18500.0,
-        "bank_comm_dichiarata": 0.90,
-        "bank_costi_occulti": 198.50,
-        "bank_prezzo_caffe": 1.30,
-        "ram_clear_counter": 0,
-        "bar_kg_caffe_aperti": 2.0,
-        "bar_tazzine_per_kg": 135,
-        "bar_ao_labels": default_labels_ao,
-        "unsaved_ops_count": 0,
-        "custom_gemini_key": "",
-        "last_scanned_hash": "",
-        "ocr_esercente": "Pechino Follonica (pechinofollonica@gmail.com)",
-        "ocr_metodo": "CARTA DI CREDITO / POS",
-        "ocr_items_df": [
-            {"voce": "Articolo 1 dallo Scontrino", "qta": 1, "prezzo": 10.00, "conto": "[D] SNACK / CUCINA"},
-            {"voce": "Articolo 2 dallo Scontrino", "qta": 1, "prezzo": 9.80, "conto": "[B] BEVANDE / ALCOLICI"}
-        ],
-        "chrono_ledger": [
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "07:30", "type": "CAFFÈ (+1 KG)", "conto": "[A] MATERIE PRIME / CAFFÈ", "desc": "Apertura sacchetto grani 1 Kg (Resa attesa ~135 caffè)", "amount": 175.50, "days_span": 1, "status": "OK"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:15", "type": "BOLLA DDT", "conto": "[B] BEVANDE / ALCOLICI", "desc": "Art. 10001 Doreca — Scostamento +€1.90/L", "amount": -14.80, "days_span": 1, "status": "ALERT"},
-            {"date": datetime.now().strftime("%Y-%m-%d"), "time": "08:58", "type": "SCONTRINO RAM", "conto": "[D] SNACK / CUCINA", "desc": "Pechino Follonica (Carta di Credito) — Totale € 19,80", "amount": -19.80, "days_span": 1, "status": "OK"}
-        ]
+        "wafers_ram": [],
+        "genetic_asset": lic["forced_asset"] or "STANDALONE",
+        "entity_id": lic["forced_entity"] or "IT-00000000000-ALPHA",
+        "partner_royalty_pct": lic["forced_royalty"] if lic["forced_royalty"] is not None else 12.0,
+        "current_shift": "MATTINA",
+        "current_weather": "SERENO // FLUSSO REGOLARE",
+        "role": "STAFF",  # "STAFF" (filtro anti-talpa attivo) | "COMMANDER" (accesso totale)
+        "commander_pin": DEFAULT_COMMANDER_PIN,
+        "totp_secret": DEFAULT_TOTP_SECRET,
+        "require_totp": False,  # Attivabile dal Commander per blindatura doppia PIN+2FA
+        "intrusion_log": [],
+        "gemini_api_key": "",
+        "gemini_discovered_model": "",
+        "audio_synth_enabled": True,
+        "sound_trigger_queue": None,
+        "lift_descending": False,
+        "last_landed_wafer_id": None,
+        "show_architect_dossier": False,
+        "show_koenig_panel": False,
+        "purge_arm": False,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
 
-    for idx_b in range(12):
-        t_key = f"bit_sw_{idx_b}"
-        if t_key not in st.session_state:
-            st.session_state[t_key] = st.session_state["active_bits_12"][idx_b]
+    # Se la licenza URL forza asset o entity, riallinea in RAM
+    if lic["forced_asset"]:
+        st.session_state.genetic_asset = lic["forced_asset"]
+    if lic["forced_entity"]:
+        st.session_state.entity_id = lic["forced_entity"]
 
-init_monumental_state()
 
-def get_conto_options():
-    return [f"[{k}] {v}" for k, v in st.session_state["bar_ao_labels"].items()] + ["[INCASSO] CASSA / POS", "[BANCA] ONERI & COMMISSIONI"]
+init_ram_state()
+LICENSE_CTX = parse_url_license_mask()
 
-def return_to_page_zero():
-    st.session_state["blum_sector"] = None
-    st.session_state["selected_sub"] = None
 
-def apply_multiverse_preset(new_bits_list):
-    st.session_state["active_bits_12"] = list(new_bits_list)
-    for idx_b, val_b in enumerate(new_bits_list):
-        st.session_state[f"bit_sw_{idx_b}"] = bool(val_b)
-    return_to_page_zero()
-    st.session_state["keep_multiverse_open"] = True
+# ==============================================================================
+# 2. SYNTH ACUSTICO WEBAUDIO EMS-1975 (EFFETTO DISCESA IDRAULICA HANGAR)
+# ==============================================================================
+def queue_sound(effect_name: str) -> None:
+    if st.session_state.audio_synth_enabled:
+        st.session_state.sound_trigger_queue = f"{effect_name}:{time.time_ns()}"
 
-def on_single_bit_toggle(idx_b):
-    st.session_state["active_bits_12"][idx_b] = bool(st.session_state[f"bit_sw_{idx_b}"])
-    return_to_page_zero()
-    st.session_state["keep_multiverse_open"] = True
 
-def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK", conto="[N] SPESE VARIE"):
-    st.session_state["chrono_ledger"].append({
-        "date": datetime.now().strftime("%Y-%m-%d"),
-        "time": datetime.now().strftime("%H:%M"),
-        "type": ev_type,
-        "conto": conto,
-        "desc": ev_desc,
-        "amount": round(float(ev_amount), 2),
-        "days_span": int(days_span),
-        "status": status
-    })
-    st.session_state["unsaved_ops_count"] += 1
+def render_ems_1975_synth() -> None:
+    trigger = st.session_state.sound_trigger_queue
+    if not trigger or not st.session_state.audio_synth_enabled:
+        return
+    effect = trigger.split(":")[0]
+    st.session_state.sound_trigger_queue = None
 
-# --- 3. SINTETIZZATORE AUDIO WEBAUDIO (EMS SYNTHI 1975) ---
-def play_ems_synth(effect_type):
-    js_code = f"""
+    js_code = """
     <script>
-    (function() {{
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-        if ("{effect_type}" === "burst") {{
-            const freqs = [523.25, 659.25, 783.99, 1046.50, 880.0, 1174.66];
-            freqs.forEach((f, i) => {{
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(f, now + i * 0.06);
-                gain.gain.setValueAtTime(0.08, now + i * 0.06);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.055);
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.start(now + i * 0.06); osc.stop(now + i * 0.06 + 0.06);
-            }});
-        }} else if ("{effect_type}" === "commlock") {{
-            [987.77, 1318.51].forEach((f, i) => {{
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(f, now + i * 0.11);
-                gain.gain.setValueAtTime(0.12, now + i * 0.11);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.11 + 0.10);
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.start(now + i * 0.11); osc.stop(now + i * 0.11 + 0.11);
-            }});
-        }} else if ("{effect_type}" === "klaxon") {{
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "square";
-            osc.frequency.setValueAtTime(440, now);
-            osc.frequency.linearRampToValueAtTime(880, now + 0.25);
-            osc.frequency.linearRampToValueAtTime(440, now + 0.50);
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.52);
-        }}
-    }})();
+    (function() {
+        try {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (!AudioCtx) return;
+            const ctx = new AudioCtx();
+            const now = ctx.currentTime;
+            const effect = "__EFFECT__";
+
+            if (effect === "hydraulic_descent") {
+                // 1) Sgancio meccanico pistoni piattaforma Eagle Pad
+                const clickOsc = ctx.createOscillator();
+                const clickGain = ctx.createGain();
+                clickOsc.type = "square";
+                clickOsc.frequency.setValueAtTime(190, now);
+                clickOsc.frequency.exponentialRampToValueAtTime(48, now + 0.11);
+                clickGain.gain.setValueAtTime(0.22, now);
+                clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+                clickOsc.connect(clickGain).connect(ctx.destination);
+                clickOsc.start(now);
+                clickOsc.stop(now + 0.12);
+
+                // 2) Discesa idraulica analogica EMS-1975 (Sub-Bass + Filtro risonante)
+                const liftOsc1 = ctx.createOscillator();
+                const liftOsc2 = ctx.createOscillator();
+                const filter = ctx.createBiquadFilter();
+                const liftGain = ctx.createGain();
+
+                liftOsc1.type = "sawtooth";
+                liftOsc2.type = "triangle";
+                liftOsc1.frequency.setValueAtTime(132, now + 0.08);
+                liftOsc1.frequency.exponentialRampToValueAtTime(38, now + 1.35);
+                liftOsc2.frequency.setValueAtTime(66, now + 0.08);
+                liftOsc2.frequency.exponentialRampToValueAtTime(24, now + 1.35);
+
+                filter.type = "lowpass";
+                filter.Q.value = 6.5;
+                filter.frequency.setValueAtTime(420, now + 0.08);
+                filter.frequency.exponentialRampToValueAtTime(85, now + 1.35);
+
+                liftGain.gain.setValueAtTime(0.001, now);
+                liftGain.gain.linearRampToValueAtTime(0.20, now + 0.15);
+                liftGain.gain.setValueAtTime(0.18, now + 1.05);
+                liftGain.gain.exponentialRampToValueAtTime(0.0001, now + 1.45);
+
+                liftOsc1.connect(filter);
+                liftOsc2.connect(filter);
+                filter.connect(liftGain).connect(ctx.destination);
+                liftOsc1.start(now + 0.08);
+                liftOsc2.start(now + 0.08);
+                liftOsc1.stop(now + 1.46);
+                liftOsc2.stop(now + 1.46);
+
+                // 3) Telemetria aggancio Hangar Base Lunare Alpha (Bip cristallino)
+                [987.77, 1318.51].forEach((freq, idx) => {
+                    const ping = ctx.createOscillator();
+                    const pGain = ctx.createGain();
+                    ping.type = "sine";
+                    const t0 = now + 1.25 + (idx * 0.11);
+                    ping.frequency.setValueAtTime(freq, t0);
+                    pGain.gain.setValueAtTime(0.12, t0);
+                    pGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+                    ping.connect(pGain).connect(ctx.destination);
+                    ping.start(t0);
+                    ping.stop(t0 + 0.15);
+                });
+            } else if (effect === "telemetry_ack") {
+                [1046.5, 1567.98].forEach((f, i) => {
+                    const o = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    o.type = "sine";
+                    const t = now + i * 0.07;
+                    o.frequency.setValueAtTime(f, t);
+                    g.gain.setValueAtTime(0.10, t);
+                    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+                    o.connect(g).connect(ctx.destination);
+                    o.start(t);
+                    o.stop(t + 0.10);
+                });
+            } else if (effect === "koenig_alarm") {
+                [640, 440, 640].forEach((f, i) => {
+                    const o = ctx.createOscillator();
+                    const g = ctx.createGain();
+                    o.type = "sawtooth";
+                    const t = now + i * 0.13;
+                    o.frequency.setValueAtTime(f, t);
+                    g.gain.setValueAtTime(0.16, t);
+                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+                    o.connect(g).connect(ctx.destination);
+                    o.start(t);
+                    o.stop(t + 0.12);
+                });
+            } else if (effect === "ram_purge") {
+                const o = ctx.createOscillator();
+                const g = ctx.createGain();
+                o.type = "sawtooth";
+                o.frequency.setValueAtTime(520, now);
+                o.frequency.exponentialRampToValueAtTime(28, now + 0.55);
+                g.gain.setValueAtTime(0.20, now);
+                g.gain.exponentialRampToValueAtTime(0.0001, now + 0.56);
+                o.connect(g).connect(ctx.destination);
+                o.start(now);
+                o.stop(now + 0.57);
+            }
+        } catch (e) {}
+    })();
     </script>
-    """
-    components.html(js_code, height=0)
+    """.replace("__EFFECT__", effect)
+    components.html(js_code, height=0, width=0)
+
 
 # ==============================================================================
-# 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (INCLUSO 12 TRAVEL TUBE)
+# 3. MOTORE SEMANTICO [A]-[O] + GEMINI AUTODISCOVERY OCR & AUDIO IN RAM
 # ==============================================================================
-EAGLE_HERO_SVG = """
-<svg width="105" height="52" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="48" y="16" width="84" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
-  <path d="M48 28L62 16L76 28L90 16L104 28L118 16L132 28" stroke="#CBD5E1" stroke-width="1.8"/>
-  <path d="M48 16L62 28L76 16L90 28L104 16L118 28L132 16" stroke="#64748B" stroke-width="1.4"/>
-  <polygon points="36,36 58,36 62,58 32,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-  <polygon points="122,36 144,36 148,58 118,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-  <rect x="30" y="58" width="34" height="5" fill="#F59E0B"/>
-  <rect x="116" y="58" width="34" height="5" fill="#F59E0B"/>
-  <rect x="58" y="30" width="64" height="24" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
-  <line x1="74" y1="30" x2="74" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
-  <line x1="106" y1="30" x2="106" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
-  <polygon points="90,22 122,42 112,68 68,68 58,42" fill="#E2E8F0" stroke="#FFFFFF" stroke-width="2.2"/>
-  <polygon points="87,34 65,44 72,54 87,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
-  <polygon points="93,34 115,44 108,54 93,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
-  <circle cx="22" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
-  <circle cx="158" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
-</svg>
-"""
+def discover_gemini_model_in_ram(api_key: str) -> str:
+    """Interroga l'endpoint modelli Gemini in RAM e seleziona automaticamente il miglior modello multimodale."""
+    if not api_key:
+        return ""
+    if st.session_state.gemini_discovered_model:
+        return st.session_state.gemini_discovered_model
 
-SVG_ICONS = {
-    "01": """<svg width="84" height="62" viewBox="0 0 120 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="10" width="72" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/><path d="M24 22L38 10L52 22L66 10L80 22L96 10" stroke="#E2E8F0" stroke-width="2"/><polygon points="14,32 36,32 40,58 10,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="84,32 106,32 110,58 80,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="60,20 92,42 82,70 38,70 28,42" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2.5"/><polygon points="57,34 35,44 42,56 57,50" fill="#F59E0B"/><polygon points="63,34 85,44 78,56 63,50" fill="#F59E0B"/><rect x="8" y="60" width="32" height="5" fill="#F59E0B"/><rect x="80" y="60" width="32" height="5" fill="#F59E0B"/></svg>""",
-    "02": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="8" width="90" height="68" rx="4" fill="#0F172A" stroke="#10B981" stroke-width="2.5"/><rect x="18" y="16" width="20" height="12" fill="#F59E0B"/><rect x="44" y="16" width="20" height="12" fill="#F8FAFC"/><rect x="70" y="16" width="22" height="12" fill="#10B981"/><rect x="18" y="34" width="20" height="12" fill="#10B981"/><rect x="44" y="34" width="20" height="12" fill="#EF4444"/><rect x="70" y="34" width="22" height="12" fill="#F59E0B"/><rect x="18" y="54" width="74" height="14" fill="#1E293B" stroke="#34D399" stroke-width="1.8"/><path d="M22 61H40L45 56L52 66L58 58L64 61H88" stroke="#10B981" stroke-width="2.2"/></svg>""",
-    "03": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="55" cy="42" r="32" fill="#0F293A" stroke="#38BDF8" stroke-width="2.5"/><circle cx="55" cy="42" r="20" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="55" y1="10" x2="55" y2="74" stroke="#38BDF8" stroke-width="1.5"/><line x1="23" y1="42" x2="87" y2="42" stroke="#38BDF8" stroke-width="1.5"/><circle cx="65" cy="32" r="5" fill="#F59E0B"/><circle cx="43" cy="50" r="4" fill="#10B981"/></svg>""",
-    "04": """<svg width="74" height="62" viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="6" width="48" height="74" rx="5" fill="#1E1B2E" stroke="#A855F7" stroke-width="2.8"/><rect x="33" y="13" width="34" height="26" rx="2" fill="#090D16" stroke="#38BDF8" stroke-width="2"/><circle cx="50" cy="26" r="7" fill="#F59E0B"/><rect x="34" y="45" width="9" height="7" fill="#F59E0B"/><rect x="46" y="45" width="9" height="7" fill="#E2E8F0"/><rect x="57" y="45" width="9" height="7" fill="#EF4444"/><line x1="34" y1="60" x2="66" y2="60" stroke="#CBD5E1" stroke-width="2"/><line x1="34" y1="66" x2="66" y2="66" stroke="#CBD5E1" stroke-width="2"/></svg>""",
-    "05": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="12" width="82" height="60" rx="6" fill="#2A121F" stroke="#F43F5E" stroke-width="2.5"/><path d="M22 44H38L45 24L55 62L64 34L70 44H88" stroke="#F43F5E" stroke-width="3"/><circle cx="28" cy="24" r="4" fill="#F59E0B"/><circle cx="82" cy="24" r="4" fill="#10B981"/></svg>""",
-    "06": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="18,76 28,10 86,10 96,76" fill="#161A22" stroke="#F59E0B" stroke-width="2.8"/><polygon points="22,74 30,13 54,13 48,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="66,74 62,13 84,13 92,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="48,74 54,13 62,13 66,74" fill="rgba(245,158,11,0.35)"/><rect x="100" y="34" width="8" height="16" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/></svg>""",
-    "07": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="24,20 86,20 96,42 86,66 24,66 14,42" fill="#0F2E26" stroke="#10B981" stroke-width="2.5"/><rect x="34" y="30" width="42" height="24" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><line x1="24" y1="42" x2="86" y2="42" stroke="#34D399" stroke-width="2"/><circle cx="55" cy="42" r="6" fill="#F59E0B"/></svg>""",
-    "08": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/><circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/><path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/></svg>""",
-    "09": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/><ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/><ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/><circle cx="55" cy="12" r="6" fill="#EF4444"/></svg>""",
-    "10": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/><rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/><line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/><line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/><circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/><circle cx="82" cy="29" r="4" fill="#EF4444"/><rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/><rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/></svg>""",
-    "11": """<svg width="86" height="62" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>""",
-    "12": """<svg width="88" height="62" viewBox="0 0 130 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="65" cy="42" r="35" fill="#0B192C" stroke="#38BDF8" stroke-width="2.2" stroke-dasharray="5 3"/><rect x="12" y="26" width="106" height="32" rx="16" fill="#1E293B" stroke="#F59E0B" stroke-width="2.8"/><rect x="28" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="55" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="82" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><line x1="18" y1="51" x2="112" y2="51" stroke="#F59E0B" stroke-width="2.8"/><circle cx="20" cy="42" r="4" fill="#10B981"/><circle cx="110" cy="42" r="4" fill="#EF4444"/></svg>"""
-}
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    req = urllib.request.Request(url, method="GET")
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+        models = payload.get("models", [])
+        candidates = []
+        for m in models:
+            methods = m.get("supportedGenerationMethods", [])
+            name = m.get("name", "").replace("models/", "")
+            if "generateContent" in methods and "gemini" in name.lower():
+                candidates.append(name)
 
-# --- 5. ARCHITETTURA DEI 12 VETTORI PRIMARI (1 -> 2^12 = 4096) ---
-BASE_VECTORS = [
-    {
-        "bit": 0, "code": "01", "short": "01 FRONT", "name": "FRONT & APEX", "artifact": "EAGLE-1 TRANSPORTER", "staff_allowed": False,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3D2B14 0%, #14161D 78%)",
-        "kpi": "OCC: 88% | ADR: € 165 | 140 COMB BAR", "url": "https://bemask-sovereign-zero.streamlit.app",
-        "subs": ["1. Dynamic Pricing 140 Comb", "2. Controllo Allotment & OTA", "3. Check-in & Upselling", "4. Forecast 24 Fasce BAR", "5. Export CSV Passepartout"]
-    },
-    {
-        "bit": 1, "code": "02", "short": "02 BEV", "name": "LAZERS BEV", "artifact": "ALPHA WALL CONTROL PANEL", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #113A32 0%, #12181F 78%)",
-        "kpi": "POURING: 21% | MARGINE CANTINA: +79%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Pouring Calici & Vini", "2. Spinta Aperitivi Meteo", "3. Margine Bottiglie", "4. Usura Cristalleria", "5. Inventario Cantina Live"]
-    },
-    {
-        "bit": 2, "code": "03", "short": "03 FOOD", "name": "LAZERS FOOD", "artifact": "MAIN MISSION RADAR DESK", "staff_allowed": False,
-        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #13334C 0%, #121720 78%)",
-        "kpi": "COPERTI: 84/105 | FOOD COST: 28.5%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Capienza Sala & Cucina", "2. Scorporo Quote HB / FB", "3. Sfridi & Rese Carni", "4. Semaforo TheFork Zero-Fee", "5. Floor Industriale Pasto"]
-    },
-    {
-        "bit": 3, "code": "04", "short": "04 BEACH", "name": "BEACH & POOL", "artifact": "ALPHA COMMLOCK 1975", "staff_allowed": True,
-        "border": "#A855F7", "glow": "rgba(168, 85, 247, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #2B244D 0%, #141522 78%)",
-        "kpi": "SATURAZIONE LIDO: 92% | VENTO: 11 KT", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Mappa Ombrelloni & Cabine", "2. Soglia Vento Grounding", "3. Light Lunch all'Ombrellone", "4. Presidio Bagnini", "5. Chiusura Cassa Lido"]
-    },
-    {
-        "bit": 4, "code": "05", "short": "05 SPA", "name": "SPA & AYURVEDA", "artifact": "DR. RUSSELL MED-SCANNER", "staff_allowed": True,
-        "border": "#F43F5E", "glow": "rgba(244, 63, 94, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3F1D2B 0%, #16141C 78%)",
-        "kpi": "SLOT CABINE: 14/16 | FALLBACK PIOGGIA ON", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Conversione Pioggia (S1/S2)", "2. Agenda Cabine & Massaggi", "3. Percorso Private Spa VIP", "4. Vendita Linea Cosmetica", "5. Turni Operatori"]
-    },
-    {
-        "bit": 5, "code": "06", "short": "06 SKA", "name": "S.K.A. & ROOMS", "artifact": "ALPHA SLIDING BULKHEAD DOOR", "staff_allowed": True,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #382B19 0%, #15161C 78%)",
-        "kpi": "CAMERE PRONTE: 58/60 | SEGNALAZIONI: 0", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Stato Pulizia Camere", "2. Ticket Manutenzione", "3. Presidio Brigata Piani", "4. Dotazioni & Biancheria", "5. Ispezione Governante"]
-    },
-    {
-        "bit": 6, "code": "07", "short": "07 ACQUISTO", "name": "PUNTO ACQUISTO & ROP", "artifact": "EAGLE CARGO POD 96H", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #13392E 0%, #12171D 78%)",
-        "kpi": "ROP: SCORTA OK | SCUDO AUTONOMIA: 96H", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Calcolatore Punto Riordino (ROP)", "2. Scudo Dispensa 96 Ore", "3. Lead Time Fornitori", "4. Controllo Fatture XML", "5. Lista Ordini Urgenti"]
-    },
-    {
-        "bit": 7, "code": "08", "short": "08 HACCP", "name": "HACCP & REGISTRO ASL", "artifact": "LIFE SUPPORT BIOSENSOR", "staff_allowed": True,
-        "border": "#06B6D4", "glow": "rgba(6, 182, 212, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #123440 0%, #12171E 78%)",
-        "kpi": "CELLE FRIGO: 21/21 OK | FIRME PIN: 6", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Temperature Celle (-18°C / +4°C)", "2. Firma Digitale con PIN", "3. Lotti & Sgocciolato", "4. Sanificazione Cucina", "5. Scarica Stampa ASL (.HTML)"]
-    },
-    {
-        "bit": 8, "code": "09", "short": "09 GOPPAR", "name": "OPEX / CAPEX & P.IVA", "artifact": "ALPHA LASER DEFENSE PYLON", "staff_allowed": False,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3B2816 0%, #14161D 78%)",
-        "kpi": "MOL NETTO OGGI: € 4.820 | GOP: +34%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Split Multi-P.IVA Casa Madre", "2. OPEX vs CAPEX Real-Time", "3. Incidenza Costo Brigate", "4. Cashflow Consolidato", "5. Ponte Dati Revisore"]
-    },
-    {
-        "bit": 9, "code": "10", "short": "10 BAR DDT", "name": "BAR & DDT SENTINEL", "artifact": "X5-7 MAIN COMPUTER CONSOLE", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F3D33 0%, #10171D 78%)",
-        "kpi": "RAGGI-X SCONTRINO | CONTABILITÀ PARALLELA A-O | +1KG CAFFÈ", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scanner & Voci Scontrino", "2. 🎹 Contabilità Rapida (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Bilancio & Calendario"]
-    },
-    {
-        "bit": 10, "code": "11", "short": "11 VAMPIRE", "name": "BANK VAMPIRE SCANNER", "artifact": "KOENIG LASER STUN GUN", "staff_allowed": False,
-        "border": "#EF4444", "glow": "rgba(239, 68, 68, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #421820 0%, #151319 78%)",
-        "kpi": "AUTOPSIA CONTO | POS REALE & SDD ALERT", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scanner E/C & POS Reale", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Bilancio & Calendario"]
-    },
-    {
-        "bit": 11, "code": "12", "short": "12 TUBE", "name": "TRAVEL TUBE SHIELD", "artifact": "ALPHA HIGH-SPEED ESCAPE POD", "staff_allowed": False,
-        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.45)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F344C 0%, #10151D 78%)",
-        "kpi": "FONDO CASSA | MULTI-POS vs RT | SEMANTICA A-O", "url": "https://bemask-travel-tube.streamlit.app",
-        "subs": ["1. 🛡️ Pareggio Cassa & POS", "2. 🧠 Motore Semantico A-O", "3. ⚡ Giustificativo 3-Sec", "4. 🖨️ Distinta Ispettiva .TXT", "5. 📅 Bilancio & Calendario"]
-    }
-]
+        priority_order = [
+            "gemini-2.5-flash",
+            "gemini-2.0-flash",
+            "gemini-2.5-pro",
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+        ]
+        for pref in priority_order:
+            for c in candidates:
+                if c == pref or c.startswith(pref):
+                    st.session_state.gemini_discovered_model = c
+                    return c
+        if candidates:
+            st.session_state.gemini_discovered_model = candidates[0]
+            return candidates[0]
+    except Exception:
+        pass
+    return "gemini-2.0-flash"
 
-WEATHER_5_DAYS = [
-    {"day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW", "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MAR 10/11 · 17°C", "icon": "🌤️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W", "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MER 11/11 · 17°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW", "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "GIO 12/11 · 20°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S", "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "VEN 13/11 · 21°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE", "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI", "border": "#38BDF8", "text_col": "#38BDF8"},
-]
 
-# ==============================================================================
-# 6. CSS MONUMENTALE + BLOCCO TOTALE SCORRIMENTO ORIZZONTALE SU TELEFONINO
-# ==============================================================================
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
+def heuristic_wafer_structurer(raw_text: str, default_dept: str, default_channel: str) -> dict:
+    """Motore deterministico locale (Zero-Cloud / Fallback istantaneo) per strutturazione a 3 Assi."""
+    clean = re.sub(r"\s+", " ", (raw_text or "").strip())
+    lower = clean.lower()
 
-html, body, [data-testid="stAppViewContainer"], .stApp, .main, .block-container {
-    overflow-x: hidden !important;
-    max-width: 100vw !important;
-    box-sizing: border-box !important;
-}
-
-.stApp {
-    background-color: #101319;
-    background-image:
-        radial-gradient(circle at 50% 32%, rgba(245, 158, 11, 0.07) 0%, rgba(16, 19, 25, 0.96) 72%),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420'><g opacity='0.045' stroke='%23F59E0B' stroke-width='2' fill='none'><rect x='220' y='90' width='460' height='60'/><path d='M220 150 L300 90 L380 150 L460 90 L540 150 L620 90 L680 150'/><polygon points='450,110 610,210 560,340 340,340 290,210'/><polygon points='435,175 325,220 360,275 435,250' fill='%23F59E0B'/><polygon points='465,175 575,220 540,275 465,250' fill='%23F59E0B'/><rect x='140' y='180' width='120' height='110'/><rect x='640' y='180' width='120' height='110'/></g></svg>");
-    background-repeat: no-repeat;
-    background-position: center 140px;
-    background-attachment: fixed;
-    color: #F8FAFC;
-    font-family: 'Orbitron', sans-serif;
-}
-header[data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 0.6rem; padding-left: 1rem !important; padding-right: 1rem !important; max-width: 97% !important; }
-
-div[data-baseweb="input"] > div:focus-within {
-    border-color: #10B981 !important;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
-}
-
-.koenig-strip {
-    background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
-    padding: 8px 14px; margin-bottom: 8px; border-radius: 2px;
-}
-.badge-amber { background-color: #F59E0B; color: #0B0E14; font-weight: 900; font-size: 10px; padding: 3px 8px; margin-right: 6px; display: inline-block; margin-bottom: 3px; }
-.badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-green { background-color: #064E3B; border: 1px solid #10B981; color: #6EE7B7; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-
-.mission-bar {
-    background: linear-gradient(90deg, #161C24 0%, #1E2836 50%, #161C24 100%);
-    border: 1px solid #3A4B5E; border-left: 5px solid #F59E0B;
-    padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;
-}
-.mission-title { font-size: 18px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.4px; }
-.mission-sub { font-size: 10px; color: #38BDF8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 2px; }
-.nixie-group { display: flex; align-items: center; gap: 10px; }
-.nixie-label { font-size: 10px; color: #94A3B8; font-weight: 700; letter-spacing: 1px; }
-.nixie-digits {
-    background-color: #0D1015; border: 1px solid #F59E0B; color: #F59E0B;
-    font-family: 'Share Tech Mono', monospace; font-size: 17px; font-weight: 900;
-    padding: 3px 10px; letter-spacing: 3px; border-radius: 2px;
-    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
-}
-
-.weather-card {
-    background-color: #151922; border: 1px solid #2B3340;
-    padding: 9px 11px; border-radius: 3px; margin-bottom: 8px;
-}
-.w-header { display: flex; justify-content: space-between; align-items: center; }
-.w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.5px; }
-.w-icon { font-size: 17px; line-height: 1; }
-.w-status { font-size: 10px; font-weight: 900; margin-top: 3px; letter-spacing: 0.7px; }
-.w-telemetry {
-    display: flex; justify-content: space-between; margin-top: 5px; padding-top: 4px;
-    border-top: 1px dashed #2E3846; font-family: 'Share Tech Mono', monospace;
-    font-size: 9px; color: #E2E8F0; font-weight: 700;
-}
-.w-directive { margin-top: 4px; font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #94A3B8; }
-
-.alpha-tile {
-    height: 220px; border-radius: 3px; padding: 15px;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; position: relative; transition: all 0.22s ease;
-    margin-bottom: 14px; pointer-events: none;
-}
-.tile-code { font-size: 11px; font-weight: 800; color: #F59E0B; margin-top: 9px; letter-spacing: 1.5px; }
-.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.1px; margin-top: 3px; }
-.tile-artifact { font-size: 9px; font-weight: 700; color: #94A3B8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 4px; }
-
-div[class*="st-key-blum_click_"] {
-    margin-top: -234px !important;
-    margin-bottom: 14px !important;
-    position: relative;
-    z-index: 10;
-}
-div[class*="st-key-blum_click_"] > div > button {
-    height: 220px !important;
-    width: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    box-shadow: none !important;
-}
-div[class*="st-key-blum_click_"] > div > button:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
-    box-shadow: 0 0 32px rgba(245, 158, 11, 0.4) !important;
-}
-
-div.stButton > button {
-    background-color: #1A212B !important; color: #F8FAFC !important;
-    border: 1px solid #2F3E50 !important; border-radius: 3px !important;
-    font-family: 'Orbitron', sans-serif !important; font-size: 10px !important;
-    font-weight: 800 !important; letter-spacing: 0.8px !important;
-    min-height: 40px !important;
-    transition: all 0.2s ease !important;
-}
-div.stButton > button:hover {
-    border-color: #F59E0B !important; color: #F59E0B !important;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important;
-}
-
-.ems-panel { background-color: #161A22; border: 2px solid #F59E0B; padding: 12px; border-radius: 3px; margin-bottom: 10px; }
-.commlock-panel { background-color: #161A22; border: 1px solid #F59E0B; padding: 14px; border-radius: 3px; text-align: center; margin-top: 8px; }
-.blum-stage { background: radial-gradient(circle at 50% 20%, #1A2432 0%, #0E1218 85%); padding: 18px; border-radius: 4px; margin-bottom: 12px; }
-
-.kpi-custom-box {
-    background-color: #141A23; border: 1px solid #2B394A; border-left: 4px solid #F59E0B;
-    padding: 14px; border-radius: 3px; margin-top: 6px; margin-bottom: 8px;
-}
-.kpi-custom-title { font-size: 10px; font-weight: 800; color: #94A3B8; letter-spacing: 1.1px; margin-bottom: 6px; font-family: 'Share Tech Mono', monospace; }
-.kpi-custom-value { font-size: 23px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.9px; line-height: 1.2; }
-.kpi-custom-sub { font-size: 11px; font-weight: 700; margin-top: 6px; font-family: 'Share Tech Mono', monospace; }
-
-.xray-desk {
-    background: linear-gradient(135deg, #0D1622 0%, #132232 100%);
-    border: 2px solid #10B981; border-left: 6px solid #F59E0B;
-    padding: 16px; border-radius: 4px; margin-top: 10px; margin-bottom: 14px;
-    box-shadow: 0 0 25px rgba(16, 185, 129, 0.22);
-}
-
-@media (max-width: 768px) {
-    .mission-title { font-size: 14px !important; }
-    .kpi-custom-value { font-size: 19px !important; }
-    .blum-stage { padding: 12px !important; }
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# DOSSIER ARCHITETTO & GENESI (ENRICO BRAGLIA)
-# ==============================================================================
-def render_architect_dossier_content():
-    st.markdown("""
-    <div style="background:linear-gradient(135deg, #0B0E14 0%, #161C26 100%); border:1.5px solid #F59E0B; border-left:6px solid #F59E0B; padding:18px; border-radius:4px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <span class="badge-amber">ORIGIN SEAL // INTELLECTUAL PROPERTY</span>
-            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#38BDF8;">
-                3-AXIS FRACTAL CORE // ZERO-TRUST RAM ARCHITECTURE
-            </span>
-        </div>
-        <div style="font-size:21px; font-weight:900; color:#FFFFFF; letter-spacing:1.5px; margin-top:8px;">
-            ENRICO BRAGLIA — SYSTEM ARCHITECT & CREATOR
-        </div>
-        <div style="font-size:11px; color:#F59E0B; font-family:'Share Tech Mono', monospace; letter-spacing:1px; margin-top:3px;">
-            30+ YEARS HOSPITALITY DIRECTION · REVENUE INTELLIGENCE · BEMASK MEDIA & AI LAB
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    v_col, m_col = st.columns([1.25, 1.55])
-
-    with v_col:
-        if os.path.exists("architect_manifesto..mp4"):
-            st.video("architect_manifesto..mp4", autoplay=True, loop=True, muted=False)
-        else:
-            st.markdown("""
-            <div style="background:#090C12; border:1px solid #2B394A; border-radius:4px; padding:22px 14px; text-align:center;">
-                <svg width="150" height="150" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
-                    <g stroke="#38BDF8" stroke-width="1.2" opacity="0.35">
-                        <polygon points="80,18 138,50 138,114 80,146 22,114 22,50" fill="none"/>
-                        <line x1="80" y1="18" x2="80" y2="146"/>
-                        <line x1="22" y1="50" x2="138" y2="114"/>
-                        <line x1="138" y1="50" x2="22" y2="114"/>
-                    </g>
-                    <g stroke="#F59E0B" stroke-width="2.5">
-                        <line x1="80" y1="32" x2="80" y2="132"/>
-                        <line x1="34" y1="56" x2="126" y2="108"/>
-                        <line x1="126" y1="56" x2="34" y2="108"/>
-                    </g>
-                    <circle cx="80" cy="82" r="14" fill="#0B0E14" stroke="#10B981" stroke-width="3">
-                        <animate attributeName="r" values="12;16;12" dur="2.4s" repeatCount="indefinite"/>
-                    </circle>
-                    <circle cx="80" cy="82" r="5" fill="#F59E0B"/>
-                </svg>
-                <div style="font-size:11px; font-weight:800; color:#F59E0B; letter-spacing:1.2px; margin-top:8px;">
-                    27TH CUBE // 3-AXIS CORE ACTIVE
-                </div>
-                <div style="font-size:10px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:4px;">
-                    Carica 'architect_manifesto.mp4' nel repo per attivare il Mini-Video Manifesto
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        vcard_data = "MECARD:N:Braglia,Enrico;ORG:BEMASK Sovereign Architecture;NOTE:Creator & Hospitality Revenue Architect;;"
-        st.markdown(f"""
-        <div style="background:#0D1118; border:1px solid #263244; padding:10px; border-radius:4px; margin-top:10px; display:flex; align-items:center; gap:12px;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=F59E0B&bgcolor=0D1118&data={vcard_data}" width="72" style="border:1px solid #F59E0B; padding:3px;" />
-            <div style="font-family:'Share Tech Mono', monospace; font-size:10px; color:#CBD5E1; line-height:1.4;">
-                <strong style="color:#F59E0B;">VERIFICA DIRETTA CREATORE</strong><br>
-                Inquadra per salvare il contatto ufficiale dell'Architetto del sistema.<br>
-                <span style="color:#10B981;">ID: EB-BEMASK-2026-ALPHA</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with m_col:
-        st.markdown("""
-        <div style="font-family:'Share Tech Mono', monospace; font-size:12.5px; color:#E2E8F0; line-height:1.65; background:#111620; border:1px solid #243042; padding:16px; border-radius:4px;">
-            <div style="color:#F59E0B; font-weight:900; font-family:'Orbitron', sans-serif; font-size:12px; margin-bottom:8px;">
-                PERCHÉ QUESTA ARCHITETTURA È DIVERSA
-            </div>
-            <p style="margin-bottom:10px;">
-                I software gestionali tradizionali nascono in laboratorio da chi non ha mai chiuso una cassa a fine turno, difeso il RevPAR di un hotel o scoperto un rincaro occulto tra una bolla fornitore e un estratto conto POS.
-            </p>
-            <p style="margin-bottom:10px;">
-                <strong>BEMASK Sovereign Zero</strong> nasce dall'incontro tra <strong>oltre 30 anni di Direzione Alberghiera, Revenue Management e F&B sul campo</strong>, basi di elettronica industriale e orchestrazione avanzata con l'Intelligenza Artificiale.
-            </p>
-            <div style="color:#38BDF8; font-weight:900; font-family:'Orbitron', sans-serif; font-size:11px; margin-top:12px; margin-bottom:6px;">
-                LA LEGGE DEL CUBO E LA MITOSI COMPUTAZIONALE
-            </div>
-            <ul style="padding-left:18px; margin-bottom:10px; color:#CBD5E1;">
-                <li><strong>Il Perno Centrale (3 Assi X·Y·Z):</strong> ogni gesto fisico sul campo (<em>Materia</em>) si traduce all'istante in controllo di cassa e margine (<em>Energia</em>) sincronizzato col contesto operativo e meteo (<em>Tempo</em>).</li>
-                <li><strong>Micro-Moduli Leggeri:</strong> invece di un monolite pesante, una flotta di pod autonomi da 1 secondo su smartphone — per reparti diretti, gestioni in concessione o singole P.IVA.</li>
-                <li><strong>Sovranità in RAM (0 Byte su Cloud):</strong> nessun dato sensibile resta sui server. I numeri appartengono solo a chi governa l'azienda.</li>
-            </ul>
-            <div style="border-top:1px dashed #334155; padding-top:8px; margin-top:8px; font-size:11px; color:#10B981;">
-                ◈ Conceived, Directed & Engineered by <strong>Enrico Braglia</strong> // Co-orchestrated via AI Synthesis
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-if hasattr(st, "dialog"):
-    @st.dialog("◈ ARCHITECT & GENESIS // BEMASK SOVEREIGN ZERO", width="large")
-    def open_architect_modal():
-        render_architect_dossier_content()
-else:
-    def open_architect_modal():
-        st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
-
-# ==============================================================================
-# 7. KOENIG ZERO-TRUST SECURITY GATE
-# ==============================================================================
-STAFF_PINS = {
-    "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
-    "2048": "GOVERNANTE AI PIANI (SOLO CAMERE & SKA)",
-    "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
-}
-
-if not st.session_state["auth_unlocked"]:
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-    g_left, g_center, g_right = st.columns([0.5, 2.2, 0.5])
-    with g_center:
-        st.markdown(f"""
-        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:24px; border-radius:4px; box-shadow:0 0 45px rgba(245,158,11,0.22);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div>{EAGLE_HERO_SVG}</div>
-                <span class="badge-amber">ARCHITECT: ENRICO BRAGLIA</span>
-            </div>
-            <div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:1.4px;">
-                BEMASK // A.L.P.H.A. SECURITY GATE
-            </div>
-            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
-                MOONBASE ALPHA COMMAND | 12 SECTORS (2^12) + TRAVEL TUBE POD
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
-            play_ems_synth("commlock")
-            st.session_state["auth_unlocked"] = True
-            st.session_state["auth_role"] = "COMMANDER"
-            st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
-            return_to_page_zero()
-            st.rerun()
-
-        c_pin, c_2fa = st.columns(2)
-        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
-        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
-
-        if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
-            master_pin = get_master_pin()
-            secret_2fa = get_totp_secret()
-            ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-            if in_pin.strip() == master_pin:
-                if verify_2fa_code(in_2fa, secret_2fa):
-                    play_ems_synth("commlock")
-                    st.session_state["auth_unlocked"] = True
-                    st.session_state["auth_role"] = "COMMANDER"
-                    st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
-                    st.session_state["pin_code"] = master_pin
-                    return_to_page_zero()
-                    st.rerun()
-                else:
-                    play_ems_synth("klaxon")
-                    st.session_state["breach_log"].append(
-                        f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
-                    )
-                    st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
-
-            elif in_pin.strip() in STAFF_PINS:
-                play_ems_synth("burst")
-                st.session_state["auth_unlocked"] = True
-                st.session_state["auth_role"] = "STAFF"
-                st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
-                st.session_state["pin_code"] = in_pin.strip()
-                return_to_page_zero()
-                st.rerun()
-
-            else:
-                play_ems_synth("klaxon")
-                st.session_state["breach_log"].append(
-                    f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
-                )
-                st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
-
-        if st.button("◈ CHI È IL CREATORE // ARCHITECT DOSSIER (ENRICO BRAGLIA)", use_container_width=True):
-            play_ems_synth("commlock")
-            open_architect_modal()
-
-        if st.session_state.get("show_arch_fallback", False):
-            render_architect_dossier_content()
-
-        st.markdown("""
-        <div style="margin-top:22px; padding:10px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10px; color:#64748B; letter-spacing:1px;">
-            ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · ZERO-TRUST VOLATILE RAM ◈
-        </div>
-        """, unsafe_allow_html=True)
-    st.stop()
-
-# ==============================================================================
-# 8. FILTRO RUOLO ANTI-TALPA (12 BIT = 4096 COMBINAZIONI)
-# ==============================================================================
-is_commander = (st.session_state["auth_role"] == "COMMANDER")
-bits = st.session_state["active_bits_12"]
-
-if is_commander:
-    active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
-    if not active_base:
-        apply_multiverse_preset([True] + [False]*11)
-        active_base = [BASE_VECTORS[0]]
-    all_squares = active_base + st.session_state["custom_squares"]
-else:
-    all_squares = [v for v in BASE_VECTORS if v["staff_allowed"]]
-
-n_sectors = len(all_squares)
-total_micro_modules = n_sectors * 5
-binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
-binary_str = "".join(["1" if b else "0" for b in bits])
-ora_attuale = datetime.now().strftime("%H:%M")
-
-# --- 9. TOP KOENIG BAR + DOSSIER ARCHITETTO ENRICO BRAGLIA ---
-breach_count = len(st.session_state["breach_log"])
-breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
-
-top_c1, top_c_arch, top_c2, top_c3 = st.columns([2.65, 1.15, 0.8, 0.7])
-with top_c1:
-    st.markdown(f"""
-    <div class="koenig-strip">
-        <div>
-            <span class="badge-amber">MOONBASE ALPHA</span>
-            <span style="font-size:12px; font-weight:900; letter-spacing:1px; color:#FFFFFF;">
-                MAIN MISSION // {st.session_state['auth_user']}
-            </span>
-        </div>
-        <div style="margin-top:5px;">
-            <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
-            <span class="badge-amber">ARCHITECT: E. BRAGLIA</span>
-            {breach_badge}
-            <span class="badge-white">1 → 2¹² (#{binary_state_num}/4096)</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-with top_c_arch:
-    if st.button("◈ ARCHITECT\nENRICO BRAGLIA", use_container_width=True):
-        play_ems_synth("commlock")
-        open_architect_modal()
-with top_c2:
-    if st.button("🏠 PAGINA ZERO\n(HOME PLANCIA)", use_container_width=True):
-        return_to_page_zero()
-        st.rerun()
-with top_c3:
-    if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
-        st.session_state["auth_unlocked"] = False
-        return_to_page_zero()
-        st.rerun()
-
-if st.session_state.get("show_arch_fallback", False):
-    with st.expander("◈ ARCHITECT & GENESIS // ENRICO BRAGLIA", expanded=True):
-        render_architect_dossier_content()
-
-st.markdown(f"""
-<div class="mission-bar">
-    <div style="display:flex; align-items:center; gap:16px;">
-        <div>{EAGLE_HERO_SVG}</div>
-        <div>
-            <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
-            <div class="mission-sub">ARCHITECT: ENRICO BRAGLIA | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
-        </div>
-    </div>
-    <div class="nixie-group">
-        <span class="nixie-label">ALPHA TIME:</span>
-        <span class="nixie-digits">{ora_attuale}</span>
-        <span class="nixie-label">MATRIX:</span>
-        <span class="nixie-digits">{total_micro_modules:02d}</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-if st.session_state["unsaved_ops_count"] >= 3:
-    al_c1, al_c2 = st.columns([3.2, 1.2])
-    with al_c1:
-        st.warning(f"⚠️ CHECKPOINT MEMORIA VOLATILE: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nella Contabilità in RAM. Scarica una copia di sicurezza sul dispositivo prima di chiudere il turno!")
-    with al_c2:
-        cal_json = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json, file_name=f"alpha_contabilita_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
-            st.session_state["unsaved_ops_count"] = 0
-            st.rerun()
-
-with st.expander("🌤️ RADAR METEO TELEMETRICO 5 GIORNI (SANDRA BENES / MAYA)", expanded=False):
-    w_cols = st.columns(5)
-    for idx, w in enumerate(WEATHER_5_DAYS):
-        with w_cols[idx]:
-            st.markdown(f"""
-            <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
-                <div class="w-header">
-                    <span class="w-day">{w['day']}</span>
-                    <span class="w-icon">{w['icon']}</span>
-                </div>
-                <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
-                <div class="w-telemetry">
-                    <span style="color:{w['text_col']};">{w['rain']}</span>
-                    <span>{w['hum']}</span>
-                    <span style="color:#38BDF8;">{w['wind']}</span>
-                </div>
-                <div class="w-directive">{w['directive']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-# ==============================================================================
-# 10. PANNELLI DEL COMANDANTE (SCALABILITÀ MULTIVERSO 1 -> 2^12 + CASSAFORTE 2FA)
-# ==============================================================================
-if is_commander:
-    sec_col1, sec_col2 = st.columns([1.45, 1.0])
-    with sec_col1:
-        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
-            st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 4096` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
-            sw_cols = st.columns(6)
-            for i, vec in enumerate(BASE_VECTORS):
-                with sw_cols[i % 6]:
-                    st.toggle(vec["short"], key=f"bit_sw_{i}", on_change=on_single_bit_toggle, args=(i,))
-
-            p1, p2, p3, p4 = st.columns(4)
-            p1.button("🍸 PACCHETTO BAR (02+10+11+12)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True, True],), use_container_width=True)
-            p2.button("🛸 GRIGLIA 3x3 PERFETTA (9 SETTORI)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, True, True, True],), use_container_width=True)
-            p3.button("🔥 FULL MULTIVERSE 2¹² (TUTTI 12)", on_click=apply_multiverse_preset, args=([True] * 12,), use_container_width=True)
-            p4.button("⚡ SOLO 12 TRAVEL TUBE", on_click=apply_multiverse_preset, args=([False]*11 + [True],), use_container_width=True)
-
-    with sec_col2:
-        with st.expander(f"🛡️ CASSAFORTE 2FA & CHIAVE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
-            q1, q2 = st.columns([1, 2])
-            secret_now = get_totp_secret()
-            otp_uri = f"otpauth://totp/BEMASK_ALPHA:TITOLARE?secret={secret_now}&issuer=BEMASK_ALPHA"
-            with q1:
-                st.markdown(f"""
-                <div style="text-align:center; background:#0B0E14; border:1px solid #10B981; padding:8px; border-radius:4px;">
-                    <div style="font-size:9px; color:#10B981; margin-bottom:4px;">INQUADRA CON GOOGLE AUTH</div>
-                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&color=10B981&bgcolor=0B0E14&data={otp_uri}" width="105" />
-                </div>
-                """, unsafe_allow_html=True)
-            with q2:
-                st.markdown(f"**Chiave Segreta 2FA:** `{secret_now}`")
-                st.markdown(f"**Token 2FA Attivo (30s):** `{generate_totp_token(secret_now)}`")
-                v_key = st.text_input("🤖 Chiave Google AI Studio (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key="api_key_box_VAULT", type="password")
-                if v_key and len(v_key.strip()) > 15:
-                    st.session_state["custom_gemini_key"] = v_key.strip()
-
-# ==============================================================================
-# TAVOLO DI SMISTAMENTO SCONTRINO IN RAM (CON AUTO-SEMANTICA A-O)
-# ==============================================================================
-def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
-    raw_bytes = stream_obj.getvalue()
-    ram_kb = len(raw_bytes) / 1024.0
-    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
-    active_key = get_gemini_api_key()
-    conto_opts = get_conto_options()
-
-    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
-        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
-            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
-            if parsed_ocr:
-                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
-                righe_ai = parsed_ocr.get("righe", [])
-                if isinstance(righe_ai, list) and len(righe_ai) > 0:
-                    st.session_state["ocr_items_df"] = righe_ai
-                st.session_state["last_scanned_hash"] = ram_hash
-                play_ems_synth("commlock")
-            else:
-                st.warning(f"⚠️ {err_msg}")
-
-    st.markdown(f"""
-    <div class="xray-desk">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
-            <span class="badge-amber">👁️ CONTENUTO INTERNO SCONTRINO & IMPUTAZIONE SEMANTICA PARALLELA (IN RAM)</span>
-            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#10B981;">
-                HASH: #{ram_hash} | {ram_kb:.1f} KB IN RAM | 0 BYTE SU DISCO
-            </span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    desk_left, desk_right = st.columns([1.15, 1.85])
-    with desk_left:
-        st.image(raw_bytes, caption="📸 Lastra Scontrino in RAM", use_container_width=True)
-
-    with desk_right:
-        k_c1, k_c2 = st.columns([1.6, 1.4])
-        with k_c1:
-            typed_k = st.text_input(
-                "🔑 Chiave AI Vision (AIzaSy...):",
-                value=st.session_state.get("custom_gemini_key", ""),
-                key=f"api_key_box_{module_tag}",
-                placeholder="Incolla chiave AIzaSy..."
-            )
-            if typed_k and len(typed_k.strip()) > 15:
-                st.session_state["custom_gemini_key"] = typed_k.strip()
-        with k_c2:
-            st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-            if st.button("🤖 LEGGI E CLASSIFICA VOCI CON AI", key=f"btn_ai_{module_tag}", use_container_width=True):
-                parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, get_gemini_api_key())
-                if parsed_ocr:
-                    st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                    st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
-                    if parsed_ocr.get("righe"):
-                        st.session_state["ocr_items_df"] = parsed_ocr["righe"]
-                    play_ems_synth("commlock")
-                    st.rerun()
-                else:
-                    st.warning(err_msg)
-
-        es_c1, es_c2 = st.columns([1.7, 1.3])
-        with es_c1:
-            st.session_state["ocr_esercente"] = st.text_input("🏪 Esercente / Fornitore:", value=st.session_state["ocr_esercente"], key=f"eser_{module_tag}")
-        with es_c2:
-            st.session_state["ocr_metodo"] = st.selectbox("💳 Pagamento:", ["CARTA DI CREDITO / POS", "CONTANTI DA CASSETTO", "BONIFICO / SDD"], index=0, key=f"met_{module_tag}")
-
-        st.markdown("###### 🧾 TABELLA VOCI DELLO SCONTRINO (Smistamento Semantico `A–O`):")
-        df_items = pd.DataFrame(st.session_state["ocr_items_df"])
-        if "conto" not in df_items.columns:
-            df_items["conto"] = conto_opts[0]
-
-        edited_items = st.data_editor(
-            df_items,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="medium"),
-                "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1, width="small"),
-                "prezzo": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10, width="small"),
-                "conto": st.column_config.SelectboxColumn("CONTO PARALLELO (A-O)", options=conto_opts, width="medium")
-            },
-            key=f"items_ed_{module_tag}"
-        )
-
-        totale_scontrino = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
-
-        st.markdown(f"""
-        <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
-            <div class="kpi-custom-title">TOTALE VOCI SCONTRINO ({st.session_state['ocr_metodo']})</div>
-            <div class="kpi-custom-value" style="font-size:22px;">€ {totale_scontrino:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-        b_imp1, b_imp2 = st.columns(2)
-        with b_imp1:
-            if st.button("⚡ IMPUTA SINGOLE VOCI SUI CONTI (A-O) E SVUOTA RAM", key=f"split_save_{module_tag}", use_container_width=True):
-                for _, r in edited_items.iterrows():
-                    v_nome = str(r.get("voce", "Voce")).strip()
-                    v_qta = int(r.get("qta", 1) or 1)
-                    v_prz = float(r.get("prezzo", 0.0) or 0.0)
-                    v_cnt = str(r.get("conto", conto_opts[0]))
-                    if v_prz > 0:
-                        add_calendar_event("VOCE SCONTRINO", f"{st.session_state['ocr_esercente']}: {v_qta}x {v_nome} [{st.session_state['ocr_metodo']}]", -v_prz, 1, "OK", conto=v_cnt)
-                st.session_state["ram_clear_counter"] += 1
-                play_ems_synth("commlock")
-                st.toast(f"✅ Voci imputate nei conti A-O (€ {totale_scontrino:.2f})!")
-                st.rerun()
-
-        with b_imp2:
-            if st.button(f"📦 REGISTRA SCONTRINO UNICO (€ {totale_scontrino:.2f})", key=f"single_save_{module_tag}", use_container_width=True):
-                riep = " + ".join([f"{int(r.get('qta',1) or 1)}x {r.get('voce','')} (€{float(r.get('prezzo',0) or 0):.2f})" for _, r in edited_items.iterrows()])
-                primo_conto = str(edited_items.iloc[0].get("conto", conto_opts[0])) if not edited_items.empty else conto_opts[0]
-                add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']}: {riep}"[:140], -totale_scontrino, 1, "OK", conto=primo_conto)
-                st.session_state["ram_clear_counter"] += 1
-                play_ems_synth("commlock")
-                st.toast(f"✅ Scontrino unico da € {totale_scontrino:.2f} registrato!")
-                st.rerun()
-
-# ==============================================================================
-# CONTABILITÀ PARALLELA & CALENDARIO STORICO
-# ==============================================================================
-def render_alpha_chrono_calendar():
-    st.markdown("##### 📅 CONTABILITÀ PARALLELA IN RAM & CALENDARIO STORICO (GIORNO · SETTIMANA · MESE)")
-    cal_top1, cal_top2, cal_top3 = st.columns([1.6, 1.2, 1.2])
-    with cal_top1:
-        cal_view = st.radio("Vista Contabile:", ["GIORNO (Movimenti & Modifica)", "BILANCIO PER CONTO (A-O)", "MESE (Riepilogo Giorni)"], horizontal=True)
-    with cal_top2:
-        cal_json_str = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
-        if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json_str, file_name=f"contabilita_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
-            st.session_state["unsaved_ops_count"] = 0
-            st.toast("✅ Contabilità salvata sul tuo dispositivo!")
-    with cal_top3:
-        up_cal = st.file_uploader("📂 Ricarica Contabilità (.json)", type=["json"], label_visibility="collapsed")
-        if up_cal is not None:
+    # 1. Estrazione Valore Finanziario Euro (Asse Y)
+    euro_val = 0.0
+    euro_patterns = [
+        r"(?:€|eur|euro)\s*([0-9]+(?:[.,][0-9]{1,2})?)",
+        r"([0-9]+(?:[.,][0-9]{1,2})?)\s*(?:€|eur|euro)",
+    ]
+    for pat in euro_patterns:
+        m = re.search(pat, lower)
+        if m:
             try:
-                loaded_list = json.loads(up_cal.getvalue().decode("utf-8"))
-                if isinstance(loaded_list, list):
-                    st.session_state["chrono_ledger"] = loaded_list
-                    st.success("Contabilità ripristinata!")
-            except Exception:
+                euro_val = float(m.group(1).replace(",", "."))
+                break
+            except ValueError:
                 pass
 
-    df_cal = pd.DataFrame(st.session_state["chrono_ledger"])
-    if df_cal.empty:
-        st.info("Nessun movimento registrato.")
-        return
-    if "conto" not in df_cal.columns:
-        df_cal["conto"] = "[N] SPESE VARIE"
+    # 2. Estrazione Materia Fisica / Temperatura / Unità (Asse X)
+    matter_unit = "1 NOTA OPERATIVA"
+    temp_match = re.search(r"([+-]?\d+(?:[.,]\d+)?\s*°\s*c)", lower)
+    qty_match = re.search(
+        r"([+-]?\d+(?:[.,]\d+)?\s*(?:kg|g|lt|l|pz|pezzi|casse| cartoni|fusti|bottiglie|ombrelloni|lettini|camere|sacchi))",
+        lower,
+    )
+    if temp_match:
+        matter_unit = temp_match.group(1).upper().replace(" ", "")
+    elif qty_match:
+        matter_unit = qty_match.group(1).upper()
 
-    tot_entrate = df_cal[df_cal["amount"] > 0]["amount"].sum()
-    tot_uscite = df_cal[df_cal["amount"] < 0]["amount"].sum()
-    saldo_netto = tot_entrate + tot_uscite
+    # 3. Classificazione Tag Operativo
+    op_tag = "CONSEGNA_TURNO"
+    if temp_match or any(w in lower for w in ["haccp", "frigo", "cella", "abbattitore", "temperatura"]):
+        op_tag = "HACCP_TEMP"
+    elif any(w in lower for w in ["rotto", "guasto", "perdita", "riparare", "manutenzione", "idraulico", "lampadina"]):
+        op_tag = "MANUTENZIONE"
+    elif any(w in lower for w in ["ordinare", "comprare", "manca", "finito", "spesa", "fornitore", "ddt", "fattura"]) or euro_val > 0:
+        op_tag = "SPESA_ORDINE"
+    if any(w in lower for w in ["incasso", "venduto", "extra", "pagato da", "camera "]) and euro_val > 0:
+        op_tag = "INCASSO_EXTRA"
 
-    c_m1, c_m2, c_m3 = st.columns(3)
-    with c_m1:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI & RESA TEORICA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
-    with c_m2:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">TOTALE COSTI IMPUTATI (A-O & BOLLE)</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
-    with c_m3:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">UTILE / SALDO CONTABILITÀ PARALLELA</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
+    # 4. Smistamento automatico sui 13 Conti Semantici [A]-[O]
+    best_acc = "[A]" if op_tag == "SPESA_ORDINE" else "[E]" if op_tag == "MANUTENZIONE" else "[B]" if op_tag == "HACCP_TEMP" else "[N]"
+    best_score = 0
+    for acc_code, meta in SEMANTIC_ACCOUNTS.items():
+        score = sum(1 for kw in meta["keywords"] if kw in lower)
+        if score > best_score:
+            best_score = score
+            best_acc = acc_code
 
-    if cal_view.startswith("BILANCIO"):
-        st.markdown("###### 📊 SPACCATO CONTABILITÀ PARALLELA PER SINGOLA VOCE / CENTRO DI COSTO (A → O):")
-        grp_c = df_cal.groupby("conto", as_index=False).agg(Numero_Voci=("amount", "count"), Totale_Euro=("amount", "sum"))
-        st.dataframe(grp_c, use_container_width=True, hide_index=True)
+    # 5. Canale Finanziario
+    channel = default_channel
+    if euro_val > 0 and channel.startswith("NESSUNO"):
+        if "pos" in lower or "carta" in lower:
+            channel = "POS / CARTA"
+        elif "camera" in lower and st.session_state.genetic_asset != "STANDALONE":
+            channel = "ADDEBITO CAMERA (COMPENSAZIONE)" if st.session_state.genetic_asset == "PARTNER" else "ADDEBITO CAMERA"
+        elif "bonifico" in lower or "sdd" in lower:
+            channel = "SDD / BONIFICO"
+        else:
+            channel = "CONTANTI"
 
-    elif cal_view.startswith("MESE"):
-        grp_m = df_cal.groupby("date", as_index=False).agg(Operazioni=("type", "count"), Saldo_Giorno=("amount", "sum"), Giorni_Coperti=("days_span", "max"))
-        st.dataframe(grp_m, use_container_width=True, hide_index=True)
+    priority = "ALTA" if any(w in lower for w in ["urgente", "subito", "allarme", "rotto", "perdita", "critico"]) else "NORMALE"
 
-    else:
-        edited_df = st.data_editor(
-            df_cal,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
-            column_config={
-                "date": st.column_config.TextColumn("DATA"),
-                "time": st.column_config.TextColumn("ORA"),
-                "conto": st.column_config.SelectboxColumn("CONTO IMPUTATO (A-O)", options=get_conto_options(), width="medium"),
-                "type": st.column_config.TextColumn("TIPO"),
-                "desc": st.column_config.TextColumn("DETTAGLIO VOCE SCONTRINO / NOTA", width="large"),
-                "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
-                "days_span": st.column_config.NumberColumn("GG", min_value=1, max_value=30),
-                "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
-            },
-            key="cal_editor_live"
+    return {
+        "clean_text": clean if clean else "Nota operativa acquisita senza testo aggiuntivo.",
+        "matter_unit": matter_unit,
+        "euro_amount": round(euro_val, 2),
+        "channel": channel,
+        "semantic_account": best_acc,
+        "op_tag": op_tag,
+        "department": default_dept,
+        "priority": priority,
+        "engine_used": "LOCAL-HEURISTIC-RAM",
+    }
+
+
+def gemini_multimodal_wafer_in_ram(
+    api_key: str,
+    raw_text: str = "",
+    media_bytes: bytes = None,
+    mime_type: str = "",
+    default_dept: str = "BAR & BANCO",
+    default_channel: str = "NESSUNO (SOLO NOTA)",
+) -> dict:
+    """
+    Elabora Foto Pizzino (OCR) o Voce (Audio) o Testo direttamente in RAM tramite Gemini REST API.
+    Nessun file temporaneo su disco. Rilascio immediato dei buffer volatili.
+    """
+    if not api_key:
+        if media_bytes and not raw_text:
+            raise RuntimeError(
+                "Chiave API Gemini in RAM necessaria per OCR Foto Pizzino o Trascrizione Vocale. "
+                "Inseriscila nel pannello Koenig/AI oppure usa la Nota Lampo testuale (attiva anche 100% offline)."
+            )
+        return heuristic_wafer_structurer(raw_text, default_dept, default_channel)
+
+    model_name = discover_gemini_model_in_ram(api_key)
+    asset_cfg = GENETIC_ASSETS[st.session_state.genetic_asset]
+    accounts_legend = "; ".join([f"{k}: {v['name']}" for k, v in SEMANTIC_ACCOUNTS.items()])
+
+    system_prompt = (
+        "Sei il motore neurale RAM-Only di BEMASK Sovereign Zero (Data Wafer // Eagle Launch Pad). "
+        "Trascrivi fedelmente eventuali foto di pizzini scritti a mano o registrazioni vocali di reparto "
+        "in italiano pulito, professionale e sintetico, eliminando rumori o esitazioni. "
+        "Struttura l'output ESCLUSIVAMENTE come oggetto JSON puro (senza markdown ```json) con queste chiavi esatte:\n"
+        "- clean_text: stringa con il testo operativo pulito e chiaro\n"
+        "- matter_unit: stringa sintetica dell'Asse X fisico (es. '+2 KG CAFFÈ', '-5 OMBRELLONI', '+3.8°C FRIGO 1', '1 CONSEGNA')\n"
+        "- euro_amount: numero float dell'importo in Euro se presente, altrimenti 0.0\n"
+        f"- channel: uno tra {json.dumps(asset_cfg['channels'], ensure_ascii=False)}\n"
+        f"- semantic_account: codice esatto tra i 13 conti [{accounts_legend}]\n"
+        f"- op_tag: uno tra {json.dumps(OPERATIONAL_TAGS)}\n"
+        f"- department: uno tra {json.dumps(asset_cfg['departments'], ensure_ascii=False)}\n"
+        "- priority: 'ALTA' oppure 'NORMALE'\n"
+        f" Assetto genetico attuale: {asset_cfg['title']} (Se STANDALONE non citare mai camere o hotel)."
+    )
+
+    parts = [{"text": system_prompt}]
+    if raw_text:
+        parts.append({"text": f"Nota testuale operatore (Reparto suggerito: {default_dept}): {raw_text}"})
+    if media_bytes and mime_type:
+        b64_payload = base64.b64encode(media_bytes).decode("ascii")
+        parts.append({"inline_data": {"mime_type": mime_type, "data": b64_payload}})
+
+    body = {
+        "contents": [{"parts": parts}],
+        "generationConfig": {"temperature": 0.15, "responseMimeType": "application/json"},
+    }
+
+    url = f"[https://generativelanguage.googleapis.com/v1beta/models/](https://generativelanguage.googleapis.com/v1beta/models/){model_name}:generateContent?key={api_key}"
+    req = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=25) as resp:
+            resp_json = json.loads(resp.read().decode("utf-8"))
+        cand_text = (
+            resp_json.get("candidates", [{}])[0]
+            .get("content", {})
+            .get("parts", [{}])[0]
+            .get("text", "{}")
         )
-        if not edited_df.equals(df_cal):
-            st.session_state["chrono_ledger"] = edited_df.to_dict("records")
-            st.rerun()
+        cand_text = re.sub(r"^```(?:json)?|```$", "", cand_text.strip(), flags=re.MULTILINE).strip()
+        parsed = json.loads(cand_text)
+
+        acc = str(parsed.get("semantic_account", "[A]")).strip().upper()
+        if not acc.startswith("["):
+            acc = f"[{acc[:1]}]"
+        if acc not in SEMANTIC_ACCOUNTS:
+            acc = "[A]"
+
+        tag = str(parsed.get("op_tag", "CONSEGNA_TURNO")).strip().upper()
+        if tag not in OPERATIONAL_TAGS:
+            tag = "CONSEGNA_TURNO"
+
+        dept = str(parsed.get("department", default_dept)).strip()
+        if dept not in asset_cfg["departments"]:
+            dept = default_dept
+
+        chan = str(parsed.get("channel", default_channel)).strip()
+        if chan not in asset_cfg["channels"]:
+            chan = default_channel
+
+        return {
+            "clean_text": str(parsed.get("clean_text", "")).strip() or "Nota acquisita in RAM.",
+            "matter_unit": str(parsed.get("matter_unit", "1 UNITA")).strip().upper()[:42],
+            "euro_amount": round(float(parsed.get("euro_amount", 0.0) or 0.0), 2),
+            "channel": chan,
+            "semantic_account": acc,
+            "op_tag": tag,
+            "department": dept,
+            "priority": "ALTA" if str(parsed.get("priority", "")).upper() == "ALTA" else "NORMALE",
+            "engine_used": f"GEMINI-RAM ({model_name})",
+        }
+    except urllib.error.HTTPError as e:
+        err_detail = e.read().decode("utf-8", errors="ignore")[:220]
+        raise RuntimeError(f"Errore API Gemini ({e.code}): {err_detail}")
+    finally:
+        # Azzeramento esplicito dei riferimenti ai buffer binari in RAM
+        media_bytes = None
+
+
+def forge_3axis_wafer(structured: dict, source_vector: str) -> dict:
+    """Costruisce l'Atomo Dati Universale a 3 Assi (Standard JSON X-Y-Z) e lo cala nell'Hangar RAM."""
+    asset_mode = st.session_state.genetic_asset
+    euro = float(structured.get("euro_amount", 0.0) or 0.0)
+    royalty_pct = float(st.session_state.partner_royalty_pct) if asset_mode == "PARTNER" else 0.0
+    cube_fee_eur = round(euro * (royalty_pct / 100.0), 2) if asset_mode == "PARTNER" and euro > 0 else 0.0
+    is_room_charge = "CAMERA" in structured.get("channel", "").upper()
+
+    wafer_id = f"WAF-{datetime.now().strftime('%H%M%S')}-{uuid.uuid4().hex[:4].upper()}"
+    atom = {
+        "wafer_id": wafer_id,
+        "schema": "BEMASK-SOVEREIGN-ZERO-XYZ-v1",
+        "architect_seal": ARCHITECT_ID,
+        "genetic_asset": asset_mode,
+        "status": "DA_EVADERE",
+        "ack_at": None,
+        "ack_by": None,
+        "axis_z": {
+            "timestamp_iso": utc_iso_now(),
+            "timestamp_human": human_time_now(),
+            "pod_code": POD_CODE,
+            "pod_repo": POD_REPO,
+            "entity_id": st.session_state.entity_id,
+            "shift": st.session_state.current_shift,
+            "weather_context": st.session_state.current_weather,
+            "capture_vector": source_vector,
+            "engine": structured.get("engine_used", "LOCAL-RAM"),
+        },
+        "axis_x": {
+            "clean_text": structured["clean_text"],
+            "matter_unit": structured["matter_unit"],
+            "department": structured["department"],
+            "op_tag": structured["op_tag"],
+            "priority": structured["priority"],
+        },
+        "axis_y": {
+            "euro_amount": euro,
+            "currency": "EUR",
+            "channel": structured["channel"],
+            "semantic_account": structured["semantic_account"],
+            "semantic_account_label": SEMANTIC_ACCOUNTS[structured["semantic_account"]]["name"],
+            "partner_royalty_pct": royalty_pct,
+            "cube_royalty_fee_eur": cube_fee_eur,
+            "room_charge_compensation": is_room_charge,
+        },
+    }
+    st.session_state.wafers_ram.insert(0, atom)
+    st.session_state.lift_descending = True
+    st.session_state.last_landed_wafer_id = wafer_id
+    queue_sound("hydraulic_descent")
+    return atom
+
 
 # ==============================================================================
-# 11. CORPO PRINCIPALE: PAGINA ZERO (12 QUADRATI) vs INGRESSO MODULO SPECIFICO
+# 4. AUTO-SCANNER BINARIO MP4 IN RAM & GENERATORE MATRICE OTTICA ZERO-CLOUD
 # ==============================================================================
-col_left, col_right = st.columns([3.25, 1.15])
-rc_id = st.session_state["ram_clear_counter"]
+def scan_mp4_binary_in_ram(raw_bytes: bytes, filename: str) -> dict:
+    """
+    Analizzatore forense ISO-BMFF / MP4 100% in RAM:
+    estrae impronta SHA-256, box strutturali (ftyp, moov, mdat, udta, meta) e sigilli BEMASK.
+    """
+    size_bytes = len(raw_bytes)
+    sha256_hex = hashlib.sha256(raw_bytes).hexdigest().upper()
+    boxes = []
+    offset = 0
+    major_brand = "N/D"
 
-with col_left:
-    if st.session_state["blum_sector"] is not None:
-        sec_obj = next((s for s in all_squares if s["code"] == st.session_state["blum_sector"]), all_squares[0])
-        svg_blum = SVG_ICONS.get(sec_obj["code"], SVG_ICONS["01"])
+    while offset + 8 <= size_bytes and len(boxes) < 40:
+        box_size = struct.unpack(">I", raw_bytes[offset:offset + 4])[0]
+        box_type_raw = raw_bytes[offset + 4:offset + 8]
+        box_type = "".join(chr(b) if 32 <= b <= 126 else "?" for b in box_type_raw)
 
-        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (MATRICE INIZIALE A.L.P.H.A.)", key="exit_blum_top", use_container_width=True):
-            return_to_page_zero()
-            st.rerun()
+        header_len = 8
+        if box_size == 1 and offset + 16 <= size_bytes:
+            box_size = struct.unpack(">Q", raw_bytes[offset + 8:offset + 16])[0]
+            header_len = 16
+        elif box_size == 0:
+            box_size = size_bytes - offset
 
-        st.markdown(f"""
-        <div class="blum-stage" style="border: 2px solid {sec_obj['border']}; border-left: 6px solid {sec_obj['border']}; box-shadow: inset 0 0 40px {sec_obj['glow']};">
-            <div style="display:flex; align-items:center; gap:16px;">
-                <div>{svg_blum}</div>
-                <div>
-                    <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono'; letter-spacing:1.3px;">
-                        {sec_obj['artifact']} // SETTORE {sec_obj['code']} // CONTABILITÀ PARALLELA RAM
-                    </div>
-                    <div style="font-size:22px; font-weight:900; color:#FFFFFF; letter-spacing:1.3px; margin-top:2px;">
-                        {sec_obj['name']}
-                    </div>
-                    <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono'; margin-top:4px;">
-                        {sec_obj['kpi']} | SOTTOMENU ATTIVO: {st.session_state['selected_sub']}
-                    </div>
-                </div>
+        if box_type == "ftyp" and offset + header_len + 8 <= size_bytes:
+            major_brand = raw_bytes[offset + header_len:offset + header_len + 4].decode("ascii", errors="replace")
+
+        boxes.append({"type": box_type, "offset": offset, "size": box_size})
+        if box_size < 8:
+            break
+        offset += box_size
+
+    # Ricerca pattern d'autore nei metadati binari in RAM
+    upper_stream = raw_bytes.upper()
+    signatures_found = []
+    for marker in [b"BEMASK", b"ENRICO BRAGLIA", b"EB-BEMASK", b"SOVEREIGN ZERO"]:
+        if marker in upper_stream:
+            signatures_found.append(marker.decode("ascii"))
+
+    return {
+        "filename": filename,
+        "ram_bytes": size_bytes,
+        "ram_mb": round(size_bytes / (1024 * 1024), 3),
+        "sha256": sha256_hex,
+        "major_brand": major_brand.strip(),
+        "top_boxes": boxes,
+        "bemask_signatures": signatures_found,
+        "scanned_at": human_time_now(),
+    }
+
+
+def generate_optical_matrix_svg(payload_text: str, accent_hex: str = "#F59E0B", size: int = 136) -> str:
+    """
+    Genera una matrice ottica deterministica SVG Zero-Cloud (0 chiamate esterne)
+    con finder patterns standard per verifica visiva/sincronizzazione locale e punzonatura.
+    """
+    digest = hashlib.sha512(payload_text.encode("utf-8")).digest()
+    grid_n = 21
+    cell = size / grid_n
+    rects = []
+
+    def is_finder(r: int, c: int) -> str:
+        for fr, fc in [(0, 0), (0, grid_n - 7), (grid_n - 7, 0)]:
+            if fr <= r < fr + 7 and fc <= c < fc + 7:
+                lr, lc = r - fr, c - fc
+                if lr in (0, 6) or lc in (0, 6) or (2 <= lr <= 4 and 2 <= lc <= 4):
+                    return "ON"
+                return "OFF"
+        return "DATA"
+
+    bit_idx = 0
+    for r in range(grid_n):
+        for c in range(grid_n):
+            f_state = is_finder(r, c)
+            active = False
+            fill = accent_hex
+            if f_state == "ON":
+                active = True
+            elif f_state == "DATA":
+                byte_val = digest[(bit_idx // 8) % len(digest)]
+                active = bool((byte_val >> (bit_idx % 8)) & 1)
+                bit_idx += 1
+                fill = "#E2E8F0" if (r + c) % 3 else accent_hex
+            if active:
+                rects.append(
+                    f'<rect x="{c * cell:.2f}" y="{r * cell:.2f}" width="{cell * 0.92:.2f}" '
+                    f'height="{cell * 0.92:.2f}" rx="0.8" fill="{fill}" />'
+                )
+
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 {size} {size}" '
+        f'xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" style="background:#0B0E14;padding:6px;'
+        f'border:1px solid {accent_hex}55;border-radius:6px;">'
+        + "".join(rects)
+        + "</svg>"
+    )
+
+
+# ==============================================================================
+# 5. ESTETICA DARK LUXURY / MOONBASE ALPHA 1975 & BLOCCO SCROLL ORIZZONTALE
+# ==============================================================================
+def inject_moonbase_1975_css() -> None:
+    css = """
+    <style>
+    @import url('[https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap](https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap)');
+
+    :root {
+        --bg-void: #101319;
+        --bg-panel: #161B24;
+        --bg-elevated: #1D2432;
+        --amber: #F59E0B;
+        --emerald: #10B981;
+        --cyan: #38BDF8;
+        --red-alert: #EF4444;
+        --text-hi: #F8FAFC;
+        --text-dim: #94A3B8;
+        --border-tech: rgba(245, 158, 11, 0.28);
+    }
+
+    /* Blocco totale scroll orizzontale mobile & pulizia container */
+    html, body, [data-testid="stAppViewContainer"], [data-testid="stMain"], .main {
+        background-color: var(--bg-void) !important;
+        color: var(--text-hi) !important;
+        font-family: 'Share Tech Mono', monospace !important;
+        overflow-x: hidden !important;
+        max-width: 100vw !important;
+    }
+
+    .block-container {
+        padding-top: 1.1rem !important;
+        padding-bottom: 2.5rem !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        max-width: 1280px !important;
+        overflow-x: hidden !important;
+    }
+
+    header[data-testid="stHeader"] {
+        background: transparent !important;
+    }
+
+    h1, h2, h3, .orbitron {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 0.06em !important;
+    }
+
+    /* Dock Rapida Superiore */
+    .bemask-dock {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 8px 10px;
+        background: linear-gradient(180deg, #171C26 0%, #101319 100%);
+        border: 1px solid rgba(56, 189, 248, 0.25);
+        border-left: 4px solid var(--amber);
+        border-radius: 6px;
+        margin-bottom: 12px;
+        align-items: center;
+    }
+    .dock-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 8px;
+        font-size: 0.73rem;
+        border-radius: 4px;
+        background: #1B2230;
+        color: #CBD5E1 !important;
+        text-decoration: none !important;
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        white-space: nowrap;
+        transition: all 0.15s ease;
+    }
+    .dock-chip:hover {
+        border-color: var(--cyan);
+        color: var(--cyan) !important;
+    }
+    .dock-chip.active {
+        background: rgba(245, 158, 11, 0.18);
+        border: 1px solid var(--amber);
+        color: var(--amber) !important;
+        font-weight: bold;
+        box-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
+    }
+
+    /* Header Moonbase Alpha */
+    .alpha-banner {
+        background: radial-gradient(circle at 85% 20%, rgba(245,158,11,0.10), transparent 55%),
+                    linear-gradient(135deg, #151A24 0%, #0D1017 100%);
+        border: 1px solid var(--border-tech);
+        border-top: 3px solid var(--amber);
+        border-radius: 8px;
+        padding: 14px 18px;
+        margin-bottom: 14px;
+    }
+
+    /* Card Wafer Hangar Sotterraneo */
+    .wafer-card {
+        background: linear-gradient(180deg, #171D28 0%, #121720 100%);
+        border: 1px solid rgba(148, 163, 184, 0.20);
+        border-left: 4px solid var(--amber);
+        border-radius: 6px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+    }
+    .wafer-card.done {
+        border-left-color: var(--emerald);
+        opacity: 0.86;
+    }
+    .wafer-card.urgent {
+        border-left-color: var(--red-alert);
+        box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.08);
+    }
+
+    .axis-pill {
+        display: inline-block;
+        padding: 2px 7px;
+        font-size: 0.72rem;
+        border-radius: 3px;
+        margin-right: 5px;
+        margin-bottom: 4px;
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+    .pill-z { background: rgba(56, 189, 248, 0.12); color: #38BDF8; border-color: rgba(56,189,248,0.35); }
+    .pill-x { background: rgba(245, 158, 11, 0.13); color: #F59E0B; border-color: rgba(245,158,11,0.38); }
+    .pill-y { background: rgba(16, 185, 129, 0.13); color: #10B981; border-color: rgba(16,185,129,0.38); }
+    .pill-alert { background: rgba(239, 68, 68, 0.16); color: #EF4444; border-color: rgba(239,68,68,0.45); }
+
+    /* Pulsanti Streamlit Moonbase 1975 */
+    .stButton > button, .stDownloadButton > button {
+        font-family: 'Orbitron', sans-serif !important;
+        font-size: 0.76rem !important;
+        letter-spacing: 0.05em !important;
+        border-radius: 5px !important;
+        border: 1px solid rgba(245, 158, 11, 0.45) !important;
+        background: linear-gradient(180deg, #1E2636 0%, #141923 100%) !important;
+        color: #F8FAFC !important;
+        transition: all 0.16s ease !important;
+    }
+    .stButton > button:hover, .stDownloadButton > button:hover {
+        border-color: #F59E0B !important;
+        color: #F59E0B !important;
+        box-shadow: 0 0 12px rgba(245, 158, 11, 0.25) !important;
+    }
+
+    /* Animazione Piattaforma Idraulica Eagle Launch Pad */
+    @keyframes padDescentPulse {
+        0%   { transform: translateY(0px) scale(1.0); opacity: 1; }
+        45%  { transform: translateY(10px) scale(0.95); opacity: 0.88; }
+        100% { transform: translateY(0px) scale(1.0); opacity: 1; }
+    }
+    .hydraulic-active {
+        animation: padDescentPulse 1.35s ease-in-out 1;
+    }
+
+    /* Punzone Metallico d'Autore in Calce */
+    .metallic-punch {
+        margin-top: 28px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, #0D1016 0%, #1A212E 50%, #0D1016 100%);
+        border: 1px solid rgba(245, 158, 11, 0.40);
+        border-top: 2px solid #F59E0B;
+        border-bottom: 2px solid #38BDF8;
+        border-radius: 6px;
+        text-align: center;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 6px 20px rgba(0,0,0,0.55);
+    }
+    </style>
+    """
+    st.markdown(css, unsafe_allow_html=True)
+
+
+def render_eagle_launch_pad_svg(descending: bool, total_wafers: int, pending_wafers: int) -> None:
+    """Manufatto Space: 1999 - Piattaforma Circolare Eagle Launch Pad & Hydraulic Hangar Lift."""
+    ring_color = "#10B981" if descending else "#F59E0B"
+    elevation_txt = "ELEVATOR: -18.4m HANGAR LOCK" if descending else "SURFACE PAD: 0.0m READY"
+    anim_class = "hydraulic-active" if descending else ""
+    status_led = "#EF4444" if pending_wafers > 0 else "#10B981"
+
+    svg_html = f"""
+    <div style="background:#0C0F15;border:1px solid rgba(245,158,11,0.30);border-radius:8px;padding:10px;text-align:center;">
+        <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:#94A3B8;margin-bottom:4px;">
+            <span>MOONBASE ALPHA // PAD-01</span>
+            <span style="color:{ring_color};font-weight:bold;">{elevation_txt}</span>
+        </div>
+        <svg viewBox="0 0 360 210" width="100%" style="max-height:205px;" xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)">
+            <defs>
+                <radialGradient id="hangarGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="{ring_color}" stop-opacity="0.24"/>
+                    <stop offset="70%" stop-color="#38BDF8" stop-opacity="0.06"/>
+                    <stop offset="100%" stop-color="#0C0F15" stop-opacity="0"/>
+                </radialGradient>
+            </defs>
+
+            <!-- Pozzo Cilindrico Sotterraneo Hangar -->
+            <ellipse cx="180" cy="152" rx="124" ry="38" fill="#080A0E" stroke="#38BDF8" stroke-width="1.2" stroke-dasharray="5,4" opacity="0.75"/>
+            <line x1="56" y1="88" x2="56" y2="152" stroke="#334155" stroke-width="2"/>
+            <line x1="304" y1="88" x2="304" y2="152" stroke="#334155" stroke-width="2"/>
+
+            <!-- 4 Pistoni Idraulici Verticali -->
+            <rect x="92"  y="96" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="148" y="108" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="204" y="108" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+            <rect x="260" y="96" width="8" height="62" fill="#1E293B" stroke="{ring_color}" stroke-width="0.9"/>
+
+            <!-- Piattaforma Circolare Mobile Eagle Launch Pad -->
+            <g class="{anim_class}">
+                <ellipse cx="180" cy="92" rx="128" ry="42" fill="url(#hangarGlow)" stroke="{ring_color}" stroke-width="2.2"/>
+                <ellipse cx="180" cy="92" rx="104" ry="33" fill="#131924" stroke="#F59E0B" stroke-width="1.3" stroke-dasharray="10,5"/>
+                <ellipse cx="180" cy="92" rx="68" ry="21" fill="#0E131C" stroke="#38BDF8" stroke-width="1.2"/>
+
+                <!-- Croce di Centraggio Aquila -->
+                <line x1="72" y1="92" x2="288" y2="92" stroke="#F59E0B" stroke-width="0.9" opacity="0.65"/>
+                <line x1="180" y1="54" x2="180" y2="130" stroke="#F59E0B" stroke-width="0.9" opacity="0.65"/>
+
+                <!-- Nucleo Centrale Wafer -->
+                <ellipse cx="180" cy="92" rx="26" ry="9" fill="{ring_color}" fill-opacity="0.22" stroke="{ring_color}" stroke-width="1.5"/>
+                <text x="180" y="95" fill="#F8FAFC" font-size="9" font-family="Orbitron, monospace" text-anchor="middle" font-weight="bold">EAGLE-DW</text>
+            </g>
+
+            <!-- Telemetria Base Hangar RAM -->
+            <circle cx="28" cy="192" r="5" fill="{status_led}"/>
+            <text x="40" y="196" fill="#CBD5E1" font-size="10" font-family="Share Tech Mono, monospace">
+                HANGAR RAM: {total_wafers} WAFER // DA EVADERE: {pending_wafers}
+            </text>
+            <text x="342" y="196" fill="#38BDF8" font-size="9.5" font-family="Share Tech Mono, monospace" text-anchor="end">
+                ZERO-CLOUD 0 BYTE
+            </text>
+        </svg>
+    </div>
+    """
+    st.markdown(svg_html, unsafe_allow_html=True)
+    if st.session_state.lift_descending:
+        st.session_state.lift_descending = False
+
+
+# ==============================================================================
+# 6. DOCK RAPIDA SUPERIORE, KOENIG SECURITY GATE & DOSSIER ARCHITETTO
+# ==============================================================================
+def render_top_quick_dock() -> None:
+    allowed = LICENSE_CTX["allowed_codes"]
+    base_hub = LICENSE_CTX["base_url"].rstrip("/")
+    chips_html = []
+
+    for sec in SECTOR_MATRIX:
+        code = sec["code"]
+        if allowed is not None and code not in allowed:
+            continue
+        is_current = code == "DW"
+        cls = "dock-chip active" if is_current else "dock-chip"
+        if is_current:
+            href = "#"
+        elif base_hub:
+            href = f"{base_hub}/{sec['repo']}"
+        else:
+            href = f"?pod={sec['repo']}" + (f"&mask={LICENSE_CTX['raw_mask']}" if LICENSE_CTX["raw_mask"] else "")
+        chips_html.append(
+            f'<a class="{cls}" href="{html.escape(href)}" title="Settore {code}: {html.escape(sec["label"])}">'
+            f'<span>{sec["icon"]}</span><span>{code}·{html.escape(sec["label"])}</span></a>'
+        )
+
+    lic_badge = (
+        f'<span style="margin-left:auto;font-size:0.70rem;color:#10B981;border:1px solid #10B98155;'
+        f'padding:2px 7px;border-radius:4px;">LICENZA FILTRATA (?mask={html.escape(LICENSE_CTX["raw_mask"])})</span>'
+        if LICENSE_CTX["licensed"]
+        else '<span style="margin-left:auto;font-size:0.70rem;color:#38BDF8;">MATRICE 2^12 COMPLETA</span>'
+    )
+
+    st.markdown(
+        f'<div class="bemask-dock">{"".join(chips_html)}{lic_badge}</div>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_architect_dossier_body() -> None:
+    st.markdown(
+        f"""
+        <div style="background:#121722;border:1px solid #F59E0B88;border-left:5px solid #F59E0B;padding:14px;border-radius:6px;margin-bottom:12px;">
+            <div class="orbitron" style="color:#F59E0B;font-size:1.05rem;font-weight:700;">
+                ◈ ARCHITECT & CREATOR: {ARCHITECT_NAME}
+            </div>
+            <div style="color:#38BDF8;font-size:0.82rem;margin-top:3px;">
+                SIGILLO ID: <b>{ARCHITECT_ID}</b> // ECOSISTEMA: BEMASK SOVEREIGN ZERO
+            </div>
+            <p style="color:#CBD5E1;font-size:0.84rem;margin-top:8px;margin-bottom:0;">
+                30+ anni in Direzione Alberghiera, Revenue Management, TRevPAR Optimization, F&B Direction, Media & AI Lab.<br/>
+                Architettura frattale 3x3x3 basata sulla meccanica del Cubo di Rubik: dal singolo esercizio autonomo fino al Mega-Resort integrato e Holding multi-societaria, governata dal principio non negoziabile di <b>Sovranità Assoluta Zero-Trust RAM-Only</b>.
+            </p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    col_qr, col_manifesto = st.columns([1, 2.2])
+    with col_qr:
+        qr_payload = (
+            f"BEMASK_ARCHITECT|{ARCHITECT_NAME}|ID:{ARCHITECT_ID}|"
+            f"ORG:bemask-sovereign-zero|POD:{POD_REPO}|ZERO_TRUST_RAM"
+        )
+        st.markdown(
+            "<div style='text-align:center;'>"
+            + generate_optical_matrix_svg(qr_payload, "#F59E0B", 148)
+            + "<div style='font-size:0.72rem;color:#94A3B8;margin-top:6px;'>MATRICE IDENTITÀ OTTICA<br/>(Zero-Cloud Offline Seal)</div></div>",
+            unsafe_allow_html=True,
+        )
+    with col_manifesto:
+        st.markdown("**MANIFESTO TECNICO COSTITUZIONALE**")
+        st.code(
+            f"ARCHITECT_ID : {ARCHITECT_ID}\n"
+            f"CREATOR      : {ARCHITECT_NAME}\n"
+            f"CENTRAL_HUB  : alpha-main-mission (27° Cubo Invisibile)\n"
+            f"ACTIVE_POD   : {POD_REPO} ({POD_CODE})\n"
+            f"DATA_ATOM    : 3-Axis Universal JSON [Z:Time/Ctx | X:Matter | Y:EUR A-O]\n"
+            f"SOVEREIGNTY  : 0 Bytes Cloud Persistence // Volatile RAM Execution",
+            language="yaml",
+        )
+
+    st.markdown("---")
+    st.markdown("#### 🎞️ AUTO-SCANNER BINARIO MP4 IN RAM (FORENSIC BRAND VERIFIER)")
+    st.caption(
+        "Ispeziona in memoria volatile la struttura atomica ISO-BMFF (`ftyp`, `moov`, `mdat`, `meta`), "
+        "calcola l'impronta crittografica SHA-256 e rileva il punzone binario BEMASK senza salvare alcun file su disco."
+    )
+    mp4_file = st.file_uploader(
+        "Carica file video .MP4 / .MOV per scansione binaria istantanea in RAM",
+        type=["mp4", "mov", "m4v"],
+        key="architect_mp4_scanner",
+    )
+    if mp4_file is not None:
+        raw_video = mp4_file.getvalue()
+        report = scan_mp4_binary_in_ram(raw_video, mp4_file.name)
+        raw_video = None  # Rilascio immediato buffer RAM
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Dimensione in RAM", f"{report['ram_mb']} MB")
+        c2.metric("Major Brand ISO", report["major_brand"])
+        c3.metric("Punzone BEMASK", "RILEVATO ✓" if report["bemask_signatures"] else "ESTERNO / RAW")
+        st.code(
+            f"FILE     : {report['filename']}\n"
+            f"SHA-256  : {report['sha256']}\n"
+            f"SIGNATURES: {', '.join(report['bemask_signatures']) if report['bemask_signatures'] else 'Nessun marker ASCII BEMASK incorporato'}\n"
+            f"ISO BOXES : " + " -> ".join([f"[{b['type']}:{b['size']}B]" for b in report["top_boxes"][:10]]),
+            language="text",
+        )
+
+
+if hasattr(st, "dialog"):
+    @st.dialog("◈ ARCHITECT DOSSIER // ENRICO BRAGLIA")
+    def open_architect_modal():
+        render_architect_dossier_body()
+else:
+    open_architect_modal = None
+
+
+def render_koenig_security_and_genetics() -> None:
+    """Pannello Koenig Security Gate (PIN + 2FA RFC 6238 + Log Antintrusione) + Selettore Genetico + Gemini Key RAM."""
+    with st.container():
+        st.markdown(
+            "<div style='background:#141923;border:1px solid #38BDF855;border-radius:6px;padding:12px;margin-bottom:14px;'>"
+            "<span class='orbitron' style='color:#38BDF8;font-size:0.9rem;'>🛡️ KOENIG SECURITY GATE & CONFIGURAZIONE GENETICA POD</span>"
+            "</div>",
+            unsafe_allow_html=True,
+        )
+
+        k_col1, k_col2, k_col3 = st.columns([1.2, 1.2, 1.3])
+
+        # --- Colonna 1: Autenticazione Ruolo Staff vs Commander ---
+        with k_col1:
+            st.markdown("**1. RUOLO & FILTRO ANTI-TALPA**")
+            st.caption(
+                f"Stato attuale: **{'COMMANDER (Sbloccato)' if st.session_state.role == 'COMMANDER' else 'STAFF (Valori sensibili Y oscurati)'}**"
+            )
+            if st.session_state.role != "COMMANDER":
+                pin_in = st.text_input("PIN Commander", type="password", placeholder="Default demo: 1975", key="k_pin_in")
+                totp_in = ""
+                if st.session_state.require_totp:
+                    totp_in = st.text_input("Codice 2FA Google Auth (6 cifre)", max_chars=6, key="k_totp_in")
+                if st.button("🔓 SBLOCCA COMMANDER", use_container_width=True):
+                    pin_ok = hmac.compare_digest(pin_in or "", st.session_state.commander_pin)
+                    totp_ok = verify_totp_rfc6238(st.session_state.totp_secret, totp_in) if st.session_state.require_totp else True
+                    if pin_ok and totp_ok:
+                        st.session_state.role = "COMMANDER"
+                        queue_sound("telemetry_ack")
+                        safe_rerun()
+                    else:
+                        st.session_state.intrusion_log.insert(
+                            0,
+                            {
+                                "ts": human_time_now(),
+                                "event": "TENTATIVO ACCESSO FALLITO",
+                                "detail": "PIN errato" if not pin_ok else "2FA RFC 6238 non valida",
+                            },
+                        )
+                        queue_sound("koenig_alarm")
+                        st.error("Accesso respinto da Koenig Gate. Evento registrato in RAM.")
+            else:
+                if st.button("🔒 TORNA A RUOLO STAFF (ANTI-TALPA)", use_container_width=True):
+                    st.session_state.role = "STAFF"
+                    safe_rerun()
+                st.session_state.require_totp = st.checkbox(
+                    "Richiedi 2FA RFC 6238 (Google Auth) oltre al PIN",
+                    value=st.session_state.require_totp,
+                )
+                new_pin = st.text_input("Aggiorna PIN in RAM", value=st.session_state.commander_pin, type="password")
+                if new_pin and new_pin != st.session_state.commander_pin:
+                    st.session_state.commander_pin = new_pin
+                otpauth_uri = (
+                    f"otpauth://totp/BEMASK_DataWafer:{st.session_state.entity_id}"
+                    f"?secret={st.session_state.totp_secret}&issuer=BEMASK_Sovereign_Zero"
+                )
+                st.caption(f"Segreto Base32 2FA: `{st.session_state.totp_secret}`")
+                st.caption(f"Token RFC 6238 attivo (verifica): `{generate_totp_rfc6238(st.session_state.totp_secret)}`")
+                with st.expander("URI Provisioning Google Authenticator"):
+                    st.code(otpauth_uri, language="text")
+
+        # --- Colonna 2: Selettore Genetico a 3 Assetti (Nascosto se licenza URL bloccata e non Commander) ---
+        with k_col2:
+            st.markdown("**2. SELETTORE GENETICO A 3 ASSETTI**")
+            if LICENSE_CTX["licensed"] and st.session_state.role != "COMMANDER":
+                st.info(
+                    f"Assetto vincolato da Licenza URL:\n**{GENETIC_ASSETS[st.session_state.genetic_asset]['title']}**"
+                )
+            else:
+                asset_keys = list(GENETIC_ASSETS.keys())
+                sel_asset = st.radio(
+                    "Modalità operativa del Micro-Pod",
+                    options=asset_keys,
+                    index=asset_keys.index(st.session_state.genetic_asset),
+                    format_func=lambda k: GENETIC_ASSETS[k]["title"],
+                )
+                if sel_asset != st.session_state.genetic_asset:
+                    st.session_state.genetic_asset = sel_asset
+                    safe_rerun()
+
+                st.session_state.entity_id = st.text_input(
+                    "Codice Societario / Entity ID (P.IVA)",
+                    value=st.session_state.entity_id,
+                )
+                if st.session_state.genetic_asset == "PARTNER":
+                    st.session_state.partner_royalty_pct = st.number_input(
+                        "Fee / Royalty verso Cubo Madre (%)",
+                        min_value=0.0,
+                        max_value=60.0,
+                        value=float(st.session_state.partner_royalty_pct),
+                        step=0.5,
+                    )
+
+        # --- Colonna 3: Motore Gemini OCR/Voce in RAM & Log Antintrusione ---
+        with k_col3:
+            st.markdown("**3. MOTORE AI GEMINI IN RAM & TELEMETRIA**")
+            api_in = st.text_input(
+                "Gemini API Key (Volatile in RAM - OCR Foto & Audio)",
+                value=st.session_state.gemini_api_key,
+                type="password",
+                placeholder="AIza... (Opzionale per testo, richiesta per Foto/Voce)",
+            )
+            if api_in != st.session_state.gemini_api_key:
+                st.session_state.gemini_api_key = api_in.strip()
+                st.session_state.gemini_discovered_model = ""
+                if st.session_state.gemini_api_key:
+                    discover_gemini_model_in_ram(st.session_state.gemini_api_key)
+
+            if st.session_state.gemini_api_key:
+                mod = discover_gemini_model_in_ram(st.session_state.gemini_api_key)
+                st.success(f"Autodiscovery Gemini attiva: `{mod}`")
+            else:
+                st.caption("Modalità Offline Euristica attiva per Note Testuali. Inserisci API Key per Foto OCR e Voce.")
+
+            if st.session_state.intrusion_log:
+                st.markdown(f"**⚠️ LOG ANTINTRUSIONE ({len(st.session_state.intrusion_log)})**")
+                for entry in st.session_state.intrusion_log[:3]:
+                    st.caption(f"🔴 `{entry['ts']}` — {entry['detail']}")
+
+
+# ==============================================================================
+# 7. GENERAZIONE EXPORT LOCALI (.JSON A 3 ASSI, .TXT CONSEGNA, .HTML DOSSIER)
+# ==============================================================================
+def export_wafers_json() -> str:
+    payload = {
+        "protocol": "BEMASK_SOVEREIGN_ZERO_DATA_WAFER",
+        "architect": ARCHITECT_NAME,
+        "architect_id": ARCHITECT_ID,
+        "exported_at": utc_iso_now(),
+        "entity_id": st.session_state.entity_id,
+        "genetic_asset": st.session_state.genetic_asset,
+        "total_wafers": len(st.session_state.wafers_ram),
+        "wafers": st.session_state.wafers_ram,
+    }
+    return json.dumps(payload, indent=2, ensure_ascii=False)
+
+
+def export_wafers_txt(is_commander: bool) -> str:
+    lines = [
+        "========================================================================",
+        f"BEMASK DATA WAFER // EAGLE LAUNCH PAD & HANGAR LIFT ({POD_CODE})",
+        f"ARCHITECT: {ARCHITECT_NAME} // ID: {ARCHITECT_ID}",
+        f"ENTITY: {st.session_state.entity_id} | ASSETTO: {GENETIC_ASSETS[st.session_state.genetic_asset]['title']}",
+        f"EXPORT: {human_time_now()} | TOTALE WAFER: {len(st.session_state.wafers_ram)}",
+        "========================================================================",
+        "",
+    ]
+    for w in st.session_state.wafers_ram:
+        z, x, y = w["axis_z"], w["axis_x"], w["axis_y"]
+        acc_code = y["semantic_account"]
+        hide_y = (not is_commander) and (SEMANTIC_ACCOUNTS.get(acc_code, {}).get("sensitive", False) or y["euro_amount"] > 0)
+        y_str = (
+            "[RISERVATO COMMANDER]"
+            if hide_y
+            else f"EUR {y['euro_amount']:.2f} | {y['channel']} | {acc_code} {y['semantic_account_label']}"
+        )
+        status_flag = f"EVASO ({w['ack_at']})" if w["status"] == "EVASO" else "DA EVADERE"
+        lines.append(f"[{w['wafer_id']}] {z['timestamp_human']} | {z['shift']} | STATO: {status_flag}")
+        lines.append(f"  ASSE X (MATERIA) : [{x['department']}] [{x['op_tag']}] ({x['matter_unit']}) -> {x['clean_text']}")
+        lines.append(f"  ASSE Y (ENERGIA) : {y_str}")
+        lines.append("-" * 72)
+    return "\n".join(lines)
+
+
+def export_wafers_html(is_commander: bool) -> str:
+    rows = []
+    for w in st.session_state.wafers_ram:
+        z, x, y = w["axis_z"], w["axis_x"], w["axis_y"]
+        acc_code = y["semantic_account"]
+        hide_y = (not is_commander) and (SEMANTIC_ACCOUNTS.get(acc_code, {}).get("sensitive", False) or y["euro_amount"] > 0)
+        y_cell = "RISERVATO COMMANDER" if hide_y else f"€ {y['euro_amount']:.2f} • {html.escape(y['channel'])} • {html.escape(acc_code)}"
+        rows.append(
+            f"<tr>"
+            f"<td>{html.escape(w['wafer_id'])}<br/><small>{html.escape(z['timestamp_human'])}</small></td>"
+            f"<td>{html.escape(x['department'])}<br/><b>{html.escape(x['op_tag'])}</b></td>"
+            f"<td><b>[{html.escape(x['matter_unit'])}]</b> {html.escape(x['clean_text'])}</td>"
+            f"<td>{y_cell}</td>"
+            f"<td>{html.escape(w['status'])}</td>"
+            f"</tr>"
+        )
+    return f"""<!DOCTYPE html>
+<html lang="it"><head><meta charset="utf-8"/>
+<title>BEMASK DATA WAFER REPORT - {html.escape(st.session_state.entity_id)}</title>
+<style>
+body {{ background:#101319; color:#F8FAFC; font-family:monospace; padding:24px; }}
+h1 {{ color:#F59E0B; border-bottom:2px solid #F59E0B; padding-bottom:8px; }}
+table {{ width:100%; border-collapse:collapse; margin-top:16px; }}
+th, td {{ border:1px solid #334155; padding:8px 10px; text-align:left; font-size:13px; }}
+th {{ background:#1D2432; color:#38BDF8; }}
+.footer {{ margin-top:24px; padding:12px; border:1px solid #F59E0B; text-align:center; color:#94A3B8; font-size:12px; }}
+</style></head><body>
+<h1>◈ BEMASK DATA WAFER // HANGAR RAM REPORT</h1>
+<p>Entity: <b>{html.escape(st.session_state.entity_id)}</b> | Assetto: <b>{html.escape(GENETIC_ASSETS[st.session_state.genetic_asset]['title'])}</b> | Data: {human_time_now()}</p>
+<table><thead><tr><th>Wafer / Asse Z</th><th>Reparto / Tag</th><th>Asse X (Materia & Testo Pulito)</th><th>Asse Y (Energia & Conto)</th><th>Stato</th></tr></thead>
+<tbody>{''.join(rows)}</tbody></table>
+<div class="footer">◈ ARCHITECT & CREATOR: {ARCHITECT_NAME} // ID: {ARCHITECT_ID} // SOVEREIGN ZERO RAM-ONLY</div>
+</body></html>"""
+
+
+# ==============================================================================
+# 8. INTERFACCIA OPERATIVA PRINCIPALE SU 2 LIVELLI (SUPERFICIE + HANGAR RAM)
+# ==============================================================================
+inject_moonbase_1975_css()
+render_ems_1975_synth()
+
+# --- Barra Dock Rapida Multi-Modulo ---
+render_top_quick_dock()
+
+# --- Testata Comando Eagle Launch Pad ---
+asset_info = GENETIC_ASSETS[st.session_state.genetic_asset]
+hdr_left, hdr_right = st.columns([2.6, 1.4])
+
+with hdr_left:
+    st.markdown(
+        f"""
+        <div class="alpha-banner">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                <span class="orbitron" style="color:#F59E0B;font-size:1.18rem;font-weight:900;">
+                    ◎ BEMASK DATA WAFER // EAGLE LAUNCH PAD
+                </span>
+                <span style="font-size:0.74rem;padding:3px 8px;border-radius:4px;background:rgba(16,185,129,0.14);color:#10B981;border:1px solid #10B98155;">
+                    {html.escape(asset_info['badge'])}
+                </span>
+            </div>
+            <div style="color:#94A3B8;font-size:0.80rem;margin-top:5px;">
+                Piattaforma Anti-Pizzini Volanti • Foto OCR + Voce + Nota Lampo → Discesa Idraulica Hangar RAM a 3 Assi (Zero Cloud • Zero Distrazioni)
+            </div>
+            <div style="margin-top:7px;font-size:0.74rem;color:#38BDF8;">
+                ENTITY: <b>{html.escape(st.session_state.entity_id)}</b>  | 
+                RUOLO: <b style="color:{'#10B981' if st.session_state.role == 'COMMANDER' else '#F59E0B'};">{st.session_state.role}</b>  | 
+                SOVRANITÀ: <b>0 BYTE CLOUD</b>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """,
+        unsafe_allow_html=True,
+    )
 
-        sub_cols = st.columns(6)
-        for idx_s, sub_label in enumerate(sec_obj["subs"]):
-            with sub_cols[idx_s]:
-                if st.button(sub_label, key=f"blum_sub_{sec_obj['code']}_{idx_s}", use_container_width=True):
-                    st.session_state["selected_sub"] = sub_label
-                    st.rerun()
-        with sub_cols[5]:
-            if st.button("🏠 0. Pagina Zero", key=f"sub_zero_{sec_obj['code']}", use_container_width=True):
-                return_to_page_zero()
-                st.rerun()
-
-        st.markdown("<div style='height:6px;'></div>", unsafe_allow_html=True)
-        curr_sub = str(st.session_state.get("selected_sub", sec_obj["subs"][0]))
-
-        # ======================================================================
-        # MODULO 12: TRAVEL TUBE SHIELD (PONTE DI LANCIO AL POD STANDALONE)
-        # ======================================================================
-        if sec_obj["code"] == "12":
-            if "5." in curr_sub:
-                render_alpha_chrono_calendar()
+with hdr_right:
+    b_col1, b_col2, b_col3 = st.columns([1.15, 1.15, 0.7])
+    with b_col1:
+        if st.button("🛡️ KOENIG / ASSET", use_container_width=True):
+            st.session_state.show_koenig_panel = not st.session_state.show_koenig_panel
+            safe_rerun()
+    with b_col2:
+        if st.button("◈ ARCHITECT", use_container_width=True):
+            if open_architect_modal is not None:
+                open_architect_modal()
             else:
-                st.markdown("##### 🛸 ALPHA TRAVEL TUBE // SALVACULO CASSA, MULTI-POS vs RT & MOTORE SEMANTICO")
-                st.info("Il **Travel Tube (Settore 12)** opera come Pod autonomo ad alta velocità dedicato all'allineamento Fondo Cassa mattina, rilevamento collisioni Storico POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
-                st.link_button("🚀 LANCIA POD AUTONOMO TRAVEL TUBE (bemask-travel-tube.streamlit.app)", sec_obj["url"], use_container_width=True)
+                st.session_state.show_architect_dossier = not st.session_state.show_architect_dossier
+    with b_col3:
+        sound_lbl = "🔊 EMS" if st.session_state.audio_synth_enabled else "🔇 OFF"
+        if st.button(sound_lbl, use_container_width=True, help="Attiva/Disattiva Synth WebAudio EMS-1975"):
+            st.session_state.audio_synth_enabled = not st.session_state.audio_synth_enabled
+            if st.session_state.audio_synth_enabled:
+                queue_sound("telemetry_ack")
+            safe_rerun()
 
-        # ======================================================================
-        # MODULO 10: BAR & DDT SENTINEL
-        # ======================================================================
-        elif sec_obj["code"] == "10":
-            if "5." in curr_sub:
-                render_alpha_chrono_calendar()
+if st.session_state.show_koenig_panel:
+    render_koenig_security_and_genetics()
 
-            elif "2." in curr_sub:
-                st.markdown("##### 🎹 CONTABILITÀ PARALLELA RAPIDA (CONTI A → O) // TIMBRA USCITA PER CATEGORIA")
-                with st.expander("⚙️ Personalizza i nomi dei Conti A-O della tua Contabilità Parallela", expanded=False):
-                    cfg_cols = st.columns(4)
-                    keys_list = list(st.session_state["bar_ao_labels"].keys())
-                    for idx_k, k_let in enumerate(keys_list):
-                        with cfg_cols[idx_k % 4]:
-                            st.session_state["bar_ao_labels"][k_let] = st.text_input(f"Conto {k_let}", st.session_state["bar_ao_labels"][k_let], key=f"cfg_ao_{k_let}")
+if open_architect_modal is None and st.session_state.show_architect_dossier:
+    with st.expander("◈ ARCHITECT DOSSIER // ENRICO BRAGLIA", expanded=True):
+        render_architect_dossier_body()
 
-                imp_col1, imp_col2 = st.columns([1.4, 2.6])
-                with imp_col1:
-                    uscita_euro = st.number_input("💶 Importo Spesa / Uscita (€)", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
-                with imp_col2:
-                    nota_opz = st.text_input("📝 Nota veloce (Opzionale):", placeholder="Es. Ghiaccio, Latte, Acconto...")
+# ==============================================================================
+# LIVELLO 1: SUPERFICIE — ATTERRAGGIO RAPIDO SULL'EAGLE LAUNCH PAD (1-3 SECONDI)
+# ==============================================================================
+pending_count = sum(1 for w in st.session_state.wafers_ram if w["status"] != "EVASO")
+surf_left, surf_right = st.columns([1.25, 1.95])
 
-                ao_keys = list(st.session_state["bar_ao_labels"].keys())
-                row1 = st.columns(4)
-                for i, k_let in enumerate(ao_keys):
-                    lbl = st.session_state["bar_ao_labels"][k_let]
-                    if row1[i % 4].button(f"[{k_let}] {lbl}", key=f"btn_ao_{k_let}", use_container_width=True):
-                        dettaglio = f"{lbl} ({nota_opz})" if nota_opz.strip() else f"Imputazione diretta {lbl}"
-                        add_calendar_event(f"CASSA [{k_let}]", dettaglio, -uscita_euro, 1, "OK", conto=f"[{k_let}] {lbl}")
-                        play_ems_synth("commlock")
-                        st.toast(f"✅ Imputato su [{k_let}] {lbl}: -€ {uscita_euro:.2f}")
-                        st.rerun()
+with surf_left:
+    render_eagle_launch_pad_svg(
+        descending=bool(st.session_state.last_landed_wafer_id),
+        total_wafers=len(st.session_state.wafers_ram),
+        pending_wafers=pending_count,
+    )
+    # Selettori rapidi Asse Z (Turno, Contesto, Reparto Predefinito)
+    z_c1, z_c2 = st.columns(2)
+    with z_c1:
+        st.session_state.current_shift = st.selectbox(
+            "Turno Attivo (Asse Z)",
+            options=["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"],
+            index=["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"].index(st.session_state.current_shift)
+            if st.session_state.current_shift in ["MATTINA", "POMERIGGIO", "SERA / NOTTE", "CHIUSURA"]
+            else 0,
+        )
+    with z_c2:
+        st.session_state.current_weather = st.selectbox(
+            "Contesto / Flusso",
+            options=[
+                "SERENO // FLUSSO REGOLARE",
+                "PICCO ALTA AFFLUENZA",
+                "METEO INSTABILE / VENTO",
+                "EVENTO / GALA SPECIALE",
+            ],
+        )
 
-            elif "3." in curr_sub:
-                st.markdown("##### 🏁 CONTROLLO CASSA MULTI-TURNO & CHIUSURA A FISARMONICA")
-                ch1, ch2, ch3 = st.columns(3)
-                tipo_punto = ch1.selectbox("Tipo Controllo Cassetto", [
-                    "⏱️ PARZIALE / CAMBIO TURNO (Mattina -> Pomeriggio)",
-                    "💶 ALLEGGERIMENTO CONTANTI TITOLARE",
-                    "🏁 CHIUSURA FINE GIORNATA / CUMULATIVA"
-                ])
-                giorni_coperti = ch2.selectbox("Quanti giorni copre questo conto?", [1, 2, 3, 4, 5, 6, 7], index=0)
-                incasso_contato = ch3.number_input("Totale Contanti + POS Rilevato (€)", 0.0, 100000.0, 680.0, step=10.0)
+    active_dept = st.selectbox(
+        "Reparto Operativo di Atterraggio",
+        options=asset_info["departments"],
+        key="surface_dept_selector",
+    )
 
-                media_giorno = incasso_contato / giorni_coperti
-                if st.button("📅 TIMBRA PUNTO CASSA NELLA CONTABILITÀ PARALLELA", use_container_width=True):
-                    segno = -incasso_contato if "ALLEGGERIMENTO" in tipo_punto else incasso_contato
-                    conto_dest = "[O] PRELIEVO TITOLARE" if "ALLEGGERIMENTO" in tipo_punto else "[INCASSO] CASSA / POS"
-                    add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg — Media €{media_giorno:.2f}/gg)", segno, giorni_coperti, "OK", conto=conto_dest)
-                    play_ems_synth("commlock")
-                    st.success(f"Registrato! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
+with surf_right:
+    st.markdown(
+        "<div class='orbitron' style='color:#F59E0B;font-size:0.92rem;margin-bottom:6px;'>"
+        "▲ LIVELLO SUPERFICIE // ATTERRAGGIO RAPIDO ANTI-PIZZINO"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
+    tab_photo, tab_voice, tab_flash = st.tabs([
+        "📷 1) FOTO PIZZINO (OCR RAM)",
+        "🎙️ 2) DETTATURA VOCALE (RAM)",
+        "⚡ 3) NOTA LAMPO 3-ASSI",
+    ])
+
+    # --- VETTORE 1: FOTO AL FOGLIETTO SCRITTO A MANO -> OCR AI IN RAM ---
+    with tab_photo:
+        st.caption(
+            "Inquadra il foglietto volante scritto a mano o carica uno scatto rapido: "
+            "Gemini converte la grafia in RAM e cala l'atomo pulito nell'Hangar."
+        )
+        cam_mode = st.toggle("Attiva Fotocamera Diretta Smartphone/PC", value=False, key="toggle_cam_pad")
+        img_source = None
+        if cam_mode:
+            img_source = st.camera_input("Scatta Foto al Pizzino", key="pad_camera_shot")
+        uploaded_img = st.file_uploader(
+            "Oppure seleziona foto rapida dalla galleria",
+            type=["jpg", "jpeg", "png", "webp"],
+            key="pad_photo_upload",
+        )
+        effective_img = img_source or uploaded_img
+        photo_hint = st.text_input(
+            "Nota integrativa opzionale (es. pagato cassa 2 / urgente)",
+            key="photo_extra_hint",
+        )
+        if st.button("⬇ SCENDI NELL'HANGAR RAM (OCR FOTO)", use_container_width=True, key="btn_land_photo"):
+            if effective_img is None:
+                st.warning("Acquisisci o seleziona prima la foto del pizzino.")
             else:
-                st.markdown("##### 📸 SCANNER SCONTRINI / BOLLE CON SCOMPOSIZIONE VOCI PER CONTABILITÀ PARALLELA")
-                cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
-                with cf1:
-                    if st.button("☕ +1 KG CAFFÈ APERTO (TIMBRA ORA)", use_container_width=True):
-                        st.session_state["bar_kg_caffe_aperti"] += 1.0
-                        resa_sacchetto = st.session_state["bar_tazzine_per_kg"] * st.session_state["bank_prezzo_caffe"]
-                        add_calendar_event("CAFFÈ (+1 KG)", f"Aperto sacchetto 1 Kg (~{st.session_state['bar_tazzine_per_kg']} caffè attesi)", resa_sacchetto, 1, "OK", conto="[A] MATERIE PRIME / CAFFÈ")
-                        play_ems_synth("commlock")
-                        st.toast(f"☕ +1 Kg registrato! (+€ {resa_sacchetto:.2f} attesi)")
-                        st.rerun()
-                with cf2:
-                    st.session_state["bar_kg_caffe_aperti"] = st.number_input("Totale Kg Caffè Aperti nel Periodo", 0.5, 500.0, st.session_state["bar_kg_caffe_aperti"], step=0.5)
-                with cf3:
-                    tazzine_attese = int(st.session_state["bar_kg_caffe_aperti"] * st.session_state["bar_tazzine_per_kg"])
-                    incasso_caffe_atteso = tazzine_attese * st.session_state["bank_prezzo_caffe"]
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B; padding:10px 14px; margin-top:0;">
-                        <div class="kpi-custom-title">RESA TEORICA DAI KG DI CAFFÈ APERTI</div>
-                        <div class="kpi-custom-value" style="font-size:20px;">€ {incasso_caffe_atteso:.2f} ({tazzine_attese} caffè)</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                try:
+                    with st.spinner("Scansione ottica pizzino in RAM e discesa idraulica..."):
+                        img_bytes = effective_img.getvalue()
+                        mime = effective_img.type or "image/jpeg"
+                        structured = gemini_multimodal_wafer_in_ram(
+                            api_key=st.session_state.gemini_api_key,
+                            raw_text=photo_hint,
+                            media_bytes=img_bytes,
+                            mime_type=mime,
+                            default_dept=active_dept,
+                            default_channel=asset_info["channels"][0],
+                        )
+                        img_bytes = None
+                        atom = forge_3axis_wafer(structured, "FOTO_OCR_RAM")
+                    st.success(f"Wafer `{atom['wafer_id']}` calato nell'Hangar RAM!")
+                    safe_rerun()
+                except Exception as exc:
+                    queue_sound("koenig_alarm")
+                    st.error(str(exc))
 
-                cam_col1, cam_col2, cam_col3 = st.columns([1.4, 2.0, 1.0])
-                with cam_col1:
-                    use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE", value=False, key="tog_cam_ddt")
-                with cam_col2:
-                    ddt_file = st.file_uploader("📂 Oppure carica Foto Scontrino/CSV/XML da dispositivo", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
-                with cam_col3:
-                    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔥 SVUOTA RAM ORA", key="purge_ddt", use_container_width=True):
-                        st.session_state["ram_clear_counter"] += 1
-                        play_ems_synth("burst")
-                        st.rerun()
-
-                cam_ddt_shot = st.camera_input("Inquadra lo Scontrino o la Bolla", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
-                active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
-
-                if active_ddt_stream is not None:
-                    render_receipt_parallel_accounting_desk(active_ddt_stream, module_tag="DDT")
-
-                st.markdown("---")
-                d0, d1, d2, d3, d4 = st.columns([1.2, 1, 1, 1, 1])
-                st.session_state["ddt_codice_art"] = d0.text_input("Cod. Articolo Bolla", st.session_state["ddt_codice_art"])
-                st.session_state["ddt_prezzo_fattura"] = d1.number_input("Prezzo Bolla (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_fattura"], step=0.10)
-                st.session_state["ddt_prezzo_pattuito"] = d2.number_input("Pattuito (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_pattuito"], step=0.10)
-                st.session_state["ddt_litri_bottiglia"] = d3.selectbox("Formato (Litri)", [0.70, 0.75, 1.0, 1.5], index=2)
-                st.session_state["ddt_omaggio_finto_iva"] = d4.number_input("IVA Finto Omaggio (€)", 0.0, 100.0, st.session_state["ddt_omaggio_finto_iva"], step=0.25)
-
-                dna_litro_reale = st.session_state["ddt_prezzo_fattura"] / st.session_state["ddt_litri_bottiglia"]
-                scostamento_bott = st.session_state["ddt_prezzo_fattura"] - st.session_state["ddt_prezzo_pattuito"]
-
-                k1, k2, k3 = st.columns(3)
-                with k1:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
-                        <div class="kpi-custom-title">PREZZO REALE AL LITRO ({st.session_state['ddt_codice_art']})</div>
-                        <div class="kpi-custom-value">€ {dna_litro_reale:.2f} / L</div>
-                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scostamento_bott:.2f} € vs pattuito</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with k2:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
-                        <div class="kpi-custom-title">CONTROLLO OMAGGI IN FATTURA (IVA)</div>
-                        <div class="kpi-custom-value">€ {st.session_state['ddt_omaggio_finto_iva']:.2f}</div>
-                        <div class="kpi-custom-sub" style="color:#F59E0B;">● Anomalia Bolla 190677/9</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with k3:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#10B981;">
-                        <div class="kpi-custom-title">FRIGO BAR 1-CLICK (HACCP)</div>
-                        <div class="kpi-custom-value">+3.8 °C OK</div>
-                        <div class="kpi-custom-sub" style="color:#10B981;">✔ Firmato PIN #{st.session_state['pin_code']}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                if st.button("📅 IMPUTA QUESTA BOLLA SU [B] BEVANDE / ALCOLICI", use_container_width=True):
-                    add_calendar_event("BOLLA DDT", f"Art. {st.session_state['ddt_codice_art']} (€{dna_litro_reale:.2f}/L | Scost. {scostamento_bott:+.2f}€)", -st.session_state["ddt_prezzo_fattura"], 1, "ALERT" if scostamento_bott > 0 else "OK", conto="[B] BEVANDE / ALCOLICI")
-                    play_ems_synth("commlock")
-                    st.toast("✅ Bolla registrata nella Contabilità Parallela!")
-                    st.rerun()
-
-        # ======================================================================
-        # MODULO 11: BANK VAMPIRE SCANNER
-        # ======================================================================
-        elif sec_obj["code"] == "11":
-            if "5." in curr_sub:
-                render_alpha_chrono_calendar()
-            else:
-                st.markdown("##### 🔫 BANK VAMPIRE SCANNER // ANALISI COSTI BANCARI & VERO TASSO POS (RAM-ONLY)")
-                ec_col1, ec_col2, ec_col3 = st.columns([1.4, 2.0, 1.0])
-                with ec_col1:
-                    use_cam_bank = st.toggle("📸 FOTOGRAFA ESTRATTO CONTO", value=False, key="tog_cam_bank")
-                with ec_col2:
-                    bank_file = st.file_uploader("📂 Oppure leggi Foto/CSV Estratto Conto (Solo RAM)", type=["csv", "txt", "jpg", "jpeg", "png"], key=f"up_bank_{rc_id}")
-                with ec_col3:
-                    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔥 DISTRUGGI DATI RAM", key="purge_bank", use_container_width=True):
-                        st.session_state["ram_clear_counter"] += 1
-                        play_ems_synth("burst")
-                        st.rerun()
-
-                cam_bank_shot = st.camera_input("Inquadra il riepilogo spese dell'Estratto Conto", key=f"cam_bank_{rc_id}") if use_cam_bank else None
-                sdd_alert_txt = "0 DOPPI ADDEBITI"
-                sdd_sub_txt = "✔ Controllo flussi SDD attivo"
-                sdd_col = "#10B981"
-
-                active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
-                if active_bank_stream is not None:
-                    render_receipt_parallel_accounting_desk(active_bank_stream, module_tag="BANK")
-
-                b1, b2, b3, b4 = st.columns(4)
-                st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
-                st.session_state["bank_comm_dichiarata"] = b2.number_input("Comm. POS Dichiarata (%)", 0.10, 5.0, st.session_state["bank_comm_dichiarata"], step=0.05)
-                st.session_state["bank_costi_occulti"] = b3.number_input("Spese Tenuta / Canoni / SDD (€)", 0.0, 5000.0, st.session_state["bank_costi_occulti"], step=10.0)
-                st.session_state["bank_prezzo_caffe"] = b4.number_input("Prezzo Tazzina Caffè (€)", 0.80, 3.0, st.session_state["bank_prezzo_caffe"], step=0.10)
-
-                costo_pos_base = st.session_state["bank_transato_pos"] * (st.session_state["bank_comm_dichiarata"] / 100.0)
-                prelievo_totale_banca = costo_pos_base + st.session_state["bank_costi_occulti"]
-                vero_tasso_pos = (prelievo_totale_banca / st.session_state["bank_transato_pos"]) * 100.0
-                caffe_pareggio = round(prelievo_totale_banca / st.session_state["bank_prezzo_caffe"])
-                scost_pos = vero_tasso_pos - st.session_state["bank_comm_dichiarata"]
-
-                v1, v2, v3 = st.columns(3)
-                with v1:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
-                        <div class="kpi-custom-title">VERO TASSO POS EFFETTIVO</div>
-                        <div class="kpi-custom-value">{vero_tasso_pos:.2f} %</div>
-                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scost_pos:.2f}% incidenza oneri accessori</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with v2:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
-                        <div class="kpi-custom-title">CAFFÈ NECESSARI PER COPRIRE I COSTI BANCARI</div>
-                        <div class="kpi-custom-value">{caffe_pareggio} Tazzine/mese</div>
-                        <div class="kpi-custom-sub" style="color:#10B981;">● Corrispettivo di € {prelievo_totale_banca:.2f} in oneri e commissioni</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with v3:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:{sdd_col};">
-                        <div class="kpi-custom-title">SENTINELLA DOPPIO SDD</div>
-                        <div class="kpi-custom-value">{sdd_alert_txt}</div>
-                        <div class="kpi-custom-sub" style="color:{sdd_col};">{sdd_sub_txt}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                if st.button("📅 IMPUTA ONERI BANCARI NELLA CONTABILITÀ DEL MESE", use_container_width=True):
-                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine per pareggio)", -prelievo_totale_banca, 30, "ALERT", conto="[BANCA] ONERI & COMMISSIONI")
-                    play_ems_synth("commlock")
-                    st.toast("✅ Oneri bancari imputati nella Contabilità Parallela!")
-                    st.rerun()
-
-        # --- TUTTI GLI ALTRI MODULI (01 -> 09) ---
+    # --- VETTORE 2: DETTATURA VOCALE RAPIDA -> TRASCRIZIONE AI IN RAM ---
+    with tab_voice:
+        st.caption(
+            "Detta a voce la consegna, l'ordine fornitore o l'anomalia tecnica in 3 secondi: "
+            "trascrizione neurale in RAM e classificazione automatica [A]-[O]."
+        )
+        voice_clip = None
+        if hasattr(st, "audio_input"):
+            voice_clip = st.audio_input("Premi il microfono e detta il Wafer vocale", key="pad_voice_input")
         else:
-            st.markdown(f"##### ⚡ TELEMETRIA ESECUTIVA // {sec_obj['name']} — {curr_sub}")
-            c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.2, 1.4])
-            st.session_state["rop_cons_gg"] = c1.number_input("Consumo Giorno (u.)", 1, 1000, st.session_state["rop_cons_gg"])
-            st.session_state["rop_lead_gg"] = c2.number_input("Lead Time (gg)", 1, 30, st.session_state["rop_lead_gg"])
-            st.session_state["rop_stock"] = c3.number_input("Giacenza Casa", 0, 5000, st.session_state["rop_stock"])
-            rop_val = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + (st.session_state["bocche_96h"] * 4)
-            with c4:
-                st.markdown(f"""
-                <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
-                    <div class="kpi-custom-title">PUNTO ACQUISTO (ROP 96H)</div>
-                    <div class="kpi-custom-value" style="font-size:20px;">{rop_val} u.</div>
-                    <div class="kpi-custom-sub" style="color:#10B981;">Margine: {st.session_state['rop_stock'] - rop_val:+} u.</div>
+            voice_clip = st.file_uploader(
+                "Carica nota vocale rapida (.wav, .mp3, .m4a, .ogg)",
+                type=["wav", "mp3", "m4a", "ogg", "webm"],
+                key="pad_voice_fallback",
+            )
+        voice_hint = st.text_input("Contesto extra opzionale", key="voice_extra_hint")
+        if st.button("⬇ SCENDI NELL'HANGAR RAM (TRASCRIZIONE VOCE)", use_container_width=True, key="btn_land_voice"):
+            if voice_clip is None:
+                st.warning("Registra prima una breve nota vocale sul Launch Pad.")
+            else:
+                try:
+                    with st.spinner("Trascrizione vocale in RAM e smistamento [A]-[O]..."):
+                        aud_bytes = voice_clip.getvalue()
+                        aud_mime = getattr(voice_clip, "type", "") or "audio/wav"
+                        structured = gemini_multimodal_wafer_in_ram(
+                            api_key=st.session_state.gemini_api_key,
+                            raw_text=voice_hint,
+                            media_bytes=aud_bytes,
+                            mime_type=aud_mime,
+                            default_dept=active_dept,
+                            default_channel=asset_info["channels"][0],
+                        )
+                        aud_bytes = None
+                        atom = forge_3axis_wafer(structured, "VOCE_AUDIO_RAM")
+                    st.success(f"Wafer vocale `{atom['wafer_id']}` trascritto e archiviato nell'Hangar RAM!")
+                    safe_rerun()
+                except Exception as exc:
+                    queue_sound("koenig_alarm")
+                    st.error(str(exc))
+
+    # --- VETTORE 3: NOTA LAMPO TESTUALE (ATTIVA ANCHE 100% OFFLINE) ---
+    with tab_flash:
+        st.caption(
+            "Scrittura lampo in 1 gesto: riconosce automaticamente quantità, temperature °C, Euro e conto [A]-[O] "
+            "(100% operativa anche offline senza API key)."
+        )
+        flash_text = st.text_area(
+            "Testo lampo (es. 'Aperti +2 kg caffè miscela oro, frigo latte +3.6°C' oppure 'Pagato idraulico € 85 contanti perdita lavabo')",
+            height=82,
+            key="pad_flash_text",
+        )
+        ov_c1, ov_c2, ov_c3 = st.columns(3)
+        with ov_c1:
+            manual_eur = st.number_input("Forza Euro € (Opz.)", min_value=0.0, value=0.0, step=1.0, key="flash_eur")
+        with ov_c2:
+            manual_chan = st.selectbox("Canale Y", options=asset_info["channels"], key="flash_chan")
+        with ov_c3:
+            acc_opts = ["AUTO [A]-[O]"] + [f"{k} {v['name'][:20]}" for k, v in SEMANTIC_ACCOUNTS.items()]
+            manual_acc = st.selectbox("Conto Semantico", options=acc_opts, key="flash_acc")
+
+        if st.button("⬇ CALA WAFER LAMPO NELL'HANGAR RAM", use_container_width=True, key="btn_land_flash"):
+            if not (flash_text or "").strip() and manual_eur <= 0:
+                st.warning("Inserisci il testo della nota lampo o un valore operativo.")
+            else:
+                try:
+                    with st.spinner("Discesa idraulica nell'Hangar RAM..."):
+                        if st.session_state.gemini_api_key:
+                            structured = gemini_multimodal_wafer_in_ram(
+                                api_key=st.session_state.gemini_api_key,
+                                raw_text=flash_text,
+                                default_dept=active_dept,
+                                default_channel=manual_chan,
+                            )
+                        else:
+                            structured = heuristic_wafer_structurer(flash_text, active_dept, manual_chan)
+
+                        if manual_eur > 0:
+                            structured["euro_amount"] = round(float(manual_eur), 2)
+                        if manual_chan != asset_info["channels"][0]:
+                            structured["channel"] = manual_chan
+                        if not manual_acc.startswith("AUTO"):
+                            structured["semantic_account"] = manual_acc.split(" ")[0]
+
+                        atom = forge_3axis_wafer(structured, "NOTA_LAMPO_RAM")
+                    st.success(f"Wafer `{atom['wafer_id']}` agganciato nell'Hangar Sotterraneo!")
+                    safe_rerun()
+                except Exception as exc:
+                    queue_sound("koenig_alarm")
+                    st.error(str(exc))
+
+
+# ==============================================================================
+# LIVELLO 2: HANGAR SOTTERRANEO RAM — SMISTAMENTO, SPUNTA & EXPORT ZERO-CLOUD
+# ==============================================================================
+st.markdown("---")
+st.markdown(
+    "<div class='orbitron' style='color:#38BDF8;font-size:1.0rem;margin-bottom:8px;'>"
+    "▼ LIVELLO INFERIORE // HYDRAULIC HANGAR RAM (ATOMI STRUTTURATI X-Y-Z)"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+is_commander = st.session_state.role == "COMMANDER"
+all_wafers = st.session_state.wafers_ram
+
+# --- Striscia Telemetria Hangar (con rispetto Filtro Anti-Talpa Staff vs Commander) ---
+total_euro_ram = sum(w["axis_y"]["euro_amount"] for w in all_wafers)
+total_royalty_ram = sum(w["axis_y"]["cube_royalty_fee_eur"] for w in all_wafers)
+total_room_comp = sum(
+    w["axis_y"]["euro_amount"] for w in all_wafers if w["axis_y"].get("room_charge_compensation")
+)
+
+kpi1, kpi2, kpi3, kpi4 = st.columns(4)
+kpi1.metric("Wafer Totali in RAM", len(all_wafers))
+kpi2.metric("Da Prendere in Carico", pending_count)
+kpi3.metric("Energia Finanziaria Y", f"€ {total_euro_ram:,.2f}" if is_commander else "🔒 PROTETTO (STAFF)")
+if st.session_state.genetic_asset == "PARTNER":
+    kpi4.metric(
+        "Compensazione Camera / Fee Cubo",
+        f"€ {total_room_comp:,.2f} / -€ {total_royalty_ram:,.2f}" if is_commander else "🔒 PROTETTO (STAFF)",
+    )
+elif st.session_state.genetic_asset == "CUBE_DEPT":
+    kpi4.metric("Sync Alpha-Main-Mission", "PRONTO (.JSON X-Y-Z)")
+else:
+    evasi_cnt = len(all_wafers) - pending_count
+    kpi4.metric("Wafer Evasi nel Turno", evasi_cnt)
+
+# --- Barra Filtri Rapidi Hangar ---
+f_c1, f_c2, f_c3, f_c4, f_c5 = st.columns([1.1, 1.1, 1.1, 1.0, 1.3])
+with f_c1:
+    flt_status = st.selectbox("Stato Spunta", ["TUTTI", "DA_EVADERE", "EVASO"])
+with f_c2:
+    flt_dept = st.selectbox("Filtra Reparto", ["TUTTI"] + asset_info["departments"])
+with f_c3:
+    flt_tag = st.selectbox("Filtra Tag", ["TUTTI"] + OPERATIONAL_TAGS)
+with f_c4:
+    flt_acc = st.selectbox("Filtra Conto [A]-[O]", ["TUTTI"] + list(SEMANTIC_ACCOUNTS.keys()))
+with f_c5:
+    flt_query = st.text_input("Ricerca Testo / Wafer ID", placeholder="Cerca nell'Hangar RAM...")
+
+filtered_wafers = []
+for w in all_wafers:
+    if flt_status != "TUTTI" and w["status"] != flt_status:
+        continue
+    if flt_dept != "TUTTI" and w["axis_x"]["department"] != flt_dept:
+        continue
+    if flt_tag != "TUTTI" and w["axis_x"]["op_tag"] != flt_tag:
+        continue
+    if flt_acc != "TUTTI" and w["axis_y"]["semantic_account"] != flt_acc:
+        continue
+    if flt_query:
+        q = flt_query.lower()
+        haystack = f"{w['wafer_id']} {w['axis_x']['clean_text']} {w['axis_x']['matter_unit']} {w['axis_x']['department']}".lower()
+        if q not in haystack:
+            continue
+    filtered_wafers.append(w)
+
+# --- Lista Operativa dei Wafer nell'Hangar ---
+if not filtered_wafers:
+    st.markdown(
+        "<div style='background:#131822;border:1px dashed #334155;border-radius:6px;padding:22px;text-align:center;color:#94A3B8;'>"
+        "HANGAR SOTTERRANEO VUOTO O NESSUN WAFER CORRISPONDENTE AI FILTRI.<br/>"
+        "<small>Atterra una Foto Pizzino, una Nota Vocale o una Nota Lampo sulla piattaforma superiore per attivare l'elevatore idraulico.</small>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
+else:
+    for idx, w in enumerate(filtered_wafers):
+        wid = w["wafer_id"]
+        z, x, y = w["axis_z"], w["axis_x"], w["axis_y"]
+        is_done = w["status"] == "EVASO"
+        is_urgent = x.get("priority") == "ALTA" and not is_done
+        card_cls = "wafer-card done" if is_done else ("wafer-card urgent" if is_urgent else "wafer-card")
+
+        acc_code = y["semantic_account"]
+        acc_sensitive = SEMANTIC_ACCOUNTS.get(acc_code, {}).get("sensitive", False)
+        mask_financial = (not is_commander) and (acc_sensitive or y["euro_amount"] > 0)
+
+        if mask_financial:
+            y_badge_html = '<span class="axis-pill pill-y">ASSE Y: 🔒 PROTETTO ANTI-TALPA</span>'
+        else:
+            royalty_note = (
+                f" • Fee Cubo: €{y['cube_royalty_fee_eur']:.2f}"
+                if w.get("genetic_asset") == "PARTNER" and y["cube_royalty_fee_eur"] > 0
+                else ""
+            )
+            y_badge_html = (
+                f'<span class="axis-pill pill-y">ASSE Y: € {y["euro_amount"]:.2f} | '
+                f'{html.escape(y["channel"])} | {html.escape(acc_code)} {html.escape(y["semantic_account_label"])}{royalty_note}</span>'
+            )
+
+        urgent_html = '<span class="axis-pill pill-alert">⚡ PRIORITÀ ALTA</span>' if is_urgent else ""
+        ack_html = (
+            f"<div style='font-size:0.73rem;color:#10B981;margin-top:4px;'>✓ PRESA IN CARICO: {html.escape(str(w['ack_at']))} ({html.escape(str(w['ack_by']))})</div>"
+            if is_done
+            else ""
+        )
+
+        row_left, row_right = st.columns([4.1, 1.1])
+        with row_left:
+            st.markdown(
+                f"""
+                <div class="{card_cls}">
+                    <div>
+                        <span class="axis-pill pill-z">Z: {html.escape(wid)} • {html.escape(z['timestamp_human'])} • {html.escape(z['shift'])} • {html.escape(z['capture_vector'])}</span>
+                        <span class="axis-pill pill-x">X: [{html.escape(x['department'])}] {html.escape(x['op_tag'])} • {html.escape(x['matter_unit'])}</span>
+                        {y_badge_html}
+                        {urgent_html}
+                    </div>
+                    <div style="font-size:0.96rem;color:#F8FAFC;margin-top:6px;line-height:1.4;">
+                        {html.escape(x['clean_text'])}
+                    </div>
+                    {ack_html}
                 </div>
-                """, unsafe_allow_html=True)
-            st.link_button(f"🚀 APRI CONSOLLE ESTERNA DEDICATA ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
+                """,
+                unsafe_allow_html=True,
+            )
+        with row_right:
+            toggle_lbl = "↩ RIAPRI" if is_done else "✓ PRENDI IN CARICO"
+            if st.button(toggle_lbl, key=f"ack_{wid}", use_container_width=True):
+                if is_done:
+                    w["status"] = "DA_EVADERE"
+                    w["ack_at"] = None
+                    w["ack_by"] = None
+                else:
+                    w["status"] = "EVASO"
+                    w["ack_at"] = human_time_now()
+                    w["ack_by"] = st.session_state.role
+                queue_sound("telemetry_ack")
+                safe_rerun()
 
-        st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
-        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (HOME PLANCIA)", key="exit_blum_bottom", use_container_width=True):
-            return_to_page_zero()
-            st.rerun()
+            with st.expander("◎ QR / JSON"):
+                compact_atom = json.dumps(
+                    {
+                        "id": wid,
+                        "z": z["timestamp_iso"],
+                        "ent": z["entity_id"],
+                        "x": x["matter_unit"],
+                        "txt": x["clean_text"][:90],
+                        "y": 0 if mask_financial else y["euro_amount"],
+                        "acc": acc_code,
+                    },
+                    ensure_ascii=False,
+                )
+                st.markdown(
+                    "<div style='text-align:center;'>"
+                    + generate_optical_matrix_svg(compact_atom, "#38BDF8", 112)
+                    + "</div>",
+                    unsafe_allow_html=True,
+                )
+                if not mask_financial:
+                    st.code(json.dumps(w, indent=2, ensure_ascii=False), language="json")
+                if is_commander and st.button("🗑️ ELIMINA", key=f"del_{wid}", use_container_width=True):
+                    st.session_state.wafers_ram = [item for item in st.session_state.wafers_ram if item["wafer_id"] != wid]
+                    safe_rerun()
 
-    # --- PAGINA ZERO: VISTA MATRICE CENTRALE PULITA (9 O 12 QUADRATI SENZA BUCHI!) ---
+# ==============================================================================
+# 9. SCAMBIO DATI ZERO-CLOUD, BACKUP LOCALE & DISTRUZIONE VOLATILE RAM
+# ==============================================================================
+st.markdown("---")
+st.markdown(
+    "<div class='orbitron' style='color:#10B981;font-size:0.88rem;margin-bottom:8px;'>"
+    "⟐ PONTE DATI ZERO-CLOUD (EXPORT .JSON / .TXT / .HTML • IMPORT LOCALE • PURGE RAM)"
+    "</div>",
+    unsafe_allow_html=True,
+)
+
+ex_c1, ex_c2, ex_c3, ex_c4 = st.columns(4)
+stamp_file = datetime.now().strftime("%Y%m%d_%H%M")
+
+with ex_c1:
+    st.download_button(
+        label="⬇ EXPORT .JSON (3-ASSI CUBO)",
+        data=export_wafers_json().encode("utf-8"),
+        file_name=f"bemask_data_wafer_{stamp_file}.json",
+        mime="application/json",
+        use_container_width=True,
+        disabled=len(all_wafers) == 0,
+    )
+
+with ex_c2:
+    st.download_button(
+        label="⬇ EXPORT .TXT (CONSEGNA TURNO)",
+        data=export_wafers_txt(is_commander).encode("utf-8"),
+        file_name=f"bemask_consegna_{stamp_file}.txt",
+        mime="text/plain",
+        use_container_width=True,
+        disabled=len(all_wafers) == 0,
+    )
+
+with ex_c3:
+    st.download_button(
+        label="⬇ EXPORT .HTML (REPORT OFFLINE)",
+        data=export_wafers_html(is_commander).encode("utf-8"),
+        file_name=f"bemask_hangar_report_{stamp_file}.html",
+        mime="text/html",
+        use_container_width=True,
+        disabled=len(all_wafers) == 0,
+    )
+
+with ex_c4:
+    if not st.session_state.purge_arm:
+        if st.button("☢ DISTRUZIONE TOTALE RAM", use_container_width=True):
+            st.session_state.purge_arm = True
+            safe_rerun()
     else:
-        n_cols = 1 if n_sectors == 1 else (2 if n_sectors in [2, 4] else 3)
-        for r in range(0, n_sectors, n_cols):
-            row_cols = st.columns(n_cols)
-            for c in range(n_cols):
-                if r + c < n_sectors:
-                    sq = all_squares[r + c]
-                    code = sq["code"]
-                    svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
-                    artifact_lbl = sq.get("artifact", "MOONBASE ALPHA NODE")
+        p_yes, p_no = st.columns(2)
+        with p_yes:
+            if st.button("🔥 CONFERMA", use_container_width=True):
+                st.session_state.wafers_ram = []
+                st.session_state.last_landed_wafer_id = None
+                st.session_state.purge_arm = False
+                queue_sound("ram_purge")
+                safe_rerun()
+        with p_no:
+            if st.button("✖ ANNULLA", use_container_width=True):
+                st.session_state.purge_arm = False
+                safe_rerun()
 
-                    with row_cols[c]:
-                        st.markdown(f"""
-                        <div class="alpha-tile" style="background: {sq['bg_grad']}; border: 1.5px solid {sq['border']}; border-left: 5px solid {sq['border']}; box-shadow: inset 0 0 28px {sq['glow']};">
-                            <div>{svg_icon}</div>
-                            <div class="tile-code">{code}</div>
-                            <div class="tile-name">{sq['name']}</div>
-                            <div class="tile-artifact">{artifact_lbl}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-                        if st.button(" ", key=f"blum_click_{code}", use_container_width=True):
-                            st.session_state["blum_sector"] = code
-                            st.session_state["selected_sub"] = sq["subs"][0]
-                            st.rerun()
+with st.expander("📥 IMPORTA PACCHETTO WAFER .JSON TRA DISPOSITIVI (ZERO-CLOUD SYNC IN RAM)"):
+    imp_file = st.file_uploader("Seleziona micro-file .JSON generato da un altro dispositivo o reparto", type=["json"], key="wafer_json_import")
+    if imp_file is not None and st.button("⚡ FONDI ATOMI NELL'HANGAR RAM", use_container_width=True):
+        try:
+            imp_data = json.loads(imp_file.getvalue().decode("utf-8"))
+            incoming = imp_data.get("wafers", imp_data if isinstance(imp_data, list) else [])
+            existing_ids = {w["wafer_id"] for w in st.session_state.wafers_ram}
+            added = 0
+            for item in incoming:
+                if isinstance(item, dict) and "axis_x" in item and "axis_y" in item and "axis_z" in item:
+                    if item.get("wafer_id") not in existing_ids:
+                        st.session_state.wafers_ram.append(item)
+                        existing_ids.add(item.get("wafer_id"))
+                        added += 1
+            queue_sound("telemetry_ack")
+            st.success(f"Sincronizzati {added} nuovi Wafer in RAM (0 byte cloud).")
+            safe_rerun()
+        except Exception as exc:
+            st.error(f"Formato JSON non valido: {exc}")
 
-# --- COLONNA DESTRA COMPLETA AL 100% (EMS-1975 SYNTH + KLAXON + QR TELEPORT) ---
-with col_right:
-    st.markdown("""
-    <div class="ems-panel">
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-            <span style="font-size:11px; font-weight:900; color:#FFFFFF; letter-spacing:1px;">ALPHA EMS-1975<br>SYNTH</span>
-            <span style="font-size:10px; font-weight:900; color:#10B981; font-family:'Share Tech Mono';">TOUCH<br>ARMED</span>
+# ==============================================================================
+# 10. PUNZONE METALLICO IN CALCE (SIGILLO D'AUTORE OBBLIGATORIO SU OGNI SCHERMATA)
+# ==============================================================================
+st.markdown(
+    f"""
+    <div class="metallic-punch">
+        <div class="orbitron" style="color:#F59E0B;font-size:0.86rem;font-weight:700;letter-spacing:0.10em;">
+            ◈ ARCHITECT: {ARCHITECT_NAME}  //  ID: {ARCHITECT_ID}
+        </div>
+        <div style="color:#94A3B8;font-size:0.74rem;margin-top:4px;">
+            BEMASK SOVEREIGN ZERO • POD: {POD_REPO} ({POD_VERSION}) • MOONBASE ALPHA 1975 TELEMETRY • ZERO-TRUST RAM-ONLY SOVEREIGNTY
         </div>
     </div>
-    """, unsafe_allow_html=True)
-
-    s_col1, s_col2 = st.columns(2)
-    with s_col1:
-        if st.button("▶ X5-7 DATA\nBURST", use_container_width=True):
-            play_ems_synth("burst")
-            st.toast("🔊 EMS-1975: X5-7 Data Burst (95 BPM)")
-    with s_col2:
-        if st.button("◈ COMMLOCK\n1975", use_container_width=True):
-            play_ems_synth("commlock")
-            st.session_state["visitors_log"] += 1
-            st.toast("📡 Commlock 1975 Sincronizzato")
-
-    if st.button("▲ ALPHA KLAXON SIREN", use_container_width=True):
-        play_ems_synth("klaxon")
-        st.warning("🚨 ALLERTA SOLAR STORM // PROTOCOLLO SCUDO 96H ATTIVO")
-
-    module_options = ["00 ALPHA MAIN MISSION"] + [f"{s['code']} {s['name']}" for s in all_squares]
-    chosen_mod = st.selectbox("SELEZIONA NODO TELEPORT", module_options, label_visibility="collapsed")
-
-    target_url = "https://alpha-main-mission.streamlit.app"
-    for s in all_squares:
-        if chosen_mod.startswith(s["code"]):
-            target_url = s["url"]
-            break
-
-    st.markdown(f"""
-    <div class="commlock-panel">
-        <div style="font-size:11px; font-weight:900; color:#FFFFFF; text-align:left; letter-spacing:1px; margin-bottom:10px;">
-            COMMLOCK // QR<br>TELEPORT
-        </div>
-        <div style="background:#0B0E14; border:2px solid #F59E0B; padding:10px; display:inline-block; border-radius:3px;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=F59E0B&bgcolor=0B0E14&data={target_url}" width="145" />
-        </div>
-        <div style="font-size:10px; font-weight:900; color:#F59E0B; margin-top:10px; letter-spacing:0.8px;">
-            {chosen_mod}
-        </div>
-        <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">
-            alpha-main-mission.streamlit.app
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- 12. PUNZONE METALLICO DI PROPRIETÀ INTELLETTUALE ---
-st.markdown("""
-<div style="margin-top:28px; padding:12px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10.5px; color:#64748B; letter-spacing:1.1px;">
-    ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED, DIRECTED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · 3-AXIS FRACTAL CORE · ZERO-TRUST VOLATILE RAM ◈
-</div>
-""", unsafe_allow_html=True)
+    """,
+    unsafe_allow_html=True,
+)
