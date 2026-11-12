@@ -15,7 +15,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + ARCHITECT SEAL)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + SOGLIA ZERO)
 # CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
 # ==============================================================================
 
@@ -192,11 +192,12 @@ def init_monumental_state():
     }
     defaults = {
         "auth_unlocked": False,
+        "gate_open": False,
+        "pending_synth": None,
         "auth_role": None,
         "auth_user": "",
         "breach_log": [],
         "show_arch_fallback": False,
-        # 9 Settori attivi di default = Griglia 3x3 perfetta senza buchi!
         "active_bits_12": [True, True, True, True, True, True, False, False, False, True, True, True],
         "keep_multiverse_open": False,
         "custom_squares": [],
@@ -328,6 +329,10 @@ def play_ems_synth(effect_type):
     """
     components.html(js_code, height=0)
 
+if st.session_state.get("pending_synth"):
+    play_ems_synth(st.session_state["pending_synth"])
+    st.session_state["pending_synth"] = None
+
 # ==============================================================================
 # 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (INCLUSO 12 TRAVEL TUBE)
 # ==============================================================================
@@ -451,7 +456,7 @@ WEATHER_5_DAYS = [
 ]
 
 # ==============================================================================
-# 6. CSS MONUMENTALE + BLOCCO TOTALE SCORRIMENTO ORIZZONTALE SU TELEFONINO
+# 6. CSS MONUMENTALE + SOGLIA ZERO 1:1 LUMINESCENTE + BLOCCO MOBILE
 # ==============================================================================
 st.markdown("""
 <style>
@@ -481,6 +486,89 @@ div[data-baseweb="input"] > div:focus-within {
     border-color: #10B981 !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
 }
+
+/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO 10s LOOP) --- */
+@keyframes monolithPulse {
+    0%, 100% {
+        box-shadow: 0 0 38px rgba(245, 158, 11, 0.34), 0 0 80px rgba(56, 189, 248, 0.16), inset 0 0 32px rgba(245, 158, 11, 0.22);
+        border-color: #F59E0B;
+    }
+    50% {
+        box-shadow: 0 0 55px rgba(56, 189, 248, 0.45), 0 0 105px rgba(16, 185, 129, 0.20), inset 0 0 42px rgba(56, 189, 248, 0.28);
+        border-color: #38BDF8;
+    }
+}
+@keyframes hudPhase1 {
+    0%, 3%   { opacity: 0; transform: translateY(6px); }
+    6%, 22%  { opacity: 1; transform: translateY(0px); }
+    25%, 100%{ opacity: 0; transform: translateY(-6px); }
+}
+@keyframes hudPhase2 {
+    0%, 24%  { opacity: 0; transform: translateY(6px); }
+    28%, 71% { opacity: 1; transform: translateY(0px); }
+    75%, 100%{ opacity: 0; transform: translateY(-6px); }
+}
+@keyframes hudPhase3 {
+    0%, 74%  { opacity: 0; transform: translateY(6px); }
+    78%, 96% { opacity: 1; transform: translateY(0px); }
+    100%     { opacity: 0; transform: translateY(-6px); }
+}
+@keyframes eagleFloat {
+    0%, 100% { transform: translate(0px, 0px); }
+    50%      { transform: translate(-4px, -6px); }
+}
+
+.soglia-wrap {
+    max-width: 500px;
+    margin: 8px auto 10px auto;
+}
+.soglia-monolith {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: radial-gradient(circle at 68% 28%, rgba(56, 189, 248, 0.18) 0%, #07090E 65%);
+    border: 2px solid #F59E0B;
+    border-radius: 4px;
+    overflow: hidden;
+    animation: monolithPulse 5s ease-in-out infinite;
+}
+.soglia-monolith video {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 1;
+}
+.soglia-vignette {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(8,10,15,0.68) 0%, rgba(8,10,15,0.08) 38%, rgba(8,10,15,0.12) 62%, rgba(8,10,15,0.88) 100%);
+    z-index: 2;
+    pointer-events: none;
+}
+.soglia-hud-top {
+    position: absolute;
+    top: 12px; left: 14px; right: 14px;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 3; pointer-events: none;
+    font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #38BDF8; letter-spacing: 1.2px;
+}
+.soglia-hud-bottom {
+    position: absolute;
+    bottom: 16px; left: 14px; right: 14px;
+    min-height: 76px;
+    z-index: 3; pointer-events: none;
+    display: flex; align-items: flex-end; justify-content: center; text-align: center;
+}
+.hud-seq {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    opacity: 0;
+}
+.hud-seq-1 { animation: hudPhase1 10s infinite; }
+.hud-seq-2 { animation: hudPhase2 10s infinite; }
+.hud-seq-3 { animation: hudPhase3 10s infinite; }
 
 .koenig-strip {
     background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
@@ -593,7 +681,7 @@ div.stButton > button:hover {
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# DOSSIER ARCHITETTO & GENESI (ENRICO BRAGLIA)
+# DOSSIER ARCHITETTO & GENESI (ENRICO BRAGLIA — INTATTO AL 100%)
 # ==============================================================================
 def render_architect_dossier_content():
     st.markdown("""
@@ -618,6 +706,8 @@ def render_architect_dossier_content():
     with v_col:
         if os.path.exists("architect_manifesto..mp4"):
             st.video("architect_manifesto..mp4", autoplay=True, loop=True, muted=False)
+        elif os.path.exists("architect_manifesto.mp4"):
+            st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
         else:
             st.markdown("""
             <div style="background:#090C12; border:1px solid #2B394A; border-radius:4px; padding:22px 14px; text-align:center;">
@@ -694,7 +784,7 @@ else:
         st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
 
 # ==============================================================================
-# 7. KOENIG ZERO-TRUST SECURITY GATE
+# 7. SOGLIA ZERO (QUADRATO LUMINESCENTE 1:1 + LOOP 10s + KOENIG SECURITY GATE)
 # ==============================================================================
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
@@ -702,84 +792,189 @@ STAFF_PINS = {
     "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
 }
 
-if not st.session_state["auth_unlocked"]:
-    st.markdown("<div style='height:20px;'></div>", unsafe_allow_html=True)
-    g_left, g_center, g_right = st.columns([0.5, 2.2, 0.5])
-    with g_center:
-        st.markdown(f"""
-        <div style="background:#161B24; border:2px solid #F59E0B; border-top:6px solid #F59E0B; padding:24px; border-radius:4px; box-shadow:0 0 45px rgba(245,158,11,0.22);">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <div>{EAGLE_HERO_SVG}</div>
-                <span class="badge-amber">ARCHITECT: ENRICO BRAGLIA</span>
+def load_soglia_eagle_video_b64():
+    """Rileva automaticamente eagle_loop.mp4 nel repository e lo carica in RAM per il quadrato 1:1."""
+    for candidate in ["eagle_loop.mp4", "eagle_loop..mp4", "soglia_zero.mp4", "alpha_loop.mp4"]:
+        if os.path.exists(candidate):
+            try:
+                with open(candidate, "rb") as vf:
+                    return base64.b64encode(vf.read()).decode("utf-8")
+            except Exception:
+                pass
+    return None
+
+def build_soglia_monolith_html():
+    video_b64 = load_soglia_eagle_video_b64()
+    if video_b64:
+        visual_core = f'<video autoplay loop muted playsinline src="data:video/mp4;base64,{video_b64}"></video>'
+    else:
+        # Scena orbitale animata vettoriale 1:1 attiva finché non viene caricato eagle_loop.mp4
+        visual_core = """
+        <svg viewBox="0 0 500 500" width="100%" height="100%" style="position:absolute;inset:0;z-index:1;" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <radialGradient id="plasmaGlow" cx="50%" cy="50%" r="50%">
+                    <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.95"/>
+                    <stop offset="45%" stop-color="#10B981" stop-opacity="0.35"/>
+                    <stop offset="100%" stop-color="#07090E" stop-opacity="0"/>
+                </radialGradient>
+                <linearGradient id="moonSurf" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#1E293B"/>
+                    <stop offset="100%" stop-color="#090D14"/>
+                </linearGradient>
+            </defs>
+            <circle cx="88" cy="92" r="1" fill="#E2E8F0" opacity="0.7"/>
+            <circle cx="410" cy="70" r="1.3" fill="#38BDF8" opacity="0.8"/>
+            <circle cx="165" cy="60" r="1" fill="#F59E0B" opacity="0.6"/>
+            <circle cx="440" cy="210" r="1.1" fill="#E2E8F0" opacity="0.5"/>
+            <!-- Orizzonte Lunare + Griglia Telemetrica Smeraldo/Ciano -->
+            <ellipse cx="220" cy="520" rx="430" ry="195" fill="url(#moonSurf)" stroke="#10B981" stroke-width="1.2" opacity="0.9"/>
+            <ellipse cx="220" cy="520" rx="360" ry="150" fill="none" stroke="#38BDF8" stroke-width="0.7" stroke-dasharray="6 5" opacity="0.45"/>
+            <ellipse cx="220" cy="520" rx="280" ry="108" fill="none" stroke="#10B981" stroke-width="0.7" stroke-dasharray="4 4" opacity="0.40"/>
+            <line x1="40" y1="380" x2="390" y2="470" stroke="#10B981" stroke-width="0.6" opacity="0.35"/>
+            <line x1="150" y1="330" x2="290" y2="495" stroke="#38BDF8" stroke-width="0.6" opacity="0.35"/>
+            <!-- Aquila Prospettiva 3/4 Posteriore in Volo Orbitale -->
+            <g style="animation: eagleFloat 5s ease-in-out infinite;">
+                <circle cx="388" cy="146" r="56" fill="url(#plasmaGlow)">
+                    <animate attributeName="r" values="48;62;48" dur="2.2s" repeatCount="indefinite"/>
+                </circle>
+                <!-- 4 Ugelli Plasma Ciano -->
+                <circle cx="366" cy="142" r="9" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+                <circle cx="385" cy="154" r="9" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+                <circle cx="378" cy="132" r="8" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+                <circle cx="396" cy="144" r="8" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
+                <!-- Pod Laterali & Spina Dorsale -->
+                <polygon points="185,222 225,198 252,216 212,242" fill="#334155" stroke="#94A3B8" stroke-width="1.5"/>
+                <polygon points="248,274 292,248 316,268 272,296" fill="#1E293B" stroke="#CBD5E1" stroke-width="1.5"/>
+                <polygon points="182,252 356,142 384,162 212,276" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
+                <path d="M196 258 L224 226 L246 244 L274 196 L296 212 L324 166 L350 180 L368 148" stroke="#E2E8F0" stroke-width="1.6" fill="none"/>
+                <line x1="215" y1="268" x2="365" y2="172" stroke="#F59E0B" stroke-width="1.6"/>
+                <!-- Modulo Comando Anteriore con Finestrini Ambra -->
+                <polygon points="122,306 168,244 216,278 166,322" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2"/>
+                <polygon points="142,292 166,266 178,276 154,298" fill="#F59E0B"/>
+                <polygon points="160,304 186,282 198,290 172,312" fill="#F59E0B"/>
+            </g>
+        </svg>
+        """
+
+    return f"""
+    <div class="soglia-wrap">
+        <div class="soglia-monolith">
+            {visual_core}
+            <div class="soglia-vignette"></div>
+            <div class="soglia-hud-top">
+                <span>◈ ORBITAL TELEMETRY // 3-AXIS RAM</span>
+                <span style="color:#F59E0B;">MOONBASE A.L.P.H.A.</span>
             </div>
-            <div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:1.4px;">
-                BEMASK // A.L.P.H.A. SECURITY GATE
-            </div>
-            <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; margin-top:4px; margin-bottom:10px;">
-                MOONBASE ALPHA COMMAND | 12 SECTORS (2^12) + TRAVEL TUBE POD
+            <div class="soglia-hud-bottom">
+                <div class="hud-seq hud-seq-1">
+                    <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; letter-spacing:2px;">
+                        SOVEREIGN ZERO ECOSYSTEM
+                    </div>
+                    <div style="font-size:20px; font-weight:900; color:#FFFFFF; letter-spacing:2px; margin-top:3px;">
+                        BEMASK // A.L.P.H.A.
+                    </div>
+                </div>
+                <div class="hud-seq hud-seq-2">
+                    <div style="font-size:17px; font-weight:900; color:#F59E0B; letter-spacing:3px; margin-bottom:5px;">
+                        A · L · P · H · A
+                    </div>
+                    <div style="font-size:11px; font-weight:700; color:#F8FAFC; font-family:'Share Tech Mono', monospace; letter-spacing:1.1px; line-height:1.45;">
+                        <span style="color:#F59E0B;">A</span>NALYTICS ·
+                        <span style="color:#38BDF8;">L</span>INEARITY ·
+                        <span style="color:#10B981;">P</span>OWER<br>
+                        <span style="color:#F59E0B;">H</span>YPER-SCALE ·
+                        <span style="color:#38BDF8;">A</span>UTOMATION
+                    </div>
+                </div>
+                <div class="hud-seq hud-seq-3">
+                    <div style="font-size:11px; color:#10B981; font-family:'Share Tech Mono', monospace; letter-spacing:1.6px;">
+                        ◈ ARCHITECT: ENRICO BRAGLIA
+                    </div>
+                    <div style="font-size:13px; font-weight:900; color:#FFFFFF; letter-spacing:1.5px; margin-top:4px;">
+                        ZERO-TRUST RAM // READY FOR COMMAND
+                    </div>
+                </div>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+    </div>
+    """
 
-        if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
-            play_ems_synth("commlock")
-            st.session_state["auth_unlocked"] = True
-            st.session_state["auth_role"] = "COMMANDER"
-            st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
-            return_to_page_zero()
-            st.rerun()
+if not st.session_state["auth_unlocked"]:
+    s_left, s_center, s_right = st.columns([0.65, 2.0, 0.65])
+    with s_center:
+        st.markdown(build_soglia_monolith_html(), unsafe_allow_html=True)
 
-        c_pin, c_2fa = st.columns(2)
-        in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
-        in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
-
-        if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
-            master_pin = get_master_pin()
-            secret_2fa = get_totp_secret()
-            ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-            if in_pin.strip() == master_pin:
-                if verify_2fa_code(in_2fa, secret_2fa):
-                    play_ems_synth("commlock")
-                    st.session_state["auth_unlocked"] = True
-                    st.session_state["auth_role"] = "COMMANDER"
-                    st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
-                    st.session_state["pin_code"] = master_pin
-                    return_to_page_zero()
-                    st.rerun()
-                else:
-                    play_ems_synth("klaxon")
-                    st.session_state["breach_log"].append(
-                        f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
-                    )
-                    st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
-
-            elif in_pin.strip() in STAFF_PINS:
-                play_ems_synth("burst")
+        if not st.session_state["gate_open"]:
+            if st.button("◈ ENTER A.L.P.H.A. COMMAND // SBLOCCA SOGLIA", use_container_width=True):
+                st.session_state["gate_open"] = True
+                st.session_state["pending_synth"] = "commlock"
+                st.rerun()
+        else:
+            if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK PER TELEFONINO E TEST ENRICO)", use_container_width=True):
+                st.session_state["pending_synth"] = "commlock"
                 st.session_state["auth_unlocked"] = True
-                st.session_state["auth_role"] = "STAFF"
-                st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
-                st.session_state["pin_code"] = in_pin.strip()
+                st.session_state["auth_role"] = "COMMANDER"
+                st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
                 return_to_page_zero()
                 st.rerun()
 
-            else:
-                play_ems_synth("klaxon")
-                st.session_state["breach_log"].append(
-                    f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
-                )
-                st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
+            c_pin, c_2fa = st.columns(2)
+            in_pin = c_pin.text_input("🔑 PIN OPERATORE / TITOLARE", type="password", placeholder="Es. 9999 o 1024")
+            in_2fa = c_2fa.text_input("📱 CODICE 2FA (6 CIFRE - SOLO TITOLARE)", type="password", placeholder="Google Auth / 199975")
 
-        if st.button("◈ CHI È IL CREATORE // ARCHITECT DOSSIER (ENRICO BRAGLIA)", use_container_width=True):
-            play_ems_synth("commlock")
-            open_architect_modal()
+            if st.button("🛡️ VERIFICA CREDENZIALI E SBLOCCA PLANCIA", use_container_width=True):
+                master_pin = get_master_pin()
+                secret_2fa = get_totp_secret()
+                ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
 
-        if st.session_state.get("show_arch_fallback", False):
-            render_architect_dossier_content()
+                if in_pin.strip() == master_pin:
+                    if verify_2fa_code(in_2fa, secret_2fa):
+                        st.session_state["pending_synth"] = "commlock"
+                        st.session_state["auth_unlocked"] = True
+                        st.session_state["auth_role"] = "COMMANDER"
+                        st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
+                        st.session_state["pin_code"] = master_pin
+                        return_to_page_zero()
+                        st.rerun()
+                    else:
+                        play_ems_synth("klaxon")
+                        st.session_state["breach_log"].append(
+                            f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
+                        )
+                        st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO! Registrato nel Log Antintrusione.")
+
+                elif in_pin.strip() in STAFF_PINS:
+                    st.session_state["pending_synth"] = "burst"
+                    st.session_state["auth_unlocked"] = True
+                    st.session_state["auth_role"] = "STAFF"
+                    st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
+                    st.session_state["pin_code"] = in_pin.strip()
+                    return_to_page_zero()
+                    st.rerun()
+
+                else:
+                    play_ems_synth("klaxon")
+                    st.session_state["breach_log"].append(
+                        f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
+                    )
+                    st.error("🚨 PIN NON RICONOSCIUTO // EVENTO REGISTRATO NEL LOG DI SICUREZZA.")
+
+            b_arch, b_close = st.columns([1.6, 1.0])
+            with b_arch:
+                if st.button("◈ ARCHITECT DOSSIER (ENRICO BRAGLIA)", use_container_width=True):
+                    play_ems_synth("commlock")
+                    open_architect_modal()
+            with b_close:
+                if st.button("▲ CHIUDI SOGLIA", use_container_width=True):
+                    st.session_state["gate_open"] = False
+                    st.rerun()
+
+            if st.session_state.get("show_arch_fallback", False):
+                render_architect_dossier_content()
 
         st.markdown("""
-        <div style="margin-top:22px; padding:10px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10px; color:#64748B; letter-spacing:1px;">
-            ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · ZERO-TRUST VOLATILE RAM ◈
+        <div style="margin-top:14px; padding:8px; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10px; color:#64748B; letter-spacing:1px;">
+            ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · ZERO-TRUST RAM ◈
         </div>
         """, unsafe_allow_html=True)
     st.stop()
@@ -838,6 +1033,7 @@ with top_c2:
 with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
+        st.session_state["gate_open"] = False
         return_to_page_zero()
         st.rerun()
 
@@ -1445,7 +1641,7 @@ with col_left:
                             st.session_state["selected_sub"] = sq["subs"][0]
                             st.rerun()
 
-# --- COLONNA DESTRA COMPLETA AL 100% (EMS-1975 SYNTH + KLAXON + QR TELEPORT) ---
+# --- COLONNA DESTRA COMPLETA AL 100% (EMS-1975 SYNTH + KLAXON + DATA WAFER + QR) ---
 with col_right:
     st.markdown("""
     <div class="ems-panel">
@@ -1471,14 +1667,19 @@ with col_right:
         play_ems_synth("klaxon")
         st.warning("🚨 ALLERTA SOLAR STORM // PROTOCOLLO SCUDO 96H ATTIVO")
 
-    module_options = ["00 ALPHA MAIN MISSION"] + [f"{s['code']} {s['name']}" for s in all_squares]
+    st.link_button("◎ EAGLE LAUNCH PAD (DATA WAFER)", "https://bemask-data-wafer.streamlit.app", use_container_width=True)
+
+    module_options = ["00 ALPHA MAIN MISSION", "DW DATA WAFER PAD"] + [f"{s['code']} {s['name']}" for s in all_squares]
     chosen_mod = st.selectbox("SELEZIONA NODO TELEPORT", module_options, label_visibility="collapsed")
 
     target_url = "https://alpha-main-mission.streamlit.app"
-    for s in all_squares:
-        if chosen_mod.startswith(s["code"]):
-            target_url = s["url"]
-            break
+    if chosen_mod.startswith("DW"):
+        target_url = "https://bemask-data-wafer.streamlit.app"
+    else:
+        for s in all_squares:
+            if chosen_mod.startswith(s["code"]):
+                target_url = s["url"]
+                break
 
     st.markdown(f"""
     <div class="commlock-panel">
