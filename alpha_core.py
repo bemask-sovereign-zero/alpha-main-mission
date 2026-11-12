@@ -16,7 +16,7 @@ import streamlit.components.v1 as components
 import pandas as pd
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + SOGLIA ZERO)
+# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + 6-TILE GATE)
 # CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
 # ==============================================================================
 
@@ -194,6 +194,7 @@ def init_monumental_state():
     defaults = {
         "auth_unlocked": False,
         "gate_open": False,
+        "gate_alert": "",
         "pending_synth": None,
         "auth_role": None,
         "auth_user": "",
@@ -457,7 +458,7 @@ WEATHER_5_DAYS = [
 ]
 
 # ==============================================================================
-# 6. CSS MONUMENTALE + SOGLIA ZERO (3/5 A.L.P.H.A. + 2/5 ELENCO + SOLO CLIC INTERNO)
+# 6. CSS MONUMENTALE + MONOLITE SOGLIA ZERO + MOSAICO 6 TESSERE FLUO (2x3)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -488,7 +489,7 @@ div[data-baseweb="input"] > div:focus-within {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
 }
 
-/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO) --- */
+/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO CHIUSA) --- */
 @keyframes monolithPulse {
     0%, 100% {
         box-shadow: 0 0 42px rgba(245, 158, 11, 0.38), 0 0 86px rgba(56, 189, 248, 0.18), inset 0 0 34px rgba(245, 158, 11, 0.22);
@@ -520,14 +521,14 @@ div[data-baseweb="input"] > div:focus-within {
 }
 
 .soglia-wrap {
-    width: 480px;
+    width: 486px;
     max-width: 92vw;
     margin: 18px auto 10px auto;
 }
 .soglia-monolith {
     position: relative;
-    width: 480px;
-    height: 480px;
+    width: 486px;
+    height: 486px;
     max-width: 92vw;
     max-height: 92vw;
     background: radial-gradient(circle at 72% 30%, rgba(56, 189, 248, 0.20) 0%, #07090E 66%);
@@ -554,7 +555,6 @@ div[data-baseweb="input"] > div:focus-within {
     z-index: 2;
 }
 
-/* BLOCCO ALTO SINISTRA: 3/5 A.L.P.H.A. + 2/5 ELENCO 5 RIGHE */
 .soglia-top-zone {
     position: absolute;
     top: 16px;
@@ -603,7 +603,6 @@ div[data-baseweb="input"] > div:focus-within {
     margin: 0 4px;
 }
 
-/* FASCIA ANIMATA IN BASSO + SIGILLO FISSO INTERNO AL QUADRATO */
 .soglia-hud-bottom {
     position: absolute;
     bottom: 34px;
@@ -643,16 +642,15 @@ div[data-baseweb="input"] > div:focus-within {
     white-space: nowrap;
 }
 
-/* VELO CLICCABILE TRASPARENTE SU TUTTO IL QUADRATONE (ZERO BOTTONE ESTERNO) */
 div[class*="st-key-soglia_pad_click"] {
-    width: 480px !important;
+    width: 486px !important;
     max-width: 92vw !important;
-    margin: -490px auto 10px auto !important;
+    margin: -496px auto 10px auto !important;
     position: relative;
     z-index: 15;
 }
 div[class*="st-key-soglia_pad_click"] > div > button {
-    height: 480px !important;
+    height: 486px !important;
     width: 100% !important;
     background: transparent !important;
     border: none !important;
@@ -664,6 +662,108 @@ div[class*="st-key-soglia_pad_click"] > div > button:hover {
     background: rgba(255, 255, 255, 0.02) !important;
     border: 1.5px solid rgba(56, 189, 248, 0.80) !important;
     box-shadow: 0 0 44px rgba(56, 189, 248, 0.38) !important;
+}
+
+/* --- MOSAICO A 6 TESSERE NEON FLUO (QUADRATO SCOMPOSTO 2x3) --- */
+.gate6-tile {
+    height: 156px;
+    border-radius: 3px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    text-align: center;
+    padding: 10px 8px;
+    margin-bottom: 10px;
+    pointer-events: none;
+    transition: all 0.22s ease;
+}
+.gate6-tile-input {
+    justify-content: flex-start !important;
+    padding-top: 9px !important;
+}
+.gate6-vignette {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(9,12,18,0.22) 0%, rgba(9,12,18,0.48) 52%, rgba(9,12,18,0.92) 100%);
+    z-index: 1;
+}
+.gate6-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+}
+.gate6-code {
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+}
+.gate6-name {
+    font-size: 12.5px;
+    font-weight: 900;
+    color: #FFFFFF;
+    letter-spacing: 1px;
+    margin-top: 2px;
+    text-shadow: 0 2px 8px rgba(0,0,0,0.95);
+}
+.gate6-art {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #CBD5E1;
+    font-family: 'Share Tech Mono', monospace;
+    letter-spacing: 0.8px;
+    margin-top: 2px;
+}
+
+/* Tessere cliccabili 1, 4, 5, 6 */
+div[class*="st-key-gate6_btn_"] {
+    margin-top: -166px !important;
+    margin-bottom: 10px !important;
+    position: relative;
+    z-index: 12;
+}
+div[class*="st-key-gate6_btn_"] > div > button {
+    height: 156px !important;
+    width: 100% !important;
+    background: transparent !important;
+    border: none !important;
+    color: transparent !important;
+    box-shadow: none !important;
+    cursor: pointer !important;
+}
+div[class*="st-key-gate6_btn_"] > div > button:hover {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1.5px solid rgba(245, 158, 11, 0.88) !important;
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.42) !important;
+}
+
+/* Input incastonati dentro le tessere 2 (PIN) e 3 (2FA) */
+div[class*="st-key-gate6_in_"] {
+    margin-top: -60px !important;
+    margin-bottom: 22px !important;
+    padding: 0 14px !important;
+    position: relative;
+    z-index: 16;
+}
+div[class*="st-key-gate6_in_"] div[data-baseweb="input"] {
+    background-color: rgba(7, 10, 16, 0.88) !important;
+    border: 1.5px solid rgba(56, 189, 248, 0.72) !important;
+    border-radius: 3px !important;
+    min-height: 36px !important;
+}
+div[class*="st-key-gate6_in_2fa"] div[data-baseweb="input"] {
+    border-color: rgba(16, 185, 129, 0.75) !important;
+}
+div[class*="st-key-gate6_in_"] input {
+    text-align: center !important;
+    font-family: 'Share Tech Mono', monospace !important;
+    font-size: 15px !important;
+    font-weight: 900 !important;
+    letter-spacing: 3px !important;
+    color: #FFFFFF !important;
+    padding: 4px 6px !important;
 }
 
 .koenig-strip {
@@ -893,7 +993,7 @@ else:
         st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
 
 # ==============================================================================
-# 7. SOGLIA ZERO (MONOLITE PURO: 3/5 A.L.P.H.A. + 2/5 ELENCO + CLIC DIRETTO)
+# 7. SOGLIA ZERO + SCOMPOSIZIONE IN 6 TESSERE ANATOMICHE DELL'AQUILA (2x3 FLUO)
 # ==============================================================================
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
@@ -901,6 +1001,16 @@ STAFF_PINS = {
     "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
 }
 
+GATE_FALLBACK_SVGS = {
+    "01": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="16" y1="10" x2="74" y2="10" stroke="#94A3B8" stroke-width="3"/><rect x="38" y="10" width="14" height="28" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><path d="M52 16L64 26L52 36" stroke="#F59E0B" stroke-width="2"/><polygon points="22,48 68,48 74,56 16,56" fill="#334155" stroke="#F59E0B" stroke-width="2"/></svg>',
+    "02": '<svg width="56" height="36" viewBox="0 0 90 58" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="16,32 54,10 78,24 54,48" fill="#1E293B" stroke="#38BDF8" stroke-width="2.2"/><polygon points="30,28 50,16 56,26 38,34" fill="#F59E0B"/></svg>',
+    "03": '<svg width="56" height="36" viewBox="0 0 96 58" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="34" cy="20" r="9" fill="#1E293B" stroke="#10B981" stroke-width="2"/><circle cx="34" cy="40" r="9" fill="#1E293B" stroke="#10B981" stroke-width="2"/><polygon points="44,14 88,8 88,28 44,24" fill="rgba(56,189,248,0.65)"/><polygon points="44,34 88,30 88,50 44,46" fill="rgba(16,185,129,0.65)"/></svg>',
+    "04": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="8" width="62" height="48" rx="3" fill="#161426" stroke="#A855F7" stroke-width="2.2"/><rect x="30" y="14" width="30" height="36" rx="2" fill="#2B244D" stroke="#E2E8F0" stroke-width="1.8"/><circle cx="53" cy="32" r="3" fill="#F59E0B"/></svg>',
+    "05": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="66" height="28" fill="#1E1620" stroke="#F43F5E" stroke-width="2"/><path d="M12 46L28 18L45 46L62 18L78 46" stroke="#CBD5E1" stroke-width="1.8"/><circle cx="36" cy="32" r="3" fill="#F59E0B"/><circle cx="54" cy="32" r="3" fill="#F59E0B"/></svg>',
+    "06": '<svg width="58" height="40" viewBox="0 0 96 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="26" width="18" height="18" rx="2" fill="#334155" stroke="#94A3B8" stroke-width="1.6"/><rect x="68" y="26" width="18" height="18" rx="2" fill="#334155" stroke="#94A3B8" stroke-width="1.6"/><polygon points="48,12 68,30 48,48 28,30" fill="#E2E8F0" stroke="#EF4444" stroke-width="2.2"/><polygon points="45,24 34,30 45,35" fill="#F59E0B"/><polygon points="51,24 62,30 51,35" fill="#F59E0B"/></svg>',
+}
+
+@st.cache_data(show_spinner=False)
 def load_soglia_eagle_video_b64():
     base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
     explicit_names = [
@@ -926,6 +1036,62 @@ def load_soglia_eagle_video_b64():
             except Exception:
                 pass
     return None
+
+@st.cache_data(show_spinner=False)
+def load_eagle_grid_sprite_uri():
+    """Rileva automaticamente la tavola 2x3 eagle_grid (.jpg/.png/.webp) per i 6 riquadri anatomici."""
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
+    candidates = []
+    for ext in ["jpg", "jpeg", "png", "webp"]:
+        candidates.extend(glob.glob(f"*.{ext}"))
+        candidates.extend(glob.glob(os.path.join(base_dir, f"*.{ext}")))
+
+    prioritized = []
+    others = []
+    for p in sorted(set(candidates)):
+        low = os.path.basename(p).lower()
+        if any(k in low for k in ["grid", "6", "tiles", "mosaic", "parts", "watermarked", "eagle_6"]):
+            prioritized.append(p)
+        elif "eagle" in low:
+            others.append(p)
+
+    for target in (prioritized + others):
+        try:
+            with open(target, "rb") as f:
+                b64 = base64.b64encode(f.read()).decode("utf-8")
+            mime = "image/png" if target.lower().endswith(".png") else ("image/webp" if target.lower().endswith(".webp") else "image/jpeg")
+            return f"data:{mime};base64,{b64}"
+        except Exception:
+            continue
+    return None
+
+def build_gate6_tile_html(code, title, subtitle, border_hex, glow_rgba, fallback_grad, bg_pos, sprite_uri, is_input=False):
+    cls_extra = " gate6-tile-input" if is_input else ""
+    if sprite_uri:
+        bg_css = (
+            f"background-image: url('{sprite_uri}'); "
+            f"background-size: 204% 306%; "
+            f"background-position: {bg_pos}; "
+            f"background-repeat: no-repeat;"
+        )
+        icon_block = ""
+    else:
+        bg_css = f"background: {fallback_grad};"
+        svg_inline = "" if is_input else f"<div style='margin-bottom:4px;'>{GATE_FALLBACK_SVGS.get(code, '')}</div>"
+        icon_block = svg_inline
+
+    raw = f"""
+<div class="gate6-tile{cls_extra}" style="{bg_css} border: 1.5px solid {border_hex}; border-left: 5px solid {border_hex}; box-shadow: inset 0 0 26px {glow_rgba}, 0 0 16px {glow_rgba};">
+<div class="gate6-vignette"></div>
+<div class="gate6-content">
+{icon_block}
+<div class="gate6-code" style="color:{border_hex};">{code}</div>
+<div class="gate6-name">{title}</div>
+<div class="gate6-art">{subtitle}</div>
+</div>
+</div>
+"""
+    return "\n".join(line.strip() for line in raw.splitlines() if line.strip())
 
 def build_soglia_monolith_html():
     video_b64 = load_soglia_eagle_video_b64()
@@ -1012,74 +1178,157 @@ def build_soglia_monolith_html():
     return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
 
 if not st.session_state["auth_unlocked"]:
-    s_left, s_center, s_right = st.columns([0.95, 1.6, 0.95])
+    s_left, s_center, s_right = st.columns([0.95, 1.65, 0.95])
     with s_center:
-        st.markdown(build_soglia_monolith_html(), unsafe_allow_html=True)
-
         if not st.session_state["gate_open"]:
+            # --- STATO 1: GRANDE QUADRATO UNICO LUMINESCENTE ---
+            st.markdown(build_soglia_monolith_html(), unsafe_allow_html=True)
             if st.button(" ", key="soglia_pad_click", use_container_width=True):
                 st.session_state["gate_open"] = True
+                st.session_state["gate_alert"] = ""
                 st.session_state["pending_synth"] = "commlock"
                 st.rerun()
         else:
-            if st.button("⚡ ACCESSO RAPIDO DEMO (1-CLICK ENRICO)", use_container_width=True):
-                st.session_state["pending_synth"] = "commlock"
-                st.session_state["auth_unlocked"] = True
-                st.session_state["auth_role"] = "COMMANDER"
-                st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
-                return_to_page_zero()
-                st.rerun()
+            # --- STATO 2: SCOMPOSIZIONE SUL POSTO IN 6 TESSERE NEON FLUO (2x3) ---
+            st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
+            sprite_uri = load_eagle_grid_sprite_uri()
 
-            c_pin, c_2fa = st.columns(2)
-            in_pin = c_pin.text_input("🔑 PIN", type="password", placeholder="9999 o 1024")
-            in_2fa = c_2fa.text_input("📱 2FA (6 CIFRE)", type="password", placeholder="Google Auth")
-
-            if st.button("🛡️ SBLOCCA PLANCIA", use_container_width=True):
-                master_pin = get_master_pin()
-                secret_2fa = get_totp_secret()
-                ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-
-                if in_pin.strip() == master_pin:
-                    if verify_2fa_code(in_2fa, secret_2fa):
-                        st.session_state["pending_synth"] = "commlock"
-                        st.session_state["auth_unlocked"] = True
-                        st.session_state["auth_role"] = "COMMANDER"
-                        st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
-                        st.session_state["pin_code"] = master_pin
-                        return_to_page_zero()
-                        st.rerun()
-                    else:
-                        play_ems_synth("klaxon")
-                        st.session_state["breach_log"].append(
-                            f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: Usato PIN Titolare senza Token 2FA valido (Codice inserito: '{in_2fa}')"
-                        )
-                        st.error("🚨 ACCESSO NEGATO: CODICE 2FA MANCANTE O SCADUTO!")
-
-                elif in_pin.strip() in STAFF_PINS:
-                    st.session_state["pending_synth"] = "burst"
+            # RIGA 1: [01 ACCESSO RAPIDO - Ammortizzatori] | [02 PIN - Muso Comando]
+            r1_c1, r1_c2 = st.columns(2, gap="small")
+            with r1_c1:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "01", "ACCESSO RAPIDO", "LANDING GEAR · 1-CLICK",
+                        "#F59E0B", "rgba(245, 158, 11, 0.40)",
+                        "radial-gradient(circle at 50% 40%, #3D2B14 0%, #12151C 80%)",
+                        "0% 0%", sprite_uri, is_input=False
+                    ),
+                    unsafe_allow_html=True
+                )
+                if st.button(" ", key="gate6_btn_fast", use_container_width=True):
+                    st.session_state["pending_synth"] = "commlock"
                     st.session_state["auth_unlocked"] = True
-                    st.session_state["auth_role"] = "STAFF"
-                    st.session_state["auth_user"] = STAFF_PINS[in_pin.strip()]
-                    st.session_state["pin_code"] = in_pin.strip()
+                    st.session_state["auth_role"] = "COMMANDER"
+                    st.session_state["auth_user"] = "ENRICO BRAGLIA // SYSTEM ARCHITECT"
+                    st.session_state["gate_alert"] = ""
                     return_to_page_zero()
                     st.rerun()
 
-                else:
-                    play_ems_synth("klaxon")
-                    st.session_state["breach_log"].append(
-                        f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO (PIN tentato: '{in_pin}')"
-                    )
-                    st.error("🚨 PIN NON RICONOSCIUTO // REGISTRATO NEL LOG.")
+            with r1_c2:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "02", "PIN OPERATORE", "COMMAND BEAK · CABIN",
+                        "#38BDF8", "rgba(56, 189, 248, 0.40)",
+                        "radial-gradient(circle at 50% 40%, #12334A 0%, #11161F 80%)",
+                        "100% 0%", sprite_uri, is_input=True
+                    ),
+                    unsafe_allow_html=True
+                )
+                in_pin = st.text_input("PIN", type="password", placeholder="••••", label_visibility="collapsed", key="gate6_in_pin")
 
-            b_arch, b_close = st.columns([1.5, 1.0])
-            with b_arch:
-                if st.button("◈ ARCHITECT DOSSIER", use_container_width=True):
+            # RIGA 2: [03 2FA 6 CIFRE - Turbine] | [04 SBLOCCA PLANCIA - Porta Stagna]
+            r2_c1, r2_c2 = st.columns(2, gap="small")
+            with r2_c1:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "03", "2FA · 6 CIFRE", "PLASMA THRUSTERS",
+                        "#10B981", "rgba(16, 185, 129, 0.42)",
+                        "radial-gradient(circle at 50% 40%, #0F3A30 0%, #10171D 80%)",
+                        "0% 50%", sprite_uri, is_input=True
+                    ),
+                    unsafe_allow_html=True
+                )
+                in_2fa = st.text_input("2FA", type="password", placeholder="6 CIFRE", label_visibility="collapsed", key="gate6_in_2fa")
+
+            with r2_c2:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "04", "SBLOCCA PLANCIA", "MAIN AIRLOCK DOOR",
+                        "#A855F7", "rgba(168, 85, 247, 0.42)",
+                        "radial-gradient(circle at 50% 40%, #2B224C 0%, #131420 80%)",
+                        "100% 50%", sprite_uri, is_input=False
+                    ),
+                    unsafe_allow_html=True
+                )
+                if st.button(" ", key="gate6_btn_unlock", use_container_width=True):
+                    master_pin = get_master_pin()
+                    secret_2fa = get_totp_secret()
+                    ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+                    pin_clean = str(in_pin).strip()
+
+                    if pin_clean == master_pin:
+                        if verify_2fa_code(in_2fa, secret_2fa):
+                            st.session_state["pending_synth"] = "commlock"
+                            st.session_state["auth_unlocked"] = True
+                            st.session_state["auth_role"] = "COMMANDER"
+                            st.session_state["auth_user"] = "ENRICO BRAGLIA // COMMANDER (2FA VERIFIED)"
+                            st.session_state["pin_code"] = master_pin
+                            st.session_state["gate_alert"] = ""
+                            return_to_page_zero()
+                            st.rerun()
+                        else:
+                            st.session_state["pending_synth"] = "klaxon"
+                            st.session_state["breach_log"].append(
+                                f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: PIN Titolare senza 2FA valido ('{in_2fa}')"
+                            )
+                            st.session_state["gate_alert"] = "🚨 CODICE 2FA MANCANTE O SCADUTO"
+                            st.rerun()
+                    elif pin_clean in STAFF_PINS:
+                        st.session_state["pending_synth"] = "burst"
+                        st.session_state["auth_unlocked"] = True
+                        st.session_state["auth_role"] = "STAFF"
+                        st.session_state["auth_user"] = STAFF_PINS[pin_clean]
+                        st.session_state["pin_code"] = pin_clean
+                        st.session_state["gate_alert"] = ""
+                        return_to_page_zero()
+                        st.rerun()
+                    else:
+                        st.session_state["pending_synth"] = "klaxon"
+                        st.session_state["breach_log"].append(
+                            f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO ('{pin_clean}')"
+                        )
+                        st.session_state["gate_alert"] = "🚨 INSERISCI PIN NELLA CASELLA 02"
+                        st.rerun()
+
+            # RIGA 3: [05 ARCHITECT DOSSIER - Traliccio] | [06 CHIUDI - Vista Frontale]
+            r3_c1, r3_c2 = st.columns(2, gap="small")
+            with r3_c1:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "05", "ARCHITECT DOSSIER", "FORWARD SPINE TRUSS",
+                        "#F43F5E", "rgba(244, 63, 94, 0.42)",
+                        "radial-gradient(circle at 50% 40%, #3F1C2A 0%, #15131B 80%)",
+                        "0% 100%", sprite_uri, is_input=False
+                    ),
+                    unsafe_allow_html=True
+                )
+                if st.button(" ", key="gate6_btn_arch", use_container_width=True):
                     play_ems_synth("commlock")
                     open_architect_modal()
-            with b_close:
-                if st.button("▲ CHIUDI", use_container_width=True):
+
+            with r3_c2:
+                st.markdown(
+                    build_gate6_tile_html(
+                        "06", "CHIUDI", "FRONTAL EAGLE VIEW",
+                        "#EF4444", "rgba(239, 68, 68, 0.42)",
+                        "radial-gradient(circle at 50% 40%, #40181E 0%, #151318 80%)",
+                        "100% 100%", sprite_uri, is_input=False
+                    ),
+                    unsafe_allow_html=True
+                )
+                if st.button(" ", key="gate6_btn_close", use_container_width=True):
                     st.session_state["gate_open"] = False
+                    st.session_state["gate_alert"] = ""
+                    st.session_state["pending_synth"] = "commlock"
                     st.rerun()
+
+            if st.session_state.get("gate_alert"):
+                st.markdown(
+                    f"<div style='background:#3B1219;border:1px solid #EF4444;color:#FCA5A5;padding:6px 10px;"
+                    f"font-family:Share Tech Mono,monospace;font-size:11px;text-align:center;border-radius:3px;'>"
+                    f"{st.session_state['gate_alert']}</div>",
+                    unsafe_allow_html=True
+                )
 
             if st.session_state.get("show_arch_fallback", False):
                 render_architect_dossier_content()
