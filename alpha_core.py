@@ -15,6 +15,11 @@ import streamlit as st
 import streamlit.components.v1 as components
 import pandas as pd
 
+try:
+    from PIL import Image
+except Exception:
+    Image = None
+
 # ==============================================================================
 # BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + 6-TILE GATE)
 # CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
@@ -458,7 +463,7 @@ WEATHER_5_DAYS = [
 ]
 
 # ==============================================================================
-# 6. CSS MONUMENTALE + MONOLITE SOGLIA ZERO + MOSAICO 6 TESSERE FLUO (2x3)
+# 6. CSS MONUMENTALE + INPUT 100% TRASPARENTI + INDICATORE TELEMETRICO ISTANTANEO
 # ==============================================================================
 st.markdown("""
 <style>
@@ -487,6 +492,16 @@ header[data-testid="stHeader"] { background: transparent; }
 div[data-baseweb="input"] > div:focus-within {
     border-color: #10B981 !important;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
+}
+
+/* Indicatore nativo Streamlit in alto a destra armonizzato Moonbase Alpha */
+[data-testid="stStatusWidget"] {
+    background-color: rgba(16, 19, 25, 0.92) !important;
+    border: 1px solid #F59E0B !important;
+    border-radius: 3px !important;
+    padding: 3px 10px !important;
+    color: #F59E0B !important;
+    font-family: 'Share Tech Mono', monospace !important;
 }
 
 /* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO CHIUSA) --- */
@@ -518,6 +533,11 @@ div[data-baseweb="input"] > div:focus-within {
 @keyframes eagleFloat {
     0%, 100%  { transform: translate(0px, 0px); }
     50%       { transform: translate(-4px, -6px); }
+}
+@keyframes telemetryScan {
+    0%   { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.45), 0 0 18px rgba(245, 158, 11, 0.45); }
+    50%  { box-shadow: inset 0 0 42px rgba(245, 158, 11, 0.75), 0 0 36px rgba(56, 189, 248, 0.75); }
+    100% { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.45), 0 0 18px rgba(245, 158, 11, 0.45); }
 }
 
 .soglia-wrap {
@@ -663,6 +683,23 @@ div[class*="st-key-soglia_pad_click"] > div > button:hover {
     border: 1.5px solid rgba(56, 189, 248, 0.80) !important;
     box-shadow: 0 0 44px rgba(56, 189, 248, 0.38) !important;
 }
+div[class*="st-key-soglia_pad_click"] > div > button:active::after,
+div[class*="st-key-soglia_pad_click"] > div > button:focus::after {
+    content: "◈ APERTURA SOGLIA A.L.P.H.A. ◈";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(10, 14, 22, 0.92);
+    border: 1.5px solid #F59E0B;
+    color: #F59E0B;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 2px;
+    padding: 10px 18px;
+    border-radius: 3px;
+    box-shadow: 0 0 28px rgba(245, 158, 11, 0.65);
+}
 
 /* --- MOSAICO A 6 TESSERE NEON FLUO (QUADRATO SCOMPOSTO 2x3) --- */
 .gate6-tile {
@@ -678,17 +715,20 @@ div[class*="st-key-soglia_pad_click"] > div > button:hover {
     padding: 10px 8px;
     margin-bottom: 10px;
     pointer-events: none;
-    transition: all 0.22s ease;
+    transition: all 0.20s ease;
 }
 .gate6-tile-input {
     justify-content: flex-start !important;
-    padding-top: 9px !important;
+    padding-top: 8px !important;
 }
 .gate6-vignette {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(9,12,18,0.22) 0%, rgba(9,12,18,0.48) 52%, rgba(9,12,18,0.92) 100%);
+    background: linear-gradient(180deg, rgba(9,12,18,0.18) 0%, rgba(9,12,18,0.44) 54%, rgba(9,12,18,0.90) 100%);
     z-index: 1;
+}
+.gate6-tile-input .gate6-vignette {
+    background: linear-gradient(180deg, rgba(7,10,16,0.76) 0%, rgba(7,10,16,0.16) 52%, rgba(7,10,16,0.38) 100%) !important;
 }
 .gate6-content {
     position: relative;
@@ -706,18 +746,19 @@ div[class*="st-key-soglia_pad_click"] > div > button:hover {
     color: #FFFFFF;
     letter-spacing: 1px;
     margin-top: 2px;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.95);
+    text-shadow: 0 2px 8px rgba(0,0,0,0.98);
 }
 .gate6-art {
     font-size: 8.5px;
     font-weight: 700;
-    color: #CBD5E1;
+    color: #E2E8F0;
     font-family: 'Share Tech Mono', monospace;
     letter-spacing: 0.8px;
     margin-top: 2px;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.98);
 }
 
-/* Tessere cliccabili 1, 4, 5, 6 */
+/* Tessere cliccabili 01, 04, 05, 06 + INDICATORE TELEMETRICO ISTANTANEO */
 div[class*="st-key-gate6_btn_"] {
     margin-top: -166px !important;
     margin-bottom: 10px !important;
@@ -732,38 +773,104 @@ div[class*="st-key-gate6_btn_"] > div > button {
     color: transparent !important;
     box-shadow: none !important;
     cursor: pointer !important;
+    position: relative !important;
 }
 div[class*="st-key-gate6_btn_"] > div > button:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
     border: 1.5px solid rgba(245, 158, 11, 0.88) !important;
     box-shadow: 0 0 28px rgba(245, 158, 11, 0.42) !important;
 }
+div[class*="st-key-gate6_btn_"] > div > button:active,
+div[class*="st-key-gate6_btn_"] > div > button:focus {
+    background: rgba(7, 10, 16, 0.55) !important;
+    border: 2px solid #38BDF8 !important;
+    animation: telemetryScan 0.9s infinite !important;
+}
+div[class*="st-key-gate6_btn_"] > div > button:active::after,
+div[class*="st-key-gate6_btn_"] > div > button:focus::after {
+    content: "◈ AGGANCIO TELEMETRIA...";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(8, 12, 20, 0.92);
+    border: 1px solid #38BDF8;
+    color: #38BDF8;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    padding: 5px 10px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
 
-/* Input incastonati dentro le tessere 2 (PIN) e 3 (2FA) */
+/* --- INPUT 02 E 03: SFONDO ASSOLUTAMENTE TRASPARENTE + SOLI PUNTINI COLORATI --- */
 div[class*="st-key-gate6_in_"] {
-    margin-top: -60px !important;
-    margin-bottom: 22px !important;
-    padding: 0 14px !important;
+    margin-top: -64px !important;
+    margin-bottom: 24px !important;
+    padding: 0 16px !important;
     position: relative;
     z-index: 16;
 }
-div[class*="st-key-gate6_in_"] div[data-baseweb="input"] {
-    background-color: rgba(7, 10, 16, 0.88) !important;
-    border: 1.5px solid rgba(56, 189, 248, 0.72) !important;
-    border-radius: 3px !important;
-    min-height: 36px !important;
+div[class*="st-key-gate6_in_"] div[data-baseweb="input"],
+div[class*="st-key-gate6_in_"] div[data-baseweb="base-input"],
+div[class*="st-key-gate6_in_"] div[data-baseweb="input"] > div {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    min-height: 40px !important;
 }
-div[class*="st-key-gate6_in_2fa"] div[data-baseweb="input"] {
-    border-color: rgba(16, 185, 129, 0.75) !important;
+/* Rimozione totale icona occhiello e pulsanti accessori */
+div[class*="st-key-gate6_in_"] button {
+    display: none !important;
 }
 div[class*="st-key-gate6_in_"] input {
+    background: transparent !important;
+    background-color: transparent !important;
     text-align: center !important;
     font-family: 'Share Tech Mono', monospace !important;
-    font-size: 15px !important;
+    font-size: 24px !important;
     font-weight: 900 !important;
-    letter-spacing: 3px !important;
-    color: #FFFFFF !important;
-    padding: 4px 6px !important;
+    padding: 2px 0px !important;
+}
+
+/* TESSERA 02: 4 PUNTINI VERDE SMERALDO (#10B981) */
+div[class*="st-key-gate6_in_pin"] input {
+    color: #10B981 !important;
+    -webkit-text-fill-color: #10B981 !important;
+    caret-color: #10B981 !important;
+    letter-spacing: 10px !important;
+    text-shadow: 0 0 12px rgba(16, 185, 129, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
+}
+div[class*="st-key-gate6_in_pin"] input::placeholder {
+    color: #10B981 !important;
+    -webkit-text-fill-color: #10B981 !important;
+    opacity: 1 !important;
+    letter-spacing: 10px !important;
+    text-shadow: 0 0 12px rgba(16, 185, 129, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
+}
+div[class*="st-key-gate6_in_pin"] input:focus::placeholder {
+    opacity: 0.25 !important;
+}
+
+/* TESSERA 03: 6 PUNTINI BLU ELETTRICO (#38BDF8) */
+div[class*="st-key-gate6_in_2fa"] input {
+    color: #38BDF8 !important;
+    -webkit-text-fill-color: #38BDF8 !important;
+    caret-color: #38BDF8 !important;
+    letter-spacing: 8px !important;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
+}
+div[class*="st-key-gate6_in_2fa"] input::placeholder {
+    color: #38BDF8 !important;
+    -webkit-text-fill-color: #38BDF8 !important;
+    opacity: 1 !important;
+    letter-spacing: 8px !important;
+    text-shadow: 0 0 12px rgba(56, 189, 248, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
+}
+div[class*="st-key-gate6_in_2fa"] input:focus::placeholder {
+    opacity: 0.25 !important;
 }
 
 .koenig-strip {
@@ -816,6 +923,7 @@ div[class*="st-key-gate6_in_"] input {
 .tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.1px; margin-top: 3px; }
 .tile-artifact { font-size: 9px; font-weight: 700; color: #94A3B8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 4px; }
 
+/* Clic sui 12 quadrati della Plancia + Indicatore Telemetrico Istantaneo */
 div[class*="st-key-blum_click_"] {
     margin-top: -234px !important;
     margin-bottom: 14px !important;
@@ -829,11 +937,35 @@ div[class*="st-key-blum_click_"] > div > button {
     border: none !important;
     color: transparent !important;
     box-shadow: none !important;
+    position: relative !important;
 }
 div[class*="st-key-blum_click_"] > div > button:hover {
     background: rgba(255, 255, 255, 0.05) !important;
     border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
     box-shadow: 0 0 32px rgba(245, 158, 11, 0.4) !important;
+}
+div[class*="st-key-blum_click_"] > div > button:active,
+div[class*="st-key-blum_click_"] > div > button:focus {
+    background: rgba(10, 14, 22, 0.60) !important;
+    border: 2px solid #38BDF8 !important;
+    animation: telemetryScan 0.9s infinite !important;
+}
+div[class*="st-key-blum_click_"] > div > button:active::after,
+div[class*="st-key-blum_click_"] > div > button:focus::after {
+    content: "◈ APERTURA SETTORE IN RAM...";
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(8, 12, 20, 0.94);
+    border: 1.5px solid #F59E0B;
+    color: #F59E0B;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    padding: 6px 12px;
+    border-radius: 3px;
+    white-space: nowrap;
 }
 
 div.stButton > button {
@@ -993,7 +1125,7 @@ else:
         st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
 
 # ==============================================================================
-# 7. SOGLIA ZERO + SCOMPOSIZIONE IN 6 TESSERE ANATOMICHE DELL'AQUILA (2x3 FLUO)
+# 7. SOGLIA ZERO + SCOMPOSIZIONE LEGGERA IN 6 TESSERE (1x CSS SPRITE IN RAM)
 # ==============================================================================
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
@@ -1039,7 +1171,7 @@ def load_soglia_eagle_video_b64():
 
 @st.cache_data(show_spinner=False)
 def load_eagle_grid_sprite_uri():
-    """Rileva automaticamente la tavola 2x3 eagle_grid (.jpg/.png/.webp) per i 6 riquadri anatomici."""
+    """Rileva eagle_grid e la comprime in RAM una sola volta (~140 KB invece di 20+ MB ripetuti 6 volte)."""
     base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
     candidates = []
     for ext in ["jpg", "jpeg", "png", "webp"]:
@@ -1058,22 +1190,31 @@ def load_eagle_grid_sprite_uri():
     for target in (prioritized + others):
         try:
             with open(target, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode("utf-8")
+                raw_bytes = f.read()
+            if Image is not None:
+                try:
+                    img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
+                    if img.width > 960:
+                        ratio = 960.0 / float(img.width)
+                        img = img.resize((960, int(img.height * ratio)), Image.Resampling.LANCZOS)
+                    buf = io.BytesIO()
+                    img.save(buf, format="JPEG", quality=84, optimize=True)
+                    b64_opt = base64.b64encode(buf.getvalue()).decode("utf-8")
+                    return f"data:image/jpeg;base64,{b64_opt}"
+                except Exception:
+                    pass
+            b64 = base64.b64encode(raw_bytes).decode("utf-8")
             mime = "image/png" if target.lower().endswith(".png") else ("image/webp" if target.lower().endswith(".webp") else "image/jpeg")
             return f"data:{mime};base64,{b64}"
         except Exception:
             continue
     return None
 
-def build_gate6_tile_html(code, title, subtitle, border_hex, glow_rgba, fallback_grad, bg_pos, sprite_uri, is_input=False):
+def build_gate6_tile_html(code, title, subtitle, border_hex, glow_rgba, fallback_grad, bg_pos, has_sprite, is_input=False):
     cls_extra = " gate6-tile-input" if is_input else ""
-    if sprite_uri:
-        bg_css = (
-            f"background-image: url('{sprite_uri}'); "
-            f"background-size: 204% 306%; "
-            f"background-position: {bg_pos}; "
-            f"background-repeat: no-repeat;"
-        )
+    sprite_cls = " gate6-has-sprite" if has_sprite else ""
+    if has_sprite:
+        bg_css = f"background-position: {bg_pos};"
         icon_block = ""
     else:
         bg_css = f"background: {fallback_grad};"
@@ -1081,7 +1222,7 @@ def build_gate6_tile_html(code, title, subtitle, border_hex, glow_rgba, fallback
         icon_block = svg_inline
 
     raw = f"""
-<div class="gate6-tile{cls_extra}" style="{bg_css} border: 1.5px solid {border_hex}; border-left: 5px solid {border_hex}; box-shadow: inset 0 0 26px {glow_rgba}, 0 0 16px {glow_rgba};">
+<div class="gate6-tile{cls_extra}{sprite_cls}" style="{bg_css} border: 1.5px solid {border_hex}; border-left: 5px solid {border_hex}; box-shadow: inset 0 0 26px {glow_rgba}, 0 0 16px {glow_rgba};">
 <div class="gate6-vignette"></div>
 <div class="gate6-content">
 {icon_block}
@@ -1189,11 +1330,17 @@ if not st.session_state["auth_unlocked"]:
                 st.session_state["pending_synth"] = "commlock"
                 st.rerun()
         else:
-            # --- STATO 2: SCOMPOSIZIONE SUL POSTO IN 6 TESSERE NEON FLUO (2x3) ---
+            # --- STATO 2: SCOMPOSIZIONE LEGGERA IN 6 TESSERE (SPRITE CARICATA 1 SOLA VOLTA) ---
             st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
             sprite_uri = load_eagle_grid_sprite_uri()
+            has_sprite = bool(sprite_uri)
+            if has_sprite:
+                st.markdown(
+                    f"<style>.gate6-has-sprite {{ background-image: url('{sprite_uri}'); background-size: 204% 306%; background-repeat: no-repeat; }}</style>",
+                    unsafe_allow_html=True
+                )
 
-            # RIGA 1: [01 ACCESSO RAPIDO - Ammortizzatori] | [02 PIN - Muso Comando]
+            # RIGA 1: [01 ACCESSO RAPIDO - Ammortizzatori] | [02 PIN (4 puntini smeraldo)]
             r1_c1, r1_c2 = st.columns(2, gap="small")
             with r1_c1:
                 st.markdown(
@@ -1201,7 +1348,7 @@ if not st.session_state["auth_unlocked"]:
                         "01", "ACCESSO RAPIDO", "LANDING GEAR · 1-CLICK",
                         "#F59E0B", "rgba(245, 158, 11, 0.40)",
                         "radial-gradient(circle at 50% 40%, #3D2B14 0%, #12151C 80%)",
-                        "0% 0%", sprite_uri, is_input=False
+                        "0% 0%", has_sprite, is_input=False
                     ),
                     unsafe_allow_html=True
                 )
@@ -1220,13 +1367,13 @@ if not st.session_state["auth_unlocked"]:
                         "02", "PIN OPERATORE", "COMMAND BEAK · CABIN",
                         "#38BDF8", "rgba(56, 189, 248, 0.40)",
                         "radial-gradient(circle at 50% 40%, #12334A 0%, #11161F 80%)",
-                        "100% 0%", sprite_uri, is_input=True
+                        "100% 0%", has_sprite, is_input=True
                     ),
                     unsafe_allow_html=True
                 )
                 in_pin = st.text_input("PIN", type="password", placeholder="••••", label_visibility="collapsed", key="gate6_in_pin")
 
-            # RIGA 2: [03 2FA 6 CIFRE - Turbine] | [04 SBLOCCA PLANCIA - Porta Stagna]
+            # RIGA 2: [03 2FA (6 puntini blu elettrico)] | [04 SBLOCCA PLANCIA - Porta Stagna]
             r2_c1, r2_c2 = st.columns(2, gap="small")
             with r2_c1:
                 st.markdown(
@@ -1234,11 +1381,11 @@ if not st.session_state["auth_unlocked"]:
                         "03", "2FA · 6 CIFRE", "PLASMA THRUSTERS",
                         "#10B981", "rgba(16, 185, 129, 0.42)",
                         "radial-gradient(circle at 50% 40%, #0F3A30 0%, #10171D 80%)",
-                        "0% 50%", sprite_uri, is_input=True
+                        "0% 50%", has_sprite, is_input=True
                     ),
                     unsafe_allow_html=True
                 )
-                in_2fa = st.text_input("2FA", type="password", placeholder="6 CIFRE", label_visibility="collapsed", key="gate6_in_2fa")
+                in_2fa = st.text_input("2FA", type="password", placeholder="••••••", label_visibility="collapsed", key="gate6_in_2fa")
 
             with r2_c2:
                 st.markdown(
@@ -1246,7 +1393,7 @@ if not st.session_state["auth_unlocked"]:
                         "04", "SBLOCCA PLANCIA", "MAIN AIRLOCK DOOR",
                         "#A855F7", "rgba(168, 85, 247, 0.42)",
                         "radial-gradient(circle at 50% 40%, #2B224C 0%, #131420 80%)",
-                        "100% 50%", sprite_uri, is_input=False
+                        "100% 50%", has_sprite, is_input=False
                     ),
                     unsafe_allow_html=True
                 )
@@ -1298,7 +1445,7 @@ if not st.session_state["auth_unlocked"]:
                         "05", "ARCHITECT DOSSIER", "FORWARD SPINE TRUSS",
                         "#F43F5E", "rgba(244, 63, 94, 0.42)",
                         "radial-gradient(circle at 50% 40%, #3F1C2A 0%, #15131B 80%)",
-                        "0% 100%", sprite_uri, is_input=False
+                        "0% 100%", has_sprite, is_input=False
                     ),
                     unsafe_allow_html=True
                 )
@@ -1312,7 +1459,7 @@ if not st.session_state["auth_unlocked"]:
                         "06", "CHIUDI", "FRONTAL EAGLE VIEW",
                         "#EF4444", "rgba(239, 68, 68, 0.42)",
                         "radial-gradient(circle at 50% 40%, #40181E 0%, #151318 80%)",
-                        "100% 100%", sprite_uri, is_input=False
+                        "100% 100%", has_sprite, is_input=False
                     ),
                     unsafe_allow_html=True
                 )
