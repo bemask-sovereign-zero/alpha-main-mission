@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 import time
 import hmac
@@ -456,7 +457,7 @@ WEATHER_5_DAYS = [
 ]
 
 # ==============================================================================
-# 6. CSS MONUMENTALE + MONOLITE 1:1 CLICCABILE + TASTO COMPACT ENTER
+# 6. CSS MONUMENTALE + SOGLIA ZERO (3/5 A.L.P.H.A. + 2/5 ELENCO + SOLO CLIC INTERNO)
 # ==============================================================================
 st.markdown("""
 <style>
@@ -487,31 +488,31 @@ div[data-baseweb="input"] > div:focus-within {
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
 }
 
-/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO 10s LOOP) --- */
+/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO) --- */
 @keyframes monolithPulse {
     0%, 100% {
-        box-shadow: 0 0 38px rgba(245, 158, 11, 0.36), 0 0 80px rgba(56, 189, 248, 0.18), inset 0 0 32px rgba(245, 158, 11, 0.22);
+        box-shadow: 0 0 42px rgba(245, 158, 11, 0.38), 0 0 86px rgba(56, 189, 248, 0.18), inset 0 0 34px rgba(245, 158, 11, 0.22);
         border-color: #F59E0B;
     }
     50% {
-        box-shadow: 0 0 58px rgba(56, 189, 248, 0.48), 0 0 110px rgba(16, 185, 129, 0.22), inset 0 0 42px rgba(56, 189, 248, 0.30);
+        box-shadow: 0 0 60px rgba(56, 189, 248, 0.50), 0 0 115px rgba(16, 185, 129, 0.22), inset 0 0 44px rgba(56, 189, 248, 0.30);
         border-color: #38BDF8;
     }
 }
 @keyframes hudPhase1 {
-    0%, 3%    { opacity: 0; transform: translateY(6px); }
-    6%, 22%   { opacity: 1; transform: translateY(0px); }
-    25%, 100% { opacity: 0; transform: translateY(-6px); }
+    0%, 3%    { opacity: 0; transform: translateY(5px); }
+    7%, 30%   { opacity: 1; transform: translateY(0px); }
+    34%, 100% { opacity: 0; transform: translateY(-5px); }
 }
 @keyframes hudPhase2 {
-    0%, 24%   { opacity: 0; transform: translateY(6px); }
-    28%, 71%  { opacity: 1; transform: translateY(0px); }
-    75%, 100% { opacity: 0; transform: translateY(-6px); }
+    0%, 33%   { opacity: 0; transform: translateY(5px); }
+    37%, 64%  { opacity: 1; transform: translateY(0px); }
+    68%, 100% { opacity: 0; transform: translateY(-5px); }
 }
 @keyframes hudPhase3 {
-    0%, 74%   { opacity: 0; transform: translateY(6px); }
-    78%, 96%  { opacity: 1; transform: translateY(0px); }
-    100%      { opacity: 0; transform: translateY(-6px); }
+    0%, 67%   { opacity: 0; transform: translateY(5px); }
+    71%, 96%  { opacity: 1; transform: translateY(0px); }
+    100%      { opacity: 0; transform: translateY(-5px); }
 }
 @keyframes eagleFloat {
     0%, 100%  { transform: translate(0px, 0px); }
@@ -519,17 +520,17 @@ div[data-baseweb="input"] > div:focus-within {
 }
 
 .soglia-wrap {
-    width: 460px;
+    width: 480px;
     max-width: 92vw;
-    margin: 12px auto 14px auto;
+    margin: 18px auto 10px auto;
 }
 .soglia-monolith {
     position: relative;
-    width: 460px;
-    height: 460px;
+    width: 480px;
+    height: 480px;
     max-width: 92vw;
     max-height: 92vw;
-    background: radial-gradient(circle at 68% 28%, rgba(56, 189, 248, 0.20) 0%, #07090E 65%);
+    background: radial-gradient(circle at 72% 30%, rgba(56, 189, 248, 0.20) 0%, #07090E 66%);
     border: 2px solid #F59E0B;
     border-radius: 4px;
     overflow: hidden;
@@ -547,42 +548,111 @@ div[data-baseweb="input"] > div:focus-within {
 .soglia-vignette {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgba(8,10,15,0.65) 0%, rgba(8,10,15,0.06) 38%, rgba(8,10,15,0.12) 62%, rgba(8,10,15,0.88) 100%);
+    background:
+        linear-gradient(135deg, rgba(7,9,14,0.82) 0%, rgba(7,9,14,0.18) 48%, rgba(7,9,14,0.05) 100%),
+        linear-gradient(180deg, rgba(7,9,14,0.35) 0%, rgba(7,9,14,0.05) 54%, rgba(7,9,14,0.92) 100%);
     z-index: 2;
 }
-.soglia-hud-top {
+
+/* BLOCCO ALTO SINISTRA: 3/5 A.L.P.H.A. + 2/5 ELENCO 5 RIGHE */
+.soglia-top-zone {
     position: absolute;
-    top: 12px; left: 14px; right: 14px;
-    display: flex; justify-content: space-between; align-items: center;
+    top: 16px;
+    left: 18px;
+    right: 18px;
     z-index: 3;
-    font-family: 'Share Tech Mono', monospace; font-size: 10px; color: #38BDF8; letter-spacing: 1.2px;
 }
+.soglia-alpha-3of5 {
+    width: 60%;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    color: #FFFFFF;
+    line-height: 1;
+    text-shadow: 0 0 16px rgba(245, 158, 11, 0.55);
+}
+.soglia-alpha-3of5 .dot-sep {
+    color: #F59E0B;
+    font-size: 22px;
+}
+.soglia-list-2of5 {
+    width: 40%;
+    margin-top: 8px;
+    padding-top: 7px;
+    border-top: 1.5px solid rgba(245, 158, 11, 0.55);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    text-align: left;
+}
+.soglia-list-row {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #F8FAFC;
+    letter-spacing: 0.9px;
+    line-height: 1.22;
+    white-space: nowrap;
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
+}
+.soglia-list-row .row-dot {
+    color: #94A3B8;
+    margin: 0 4px;
+}
+
+/* FASCIA ANIMATA IN BASSO + SIGILLO FISSO INTERNO AL QUADRATO */
 .soglia-hud-bottom {
     position: absolute;
-    bottom: 16px; left: 14px; right: 14px;
-    min-height: 76px;
+    bottom: 34px;
+    left: 16px;
+    right: 16px;
+    min-height: 52px;
     z-index: 3;
-    display: flex; align-items: flex-end; justify-content: center; text-align: center;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    text-align: center;
 }
 .hud-seq {
     position: absolute;
-    left: 0; right: 0; bottom: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     opacity: 0;
 }
 .hud-seq-1 { animation: hudPhase1 10s infinite; }
 .hud-seq-2 { animation: hudPhase2 10s infinite; }
 .hud-seq-3 { animation: hudPhase3 10s infinite; }
 
-/* Clic diretto dentro il grande quadrato luminescente */
+.soglia-inner-footer {
+    position: absolute;
+    bottom: 8px;
+    left: 14px;
+    right: 14px;
+    z-index: 3;
+    border-top: 1px solid rgba(245, 158, 11, 0.32);
+    padding-top: 5px;
+    text-align: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: #CBD5E1;
+    letter-spacing: 0.65px;
+    white-space: nowrap;
+}
+
+/* VELO CLICCABILE TRASPARENTE SU TUTTO IL QUADRATONE (ZERO BOTTONE ESTERNO) */
 div[class*="st-key-soglia_pad_click"] {
-    width: 460px !important;
+    width: 480px !important;
     max-width: 92vw !important;
-    margin: -474px auto 14px auto !important;
+    margin: -490px auto 10px auto !important;
     position: relative;
     z-index: 15;
 }
 div[class*="st-key-soglia_pad_click"] > div > button {
-    height: 460px !important;
+    height: 480px !important;
     width: 100% !important;
     background: transparent !important;
     border: none !important;
@@ -592,32 +662,8 @@ div[class*="st-key-soglia_pad_click"] > div > button {
 }
 div[class*="st-key-soglia_pad_click"] > div > button:hover {
     background: rgba(255, 255, 255, 0.02) !important;
-    border: 1.5px solid rgba(56, 189, 248, 0.75) !important;
-    box-shadow: 0 0 40px rgba(56, 189, 248, 0.35) !important;
-}
-
-/* Pulsante compatto centrato con SOLO "ENTER" in carattere grande */
-div[class*="st-key-soglia_enter_btn"] {
-    width: 210px !important;
-    margin: 2px auto 8px auto !important;
-}
-div[class*="st-key-soglia_enter_btn"] > div > button {
-    width: 210px !important;
-    min-height: 54px !important;
-    background: linear-gradient(180deg, #161D29 0%, #0D1118 100%) !important;
-    border: 2px solid #F59E0B !important;
-    border-radius: 4px !important;
-    color: #F59E0B !important;
-    font-family: 'Orbitron', sans-serif !important;
-    font-size: 21px !important;
-    font-weight: 900 !important;
-    letter-spacing: 5px !important;
-    box-shadow: 0 0 24px rgba(245, 158, 11, 0.30) !important;
-}
-div[class*="st-key-soglia_enter_btn"] > div > button:hover {
-    color: #FFFFFF !important;
-    border-color: #38BDF8 !important;
-    box-shadow: 0 0 34px rgba(56, 189, 248, 0.50) !important;
+    border: 1.5px solid rgba(56, 189, 248, 0.80) !important;
+    box-shadow: 0 0 44px rgba(56, 189, 248, 0.38) !important;
 }
 
 .koenig-strip {
@@ -726,14 +772,18 @@ div.stButton > button:hover {
     .mission-title { font-size: 14px !important; }
     .kpi-custom-value { font-size: 19px !important; }
     .blum-stage { padding: 12px !important; }
-    .soglia-wrap { width: 320px !important; }
-    .soglia-monolith { width: 320px !important; height: 320px !important; }
+    .soglia-wrap { width: 340px !important; }
+    .soglia-monolith { width: 340px !important; height: 340px !important; }
+    .soglia-alpha-3of5 { font-size: 19px !important; }
+    .soglia-alpha-3of5 .dot-sep { font-size: 16px !important; }
+    .soglia-list-row { font-size: 10.5px !important; letter-spacing: 0.4px !important; }
+    .soglia-inner-footer { font-size: 7.2px !important; letter-spacing: 0.2px !important; }
     div[class*="st-key-soglia_pad_click"] {
-        width: 320px !important;
-        margin: -334px auto 12px auto !important;
+        width: 340px !important;
+        margin: -350px auto 8px auto !important;
     }
     div[class*="st-key-soglia_pad_click"] > div > button {
-        height: 320px !important;
+        height: 340px !important;
     }
 }
 </style>
@@ -843,7 +893,7 @@ else:
         st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
 
 # ==============================================================================
-# 7. SOGLIA ZERO (QUADRATO LUMINESCENTE CLICCABILE + TASTO COMPACT ENTER)
+# 7. SOGLIA ZERO (MONOLITE PURO: 3/5 A.L.P.H.A. + 2/5 ELENCO + CLIC DIRETTO)
 # ==============================================================================
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
@@ -852,10 +902,26 @@ STAFF_PINS = {
 }
 
 def load_soglia_eagle_video_b64():
-    for candidate in ["eagle_loop.mp4", "eagle_loop..mp4", "soglia_zero.mp4", "alpha_loop.mp4"]:
-        if os.path.exists(candidate):
+    base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
+    explicit_names = [
+        "eagle_loop.mp4", "eagle_loop.mp4.mp4", "eagle_loop..mp4",
+        "soglia_zero.mp4", "alpha_loop.mp4"
+    ]
+    for name in explicit_names:
+        for p in [name, os.path.join(base_dir, name)]:
+            if os.path.exists(p):
+                try:
+                    with open(p, "rb") as vf:
+                        return base64.b64encode(vf.read()).decode("utf-8")
+                except Exception:
+                    pass
+
+    all_mp4 = glob.glob("*.mp4") + glob.glob(os.path.join(base_dir, "*.mp4"))
+    for p in sorted(set(all_mp4)):
+        low = os.path.basename(p).lower()
+        if "manifesto" not in low and any(k in low for k in ["eagle", "loop", "soglia"]):
             try:
-                with open(candidate, "rb") as vf:
+                with open(p, "rb") as vf:
                     return base64.b64encode(vf.read()).decode("utf-8")
             except Exception:
                 pass
@@ -879,9 +945,7 @@ def build_soglia_monolith_html():
             '<stop offset="100%" stop-color="#090D14"/>'
             '</linearGradient>'
             '</defs>'
-            '<circle cx="88" cy="92" r="1.2" fill="#E2E8F0" opacity="0.7"/>'
             '<circle cx="410" cy="70" r="1.4" fill="#38BDF8" opacity="0.8"/>'
-            '<circle cx="165" cy="60" r="1.1" fill="#F59E0B" opacity="0.6"/>'
             '<circle cx="440" cy="210" r="1.2" fill="#E2E8F0" opacity="0.5"/>'
             '<ellipse cx="220" cy="520" rx="430" ry="195" fill="url(#moonSurf)" stroke="#10B981" stroke-width="1.2" opacity="0.9"/>'
             '<ellipse cx="220" cy="520" rx="360" ry="150" fill="none" stroke="#38BDF8" stroke-width="0.7" stroke-dasharray="6 5" opacity="0.45"/>'
@@ -913,26 +977,34 @@ def build_soglia_monolith_html():
 <div class="soglia-monolith">
 {visual_core}
 <div class="soglia-vignette"></div>
-<div class="soglia-hud-top">
-<span>◈ ORBITAL TELEMETRY // 3-AXIS RAM</span>
-<span style="color:#F59E0B;">MOONBASE A.L.P.H.A.</span>
+<div class="soglia-top-zone">
+<div class="soglia-alpha-3of5">
+<span>A</span><span class="dot-sep">.</span><span>L</span><span class="dot-sep">.</span><span>P</span><span class="dot-sep">.</span><span>H</span><span class="dot-sep">.</span><span>A</span><span class="dot-sep">.</span>
+</div>
+<div class="soglia-list-2of5">
+<div class="soglia-list-row"><span style="color:#F59E0B;">A</span><span class="row-dot">·</span>ANALYTICS</div>
+<div class="soglia-list-row"><span style="color:#38BDF8;">L</span><span class="row-dot">·</span>LINEARITY</div>
+<div class="soglia-list-row"><span style="color:#10B981;">P</span><span class="row-dot">·</span>POWER</div>
+<div class="soglia-list-row"><span style="color:#F59E0B;">H</span><span class="row-dot">·</span>HYPER-SCALE</div>
+<div class="soglia-list-row"><span style="color:#38BDF8;">A</span><span class="row-dot">·</span>AUTOMATION</div>
+</div>
 </div>
 <div class="soglia-hud-bottom">
 <div class="hud-seq hud-seq-1">
-<div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono', monospace; letter-spacing:2px;">SOVEREIGN ZERO ECOSYSTEM</div>
-<div style="font-size:20px; font-weight:900; color:#FFFFFF; letter-spacing:2px; margin-top:3px;">BEMASK // A.L.P.H.A.</div>
+<div style="font-size:10.5px; color:#38BDF8; font-family:'Share Tech Mono', monospace; letter-spacing:2px;">SOVEREIGN ZERO · ECOSYSTEM</div>
+<div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:2.2px; margin-top:3px;">BEMASK · A.L.P.H.A.</div>
 </div>
 <div class="hud-seq hud-seq-2">
-<div style="font-size:17px; font-weight:900; color:#F59E0B; letter-spacing:3px; margin-bottom:5px;">A · L · P · H · A</div>
-<div style="font-size:11px; font-weight:700; color:#F8FAFC; font-family:'Share Tech Mono', monospace; letter-spacing:1.1px; line-height:1.45;">
-<span style="color:#F59E0B;">A</span>NALYTICS · <span style="color:#38BDF8;">L</span>INEARITY · <span style="color:#10B981;">P</span>OWER<br>
-<span style="color:#F59E0B;">H</span>YPER-SCALE · <span style="color:#38BDF8;">A</span>UTOMATION
-</div>
+<div style="font-size:10.5px; color:#F59E0B; font-family:'Share Tech Mono', monospace; letter-spacing:1.6px;">◈ ORBITAL TELEMETRY · 3-AXIS RAM ◈</div>
+<div style="font-size:15px; font-weight:900; color:#FFFFFF; letter-spacing:1.6px; margin-top:4px;">ARCHITECT · ENRICO BRAGLIA</div>
 </div>
 <div class="hud-seq hud-seq-3">
-<div style="font-size:11px; color:#10B981; font-family:'Share Tech Mono', monospace; letter-spacing:1.6px;">◈ ARCHITECT: ENRICO BRAGLIA</div>
-<div style="font-size:13px; font-weight:900; color:#FFFFFF; letter-spacing:1.5px; margin-top:4px;">ZERO-TRUST RAM // READY FOR COMMAND</div>
+<div style="font-size:10.5px; color:#10B981; font-family:'Share Tech Mono', monospace; letter-spacing:1.8px;">◈ ARCHITECT · ENRICO BRAGLIA ◈</div>
+<div style="font-size:13.5px; font-weight:900; color:#FFFFFF; letter-spacing:1.6px; margin-top:4px;">BEMASK · A.L.P.H.A. · COMMAND</div>
 </div>
+</div>
+<div class="soglia-inner-footer">
+◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · <strong style="color:#FFFFFF;">ENRICO BRAGLIA</strong> · <span style="color:#38BDF8;">ZERO-TRUST RAM</span> ◈
 </div>
 </div>
 </div>
@@ -940,17 +1012,12 @@ def build_soglia_monolith_html():
     return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
 
 if not st.session_state["auth_unlocked"]:
-    s_left, s_center, s_right = st.columns([1.15, 1.35, 1.15])
+    s_left, s_center, s_right = st.columns([0.95, 1.6, 0.95])
     with s_center:
         st.markdown(build_soglia_monolith_html(), unsafe_allow_html=True)
 
         if not st.session_state["gate_open"]:
             if st.button(" ", key="soglia_pad_click", use_container_width=True):
-                st.session_state["gate_open"] = True
-                st.session_state["pending_synth"] = "commlock"
-                st.rerun()
-
-            if st.button("ENTER", key="soglia_enter_btn"):
                 st.session_state["gate_open"] = True
                 st.session_state["pending_synth"] = "commlock"
                 st.rerun()
@@ -1016,12 +1083,6 @@ if not st.session_state["auth_unlocked"]:
 
             if st.session_state.get("show_arch_fallback", False):
                 render_architect_dossier_content()
-
-        st.markdown("""
-        <div style="margin-top:12px; padding:6px; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10px; color:#64748B; letter-spacing:1px;">
-            ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · ZERO-TRUST RAM ◈
-        </div>
-        """, unsafe_allow_html=True)
     st.stop()
 
 # ==============================================================================
