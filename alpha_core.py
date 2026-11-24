@@ -492,21 +492,65 @@ if st.session_state["unsaved_ops_count"] >= 3:
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
-# --- RADAR METEO TELEMETRICO SEMPRE ATTIVO A VISTA (5 GIORNI CON DATE REALI) ---
+# --- RADAR METEO TELEMETRICO LIVE 5 GIORNI (GOLFO DI FOLLONICA · OPEN-METEO) ---
 from datetime import timedelta
 
+@st.cache_data(ttl=1800, show_spinner=False)
+def fetch_live_follonica_radar():
+    url = (
+        "https://api.open-meteo.com/v1/forecast?"
+        "latitude=42.922&longitude=10.761"
+        "&daily=weather_code,temperature_2m_max,precipitation_probability_max,wind_speed_10m_max,relative_humidity_2m_mean"
+        "&wind_speed_unit=kn&timezone=Europe%2FRome&forecast_days=5"
+    )
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "BEMASK-ALPHA/1.0"})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        daily = data.get("daily", {})
+        cards = []
+        for i in range(5):
+            wcode = int(daily["weather_code"][i])
+            tmax = round(float(daily["temperature_2m_max"][i]))
+            rain_p = int(daily["precipitation_probability_max"][i] or 0)
+            wind_kt = round(float(daily["wind_speed_10m_max"][i] or 0))
+            hum_p = int(daily["relative_humidity_2m_mean"][i] or 60)
+
+            if wcode in [0, 1] and rain_p < 30 and wind_kt < 18:
+                icon, cond, col = "☀️", "SERENO · DEHORS OK", "#10B981"
+                directive = "☀️ SPINTA DEHORS, APERITIVI & LIDO"
+            elif wcode in [2, 3, 45, 48] and rain_p < 55 and wind_kt < 22:
+                icon, cond, col = "🌤️", "VARIABILE / NUBI", "#F59E0B"
+                directive = "🌤️ REGIME STANDARD ESTERNO/INTERNO"
+            else:
+                icon, cond, col = "⛈️", "PIOGGIA / VENTO FORTE", "#EF4444"
+                directive = "⚡ FALLBACK SPA, SALA INTERNA & SCUDO 96H"
+
+            cards.append({
+                "date_iso": daily["time"][i],
+                "temp": f"{tmax}°C",
+                "cond": cond,
+                "icon": icon,
+                "rain": f"PIOGGIA: {rain_p}%",
+                "hum": f"UR: {hum_p}%",
+                "wind": f"VENTO: {wind_kt} KT",
+                "directive": directive,
+                "col": col,
+            })
+        return cards, True
+    except Exception:
+        fallback = [
+            {"date_iso": (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d"), "temp": "18°C", "cond": "OFFLINE CACHE", "icon": "📡", "rain": "PIOGGIA: --%", "hum": "UR: --%", "wind": "VENTO: -- KT", "directive": "🛡️ TELEMETRIA LOCALE ATTIVA", "col": "#F59E0B"}
+            for i in range(5)
+        ]
+        return fallback, False
+
 GIORNI_BREVE_IT = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"]
-METEO_SCENARI_5D = [
-    {"temp": "19°C", "cond": "SERENO · DEHORS OK", "icon": "☀️", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW", "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO", "col": "#10B981"},
-    {"temp": "17°C", "cond": "POCO NUVOLOSO", "icon": "🌤️", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W", "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO", "col": "#F59E0B"},
-    {"temp": "17°C", "cond": "PIOGGIA E VENTO", "icon": "⛈️", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW", "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2", "col": "#EF4444"},
-    {"temp": "20°C", "cond": "BURRASCA / ALLERTA", "icon": "⛈️", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S", "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI", "col": "#EF4444"},
-    {"temp": "21°C", "cond": "AMPIE SCHIARITE", "icon": "☀️", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE", "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI", "col": "#10B981"},
-]
+live_radar_cards, _ = fetch_live_follonica_radar()
 
 w_cols = st.columns(5)
-for idx, w in enumerate(METEO_SCENARI_5D):
-    dt_day = oggi_dt + timedelta(days=idx)
+for idx, w in enumerate(live_radar_cards):
+    dt_day = datetime.strptime(w["date_iso"], "%Y-%m-%d")
     tag_oggi = " · OGGI" if idx == 0 else ""
     label_data = f"{GIORNI_BREVE_IT[dt_day.weekday()]} {dt_day.day:02d}/{dt_day.month:02d}{tag_oggi}"
     with w_cols[idx]:
