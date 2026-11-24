@@ -432,7 +432,29 @@ data_estesa_it = f"{GIORNI_IT[oggi_dt.weekday()]} {oggi_dt.day:02d} {MESI_IT[ogg
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
-top_c1, top_c_arch, top_c2, top_c3 = st.columns([2.65, 1.15, 0.8, 0.7])
+
+# --- 5. TAVOLO SCONTRINI IN RAM & CONTABILITÀ PARALLELA ---
+def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
+    raw_bytes = stream_obj.getvalue()
+    ram_kb = len(raw_bytes) / 1024.0
+    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
+    active_key = get_gemini_api_key()
+    conto_opts = get_conto_options()
+
+    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
+        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
+            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
+            if parsed_ocr:
+                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
+                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
+                righe_ai = parsed_ocr.get("righe", [])
+                if isinstance(righe_ai, list) and len(righe_ai) > 0:
+                    st.session_state["ocr_items_df"] = righe_ai
+                st.session_state["last_scanned_hash"] = ram_hash
+                play_ems_synth("commlock")
+            else:
+                st.warning(f"⚠️ {err_msg}")
+top_c1, top_c_arch, top_c3 = st.columns([3.10, 1.25, 0.95])
 with top_c1:
     st.markdown(f"""
     <div class="alpha-top-strip">
@@ -453,13 +475,6 @@ with top_c_arch:
     if st.button("◈ ARCHITECT\nENRICO BRAGLIA", use_container_width=True):
         play_ems_synth("commlock")
         open_architect_modal()
-with top_c2:
-    if st.button("🏠 PAGINA ZERO\n(HOME PLANCIA)", use_container_width=True):
-        era_in_modulo = st.session_state["blum_sector"] is not None
-        return_to_page_zero()
-        if not era_in_modulo:
-            st.toast("🏠 Matrice Principale attiva (Pagina Zero)")
-        st.rerun()
 with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
@@ -499,23 +514,27 @@ if st.session_state["unsaved_ops_count"] >= 3:
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
-with st.expander("🌤️ RADAR METEO TELEMETRICO · 5 DAYS", expanded=False):
-    w_cols = st.columns(5)
-    for idx, w in enumerate(WEATHER_5_DAYS):
-        with w_cols[idx]:
-            st.markdown(f"""
-            <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
-                <div class="w-header"><span class="w-day">{w['day']}</span><span class="w-icon">{w['icon']}</span></div>
-                <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
-                <div class="w-telemetry"><span style="color:{w['text_col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
-                <div class="w-directive">{w['directive']}</div>
-            </div>
-            """, unsafe_allow_html=True)
+# --- RADAR METEO TELEMETRICO SEMPRE ATTIVO A VISTA ---
+w_cols = st.columns(5)
+for idx, w in enumerate(WEATHER_5_DAYS):
+    with w_cols[idx]:
+        st.markdown(f"""
+        <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
+            <div class="w-header"><span class="w-day">{w['day']}</span><span class="w-icon">{w['icon']}</span></div>
+            <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
+            <div class="w-telemetry"><span style="color:{w['text_col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
+            <div class="w-directive">{w['directive']}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-if is_commander:
+# --- INTERRUTTORE SEGRETO PER SCALABILITÀ MULTIVERSO & CASSAFORTE 2FA ---
+if "vault_unlocked" not in st.session_state:
+    st.session_state["vault_unlocked"] = False
+
+if is_commander and (st.session_state["vault_unlocked"] or breach_count > 0):
     sec_col1, sec_col2 = st.columns([1.45, 1.0])
     with sec_col1:
-        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi)", expanded=st.session_state["keep_multiverse_open"]):
+        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi)", expanded=True):
             st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 4096` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
             sw_cols = st.columns(6)
             for i, vec in enumerate(BASE_VECTORS):
@@ -528,7 +547,7 @@ if is_commander:
             p4.button("⚡ SOLO 12 TRAVEL TUBE", on_click=apply_multiverse_preset, args=([False] * 11 + [True],), use_container_width=True)
 
     with sec_col2:
-        with st.expander(f"🛡️ CASSAFORTE 2FA & CHIAVE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
+        with st.expander(f"🛡️ CASSAFORTE 2FA & CHIAVE AI OCR ({breach_count} Allerte)", expanded=True):
             q1, q2 = st.columns([1, 2])
             secret_now = get_totp_secret()
             otp_uri = f"otpauth://totp/BEMASK_ALPHA:TITOLARE?secret={secret_now}&issuer=BEMASK_ALPHA"
@@ -545,29 +564,6 @@ if is_commander:
                 v_key = st.text_input("🤖 Chiave Google AI Studio (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key="api_key_box_VAULT", type="password")
                 if v_key and len(v_key.strip()) > 15:
                     st.session_state["custom_gemini_key"] = v_key.strip()
-
-# --- 5. TAVOLO SCONTRINI IN RAM & CONTABILITÀ PARALLELA ---
-def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
-    raw_bytes = stream_obj.getvalue()
-    ram_kb = len(raw_bytes) / 1024.0
-    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
-    active_key = get_gemini_api_key()
-    conto_opts = get_conto_options()
-
-    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
-        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
-            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
-            if parsed_ocr:
-                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
-                righe_ai = parsed_ocr.get("righe", [])
-                if isinstance(righe_ai, list) and len(righe_ai) > 0:
-                    st.session_state["ocr_items_df"] = righe_ai
-                st.session_state["last_scanned_hash"] = ram_hash
-                play_ems_synth("commlock")
-            else:
-                st.warning(f"⚠️ {err_msg}")
-
     st.markdown(f"""
     <div class="xray-desk">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
