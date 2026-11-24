@@ -404,7 +404,6 @@ if not st.session_state["auth_unlocked"]:
 
             if st.session_state.get("show_arch_fallback", False):
                 render_architect_dossier_content()
-    st.stop()
     # --- 4. FILTRO RUOLO & REGIA PLANCIA (12 BIT = 4096 STATI) ---
 is_commander = (st.session_state["auth_role"] == "COMMANDER")
 bits = st.session_state["active_bits_12"]
@@ -432,28 +431,6 @@ data_estesa_it = f"{GIORNI_IT[oggi_dt.weekday()]} {oggi_dt.day:02d} {MESI_IT[ogg
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
-
-# --- 5. TAVOLO SCONTRINI IN RAM & CONTABILITÀ PARALLELA ---
-def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
-    raw_bytes = stream_obj.getvalue()
-    ram_kb = len(raw_bytes) / 1024.0
-    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
-    active_key = get_gemini_api_key()
-    conto_opts = get_conto_options()
-
-    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
-        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
-            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
-            if parsed_ocr:
-                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
-                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
-                righe_ai = parsed_ocr.get("righe", [])
-                if isinstance(righe_ai, list) and len(righe_ai) > 0:
-                    st.session_state["ocr_items_df"] = righe_ai
-                st.session_state["last_scanned_hash"] = ram_hash
-                play_ems_synth("commlock")
-            else:
-                st.warning(f"⚠️ {err_msg}")
 top_c1, top_c_arch, top_c3 = st.columns([3.10, 1.25, 0.95])
 with top_c1:
     st.markdown(f"""
@@ -479,6 +456,7 @@ with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
         st.session_state["auth_unlocked"] = False
         st.session_state["gate_open"] = False
+        st.session_state["vault_unlocked"] = False
         return_to_page_zero()
         st.rerun()
 
@@ -527,7 +505,7 @@ for idx, w in enumerate(WEATHER_5_DAYS):
         </div>
         """, unsafe_allow_html=True)
 
-# --- INTERRUTTORE SEGRETO PER SCALABILITÀ MULTIVERSO & CASSAFORTE 2FA ---
+# --- CAVEAU RISERVATO (SCALABILITÀ MULTIVERSO & CASSAFORTE 2FA) ---
 if "vault_unlocked" not in st.session_state:
     st.session_state["vault_unlocked"] = False
 
@@ -564,6 +542,29 @@ if is_commander and (st.session_state["vault_unlocked"] or breach_count > 0):
                 v_key = st.text_input("🤖 Chiave Google AI Studio (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key="api_key_box_VAULT", type="password")
                 if v_key and len(v_key.strip()) > 15:
                     st.session_state["custom_gemini_key"] = v_key.strip()
+
+# --- 5. TAVOLO SCONTRINI IN RAM & CONTABILITÀ PARALLELA ---
+def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
+    raw_bytes = stream_obj.getvalue()
+    ram_kb = len(raw_bytes) / 1024.0
+    ram_hash = hashlib.sha256(raw_bytes).hexdigest()[:12].upper()
+    active_key = get_gemini_api_key()
+    conto_opts = get_conto_options()
+
+    if ram_hash != st.session_state.get("last_scanned_hash") and active_key:
+        with st.spinner("🤖 Lettura automatica e classificazione semantica A-O in corso..."):
+            parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, active_key)
+            if parsed_ocr:
+                st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
+                st.session_state["ocr_metodo"] = parsed_ocr.get("metodo_pagamento", "CARTA DI CREDITO / POS")
+                righe_ai = parsed_ocr.get("righe", [])
+                if isinstance(righe_ai, list) and len(righe_ai) > 0:
+                    st.session_state["ocr_items_df"] = righe_ai
+                st.session_state["last_scanned_hash"] = ram_hash
+                play_ems_synth("commlock")
+            else:
+                st.warning(f"⚠️ {err_msg}")
+
     st.markdown(f"""
     <div class="xray-desk">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
@@ -914,6 +915,12 @@ with col_right:
         <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">alpha-main-mission.streamlit.app</div>
     </div>
     """, unsafe_allow_html=True)
+
+    if is_commander:
+        st.markdown("<div style='height:8px;'></div>", unsafe_allow_html=True)
+        if st.button("◈", key="secret_vault_toggle", help="Nodo Riservato"):
+            st.session_state["vault_unlocked"] = not st.session_state["vault_unlocked"]
+            st.rerun()
 
 st.markdown("""
 <div style="margin-top:28px; padding:12px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10.5px; color:#64748B; letter-spacing:1.1px;">
