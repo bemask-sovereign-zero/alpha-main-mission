@@ -492,15 +492,29 @@ if st.session_state["unsaved_ops_count"] >= 3:
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
-# --- RADAR METEO TELEMETRICO SEMPRE ATTIVO A VISTA ---
+# --- RADAR METEO TELEMETRICO SEMPRE ATTIVO A VISTA (5 GIORNI CON DATE REALI) ---
+from datetime import timedelta
+
+GIORNI_BREVE_IT = ["LUN", "MAR", "MER", "GIO", "VEN", "SAB", "DOM"]
+METEO_SCENARI_5D = [
+    {"temp": "19°C", "cond": "SERENO · DEHORS OK", "icon": "☀️", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW", "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO", "col": "#10B981"},
+    {"temp": "17°C", "cond": "POCO NUVOLOSO", "icon": "🌤️", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W", "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO", "col": "#F59E0B"},
+    {"temp": "17°C", "cond": "PIOGGIA E VENTO", "icon": "⛈️", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW", "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2", "col": "#EF4444"},
+    {"temp": "20°C", "cond": "BURRASCA / ALLERTA", "icon": "⛈️", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S", "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI", "col": "#EF4444"},
+    {"temp": "21°C", "cond": "AMPIE SCHIARITE", "icon": "☀️", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE", "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI", "col": "#10B981"},
+]
+
 w_cols = st.columns(5)
-for idx, w in enumerate(WEATHER_5_DAYS):
+for idx, w in enumerate(METEO_SCENARI_5D):
+    dt_day = oggi_dt + timedelta(days=idx)
+    tag_oggi = " · OGGI" if idx == 0 else ""
+    label_data = f"{GIORNI_BREVE_IT[dt_day.weekday()]} {dt_day.day:02d}/{dt_day.month:02d}{tag_oggi}"
     with w_cols[idx]:
         st.markdown(f"""
-        <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
-            <div class="w-header"><span class="w-day">{w['day']}</span><span class="w-icon">{w['icon']}</span></div>
-            <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
-            <div class="w-telemetry"><span style="color:{w['text_col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
+        <div class="weather-card" style="border-left: 4px solid {w['col']}; border-top: 1px solid {w['col']};">
+            <div class="w-header"><span class="w-day" style="color:{w['col']}; font-size:11px;">{label_data}</span><span class="w-icon">{w['icon']}</span></div>
+            <div class="w-status" style="color:#FFFFFF; font-size:11px;">{w['temp']} · {w['cond']}</div>
+            <div class="w-telemetry"><span style="color:{w['col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
             <div class="w-directive">{w['directive']}</div>
         </div>
         """, unsafe_allow_html=True)
