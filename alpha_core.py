@@ -1,35 +1,42 @@
-import os
-import glob
 import json
 import time
 import hmac
 import hashlib
 import base64
 import struct
-import io
 import re
 import urllib.request
 import urllib.error
 from datetime import datetime
 import streamlit as st
-import streamlit.components.v1 as components
 import pandas as pd
 
-try:
-    from PIL import Image
-except Exception:
-    Image = None
+from alpha_ui import (
+    HERO_CRAFT_SVG,
+    SECTOR_SVGS,
+    BASE_VECTORS,
+    WEATHER_5_DAYS,
+    play_ems_synth,
+    inject_alpha_css,
+    load_eagle_grid_sprite_uri,
+    build_gate6_tile_html,
+    build_soglia_monolith_html,
+    render_architect_dossier_content,
+    open_architect_modal,
+)
 
 # ==============================================================================
-# BEMASK - MOONBASE A.L.P.H.A. // MAIN MISSION (12 SECTORS 2^12 + 6-TILE GATE)
+# BEMASK - A.L.P.H.A. // MAIN MISSION ENGINE (12 SECTORS 2^12 + 6-TILE GATE)
 # CONCEIVED, DIRECTED & ENGINEERED BY ENRICO BRAGLIA
 # ==============================================================================
 
 st.set_page_config(
-    page_title="BEMASK - MOONBASE A.L.P.H.A. // ENRICO BRAGLIA",
+    page_title="BEMASK - A.L.P.H.A. // ENRICO BRAGLIA",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+inject_alpha_css()
 
 # --- 1. MOTORE CRITTOGRAFICO NATIVO 2FA (RFC 6238 GOOGLE AUTHENTICATOR) ---
 def get_totp_secret():
@@ -79,7 +86,7 @@ def verify_2fa_code(input_code, secret_b32):
             return True
     return False
 
-# --- DIZIONARIO SEMANTICO INTEGRATO (PER SMISTAMENTO AUTOMATICO VOCI A-O) ---
+# --- DIZIONARIO SEMANTICO INTEGRATO (SMISTAMENTO CONTI A-O) ---
 SEMANTIC_KEYWORDS = {
     "[A] MATERIE PRIME / CAFFÈ": ["CAFF", "MISCELA", "GRANI", "ARABICA", "DECA", "ORZO", "GINSENG", "10001", "ILLY", "LAVAZZA"],
     "[B] BEVANDE / ALCOLICI": ["APEROL", "CAMPARI", "BITTER", "GIN", "VODKA", "PROSECCO", "VINO", "BIRRA", "COCA", "ACQUA", "AA514", "DORECA", "CL.100", "LT.1"],
@@ -104,9 +111,7 @@ def auto_map_semantic_conto(text_val):
                 return c_label
     return "[D] SNACK / CUCINA"
 
-# ==============================================================================
-# MOTORE OCR VISION IN RAM CON AUTODISCOVERY E MAPPATURA SEMANTICA A-O
-# ==============================================================================
+# --- MOTORE OCR VISION IN RAM CON AUTODISCOVERY ---
 def scan_receipt_in_ram_with_ai(image_bytes, api_key):
     clean_key = str(api_key).strip()
     if not clean_key or len(clean_key) < 15:
@@ -154,9 +159,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
         candidate_models = [
             ("v1beta", "gemini-2.5-flash"),
             ("v1beta", "gemini-2.0-flash"),
-            ("v1beta", "gemini-1.5-flash-latest"),
             ("v1", "gemini-2.0-flash"),
-            ("v1", "gemini-1.5-flash")
         ]
     else:
         candidate_models.sort(key=lambda x: (0 if "flash" in x[1] else 1))
@@ -189,7 +192,7 @@ def scan_receipt_in_ram_with_ai(image_bytes, api_key):
 
     return None, f"Lettura AI non riuscita ({last_err})."
 
-# --- 2. BLINDAGGIO SESSION STATE A 12 BIT (2^12 = 4096 STATI) ---
+# --- 2. SESSION STATE A 12 BIT (TUTTI I 12 SETTORI ATTIVI DI DEFAULT) ---
 def init_monumental_state():
     default_labels_ao = {
         "A": "MATERIE PRIME / CAFFÈ", "B": "BEVANDE / ALCOLICI", "C": "LATTE / FRESCHI", "D": "SNACK / CUCINA",
@@ -205,7 +208,7 @@ def init_monumental_state():
         "auth_user": "",
         "breach_log": [],
         "show_arch_fallback": False,
-        "active_bits_12": [True, True, True, True, True, True, False, False, False, True, True, True],
+        "active_bits_12": [True] * 12,
         "keep_multiverse_open": False,
         "custom_squares": [],
         "blum_sector": None,
@@ -247,7 +250,6 @@ def init_monumental_state():
     for k, v in defaults.items():
         if k not in st.session_state:
             st.session_state[k] = v
-
     for idx_b in range(12):
         t_key = f"bit_sw_{idx_b}"
         if t_key not in st.session_state:
@@ -261,6 +263,7 @@ def get_conto_options():
 def return_to_page_zero():
     st.session_state["blum_sector"] = None
     st.session_state["selected_sub"] = None
+    st.session_state["show_arch_fallback"] = False
 
 def apply_multiverse_preset(new_bits_list):
     st.session_state["active_bits_12"] = list(new_bits_list)
@@ -287,1042 +290,21 @@ def add_calendar_event(ev_type, ev_desc, ev_amount, days_span=1, status="OK", co
     })
     st.session_state["unsaved_ops_count"] += 1
 
-# --- 3. SINTETIZZATORE AUDIO WEBAUDIO (EMS SYNTHI 1975) ---
-def play_ems_synth(effect_type):
-    js_code = f"""
-    <script>
-    (function() {{
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        const now = ctx.currentTime;
-        if ("{effect_type}" === "burst") {{
-            const freqs = [523.25, 659.25, 783.99, 1046.50, 880.0, 1174.66];
-            freqs.forEach((f, i) => {{
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sawtooth";
-                osc.frequency.setValueAtTime(f, now + i * 0.06);
-                gain.gain.setValueAtTime(0.08, now + i * 0.06);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.055);
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.start(now + i * 0.06); osc.stop(now + i * 0.06 + 0.06);
-            }});
-        }} else if ("{effect_type}" === "commlock") {{
-            [987.77, 1318.51].forEach((f, i) => {{
-                const osc = ctx.createOscillator();
-                const gain = ctx.createGain();
-                osc.type = "sine";
-                osc.frequency.setValueAtTime(f, now + i * 0.11);
-                gain.gain.setValueAtTime(0.12, now + i * 0.11);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.11 + 0.10);
-                osc.connect(gain); gain.connect(ctx.destination);
-                osc.start(now + i * 0.11); osc.stop(now + i * 0.11 + 0.11);
-            }});
-        }} else if ("{effect_type}" === "klaxon") {{
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = "square";
-            osc.frequency.setValueAtTime(440, now);
-            osc.frequency.linearRampToValueAtTime(880, now + 0.25);
-            osc.frequency.linearRampToValueAtTime(440, now + 0.50);
-            gain.gain.setValueAtTime(0.12, now);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.52);
-            osc.connect(gain); gain.connect(ctx.destination);
-            osc.start(now); osc.stop(now + 0.52);
-        }}
-    }})();
-    </script>
-    """
-    components.html(js_code, height=0)
-
 if st.session_state.get("pending_synth"):
     play_ems_synth(st.session_state["pending_synth"])
     st.session_state["pending_synth"] = None
 
-# ==============================================================================
-# 4. GRANDI SIMBOLI ICONICI DI SPAZIO 1999 (INCLUSO 12 TRAVEL TUBE)
-# ==============================================================================
-EAGLE_HERO_SVG = """
-<svg width="105" height="52" viewBox="0 0 180 86" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect x="48" y="16" width="84" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>
-  <path d="M48 28L62 16L76 28L90 16L104 28L118 16L132 28" stroke="#CBD5E1" stroke-width="1.8"/>
-  <path d="M48 16L62 28L76 16L90 28L104 16L118 28L132 16" stroke="#64748B" stroke-width="1.4"/>
-  <polygon points="36,36 58,36 62,58 32,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-  <polygon points="122,36 144,36 148,58 118,58" fill="#334155" stroke="#E2E8F0" stroke-width="2"/>
-  <rect x="30" y="58" width="34" height="5" fill="#F59E0B"/>
-  <rect x="116" y="58" width="34" height="5" fill="#F59E0B"/>
-  <rect x="58" y="30" width="64" height="24" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>
-  <line x1="74" y1="30" x2="74" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
-  <line x1="106" y1="30" x2="106" y2="54" stroke="#38BDF8" stroke-width="1.5"/>
-  <polygon points="90,22 122,42 112,68 68,68 58,42" fill="#E2E8F0" stroke="#FFFFFF" stroke-width="2.2"/>
-  <polygon points="87,34 65,44 72,54 87,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
-  <polygon points="93,34 115,44 108,54 93,49" fill="#F59E0B" stroke="#78350F" stroke-width="1.5"/>
-  <circle cx="22" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
-  <circle cx="158" cy="46" r="6" fill="#EF4444" stroke="#FDE047" stroke-width="2"/>
-</svg>
-"""
-
-SVG_ICONS = {
-    "01": """<svg width="84" height="62" viewBox="0 0 120 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="24" y="10" width="72" height="12" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/><path d="M24 22L38 10L52 22L66 10L80 22L96 10" stroke="#E2E8F0" stroke-width="2"/><polygon points="14,32 36,32 40,58 10,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="84,32 106,32 110,58 80,58" fill="#334155" stroke="#94A3B8" stroke-width="2"/><polygon points="60,20 92,42 82,70 38,70 28,42" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2.5"/><polygon points="57,34 35,44 42,56 57,50" fill="#F59E0B"/><polygon points="63,34 85,44 78,56 63,50" fill="#F59E0B"/><rect x="8" y="60" width="32" height="5" fill="#F59E0B"/><rect x="80" y="60" width="32" height="5" fill="#F59E0B"/></svg>""",
-    "02": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="8" width="90" height="68" rx="4" fill="#0F172A" stroke="#10B981" stroke-width="2.5"/><rect x="18" y="16" width="20" height="12" fill="#F59E0B"/><rect x="44" y="16" width="20" height="12" fill="#F8FAFC"/><rect x="70" y="16" width="22" height="12" fill="#10B981"/><rect x="18" y="34" width="20" height="12" fill="#10B981"/><rect x="44" y="34" width="20" height="12" fill="#EF4444"/><rect x="70" y="34" width="22" height="12" fill="#F59E0B"/><rect x="18" y="54" width="74" height="14" fill="#1E293B" stroke="#34D399" stroke-width="1.8"/><path d="M22 61H40L45 56L52 66L58 58L64 61H88" stroke="#10B981" stroke-width="2.2"/></svg>""",
-    "03": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="55" cy="42" r="32" fill="#0F293A" stroke="#38BDF8" stroke-width="2.5"/><circle cx="55" cy="42" r="20" stroke="#38BDF8" stroke-width="1.5" stroke-dasharray="4 3"/><line x1="55" y1="10" x2="55" y2="74" stroke="#38BDF8" stroke-width="1.5"/><line x1="23" y1="42" x2="87" y2="42" stroke="#38BDF8" stroke-width="1.5"/><circle cx="65" cy="32" r="5" fill="#F59E0B"/><circle cx="43" cy="50" r="4" fill="#10B981"/></svg>""",
-    "04": """<svg width="74" height="62" viewBox="0 0 100 86" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="26" y="6" width="48" height="74" rx="5" fill="#1E1B2E" stroke="#A855F7" stroke-width="2.8"/><rect x="33" y="13" width="34" height="26" rx="2" fill="#090D16" stroke="#38BDF8" stroke-width="2"/><circle cx="50" cy="26" r="7" fill="#F59E0B"/><rect x="34" y="45" width="9" height="7" fill="#F59E0B"/><rect x="46" y="45" width="9" height="7" fill="#E2E8F0"/><rect x="57" y="45" width="9" height="7" fill="#EF4444"/><line x1="34" y1="60" x2="66" y2="60" stroke="#CBD5E1" stroke-width="2"/><line x1="34" y1="66" x2="66" y2="66" stroke="#CBD5E1" stroke-width="2"/></svg>""",
-    "05": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="12" width="82" height="60" rx="6" fill="#2A121F" stroke="#F43F5E" stroke-width="2.5"/><path d="M22 44H38L45 24L55 62L64 34L70 44H88" stroke="#F43F5E" stroke-width="3"/><circle cx="28" cy="24" r="4" fill="#F59E0B"/><circle cx="82" cy="24" r="4" fill="#10B981"/></svg>""",
-    "06": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="18,76 28,10 86,10 96,76" fill="#161A22" stroke="#F59E0B" stroke-width="2.8"/><polygon points="22,74 30,13 54,13 48,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="66,74 62,13 84,13 92,74" fill="#334155" stroke="#E2E8F0" stroke-width="2"/><polygon points="48,74 54,13 62,13 66,74" fill="rgba(245,158,11,0.35)"/><rect x="100" y="34" width="8" height="16" fill="#F59E0B" stroke="#FFFFFF" stroke-width="1.2"/></svg>""",
-    "07": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="24,20 86,20 96,42 86,66 24,66 14,42" fill="#0F2E26" stroke="#10B981" stroke-width="2.5"/><rect x="34" y="30" width="42" height="24" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><line x1="24" y1="42" x2="86" y2="42" stroke="#34D399" stroke-width="2"/><circle cx="55" cy="42" r="6" fill="#F59E0B"/></svg>""",
-    "08": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="55,8 92,22 84,64 55,78 26,64 18,22" fill="#0E2A36" stroke="#06B6D4" stroke-width="2.5"/><circle cx="55" cy="42" r="18" fill="#161E29" stroke="#38BDF8" stroke-width="2"/><path d="M55 30V54M43 42H67" stroke="#10B981" stroke-width="3.5"/></svg>""",
-    "09": """<svg width="82" height="62" viewBox="0 0 110 84" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="55" y1="10" x2="55" y2="74" stroke="#F59E0B" stroke-width="4"/><ellipse cx="55" cy="26" rx="28" ry="8" stroke="#38BDF8" stroke-width="2.2" fill="rgba(56,189,248,0.15)"/><ellipse cx="55" cy="46" rx="36" ry="10" stroke="#F59E0B" stroke-width="2.5" fill="rgba(245,158,11,0.18)"/><circle cx="55" cy="12" r="6" fill="#EF4444"/></svg>""",
-    "10": """<svg width="84" height="62" viewBox="0 0 114 84" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="10" width="90" height="64" rx="4" fill="#0B2922" stroke="#10B981" stroke-width="2.8"/><rect x="20" y="18" width="46" height="22" fill="#091318" stroke="#34D399" stroke-width="2"/><line x1="25" y1="25" x2="60" y2="25" stroke="#F59E0B" stroke-width="3"/><line x1="25" y1="33" x2="50" y2="33" stroke="#10B981" stroke-width="3"/><circle cx="82" cy="29" r="10" fill="#1E293B" stroke="#F59E0B" stroke-width="2.5"/><circle cx="82" cy="29" r="4" fill="#EF4444"/><rect x="20" y="48" width="14" height="16" fill="#F59E0B"/><rect x="38" y="48" width="14" height="16" fill="#E2E8F0"/><rect x="56" y="48" width="14" height="16" fill="#10B981"/><rect x="74" y="48" width="20" height="16" fill="#EF4444"/></svg>""",
-    "11": """<svg width="86" height="62" viewBox="0 0 118 84" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18 26H86L96 32L86 40H52L40 72H22L32 40H18V26Z" fill="#CBD5E1" stroke="#EF4444" stroke-width="2.5"/><rect x="26" y="30" width="22" height="6" fill="#EF4444"/><rect x="54" y="30" width="18" height="6" fill="#F59E0B"/><rect x="94" y="29" width="8" height="8" fill="#F59E0B"/><line x1="102" y1="33" x2="116" y2="33" stroke="#EF4444" stroke-width="4" stroke-dasharray="3 2"/></svg>""",
-    "12": """<svg width="88" height="62" viewBox="0 0 130 84" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="65" cy="42" r="35" fill="#0B192C" stroke="#38BDF8" stroke-width="2.2" stroke-dasharray="5 3"/><rect x="12" y="26" width="106" height="32" rx="16" fill="#1E293B" stroke="#F59E0B" stroke-width="2.8"/><rect x="28" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="55" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><rect x="82" y="32" width="20" height="13" rx="3" fill="#090D16" stroke="#38BDF8" stroke-width="1.8"/><line x1="18" y1="51" x2="112" y2="51" stroke="#F59E0B" stroke-width="2.8"/><circle cx="20" cy="42" r="4" fill="#10B981"/><circle cx="110" cy="42" r="4" fill="#EF4444"/></svg>"""
-}
-
-# --- 5. ARCHITETTURA DEI 12 VETTORI PRIMARI (1 -> 2^12 = 4096) ---
-BASE_VECTORS = [
-    {
-        "bit": 0, "code": "01", "short": "01 FRONT", "name": "FRONT & APEX", "artifact": "EAGLE-1 TRANSPORTER", "staff_allowed": False,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3D2B14 0%, #14161D 78%)",
-        "kpi": "OCC: 88% | ADR: € 165 | 140 COMB BAR", "url": "https://bemask-sovereign-zero.streamlit.app",
-        "subs": ["1. Dynamic Pricing 140 Comb", "2. Controllo Allotment & OTA", "3. Check-in & Upselling", "4. Forecast 24 Fasce BAR", "5. Export CSV Passepartout"]
-    },
-    {
-        "bit": 1, "code": "02", "short": "02 BEV", "name": "LAZERS BEV", "artifact": "ALPHA WALL CONTROL PANEL", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #113A32 0%, #12181F 78%)",
-        "kpi": "POURING: 21% | MARGINE CANTINA: +79%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Pouring Calici & Vini", "2. Spinta Aperitivi Meteo", "3. Margine Bottiglie", "4. Usura Cristalleria", "5. Inventario Cantina Live"]
-    },
-    {
-        "bit": 2, "code": "03", "short": "03 FOOD", "name": "LAZERS FOOD", "artifact": "MAIN MISSION RADAR DESK", "staff_allowed": False,
-        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #13334C 0%, #121720 78%)",
-        "kpi": "COPERTI: 84/105 | FOOD COST: 28.5%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Capienza Sala & Cucina", "2. Scorporo Quote HB / FB", "3. Sfridi & Rese Carni", "4. Semaforo TheFork Zero-Fee", "5. Floor Industriale Pasto"]
-    },
-    {
-        "bit": 3, "code": "04", "short": "04 BEACH", "name": "BEACH & POOL", "artifact": "ALPHA COMMLOCK 1975", "staff_allowed": True,
-        "border": "#A855F7", "glow": "rgba(168, 85, 247, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #2B244D 0%, #141522 78%)",
-        "kpi": "SATURAZIONE LIDO: 92% | VENTO: 11 KT", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Mappa Ombrelloni & Cabine", "2. Soglia Vento Grounding", "3. Light Lunch all'Ombrellone", "4. Presidio Bagnini", "5. Chiusura Cassa Lido"]
-    },
-    {
-        "bit": 4, "code": "05", "short": "05 SPA", "name": "SPA & AYURVEDA", "artifact": "DR. RUSSELL MED-SCANNER", "staff_allowed": True,
-        "border": "#F43F5E", "glow": "rgba(244, 63, 94, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3F1D2B 0%, #16141C 78%)",
-        "kpi": "SLOT CABINE: 14/16 | FALLBACK PIOGGIA ON", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Conversione Pioggia (S1/S2)", "2. Agenda Cabine & Massaggi", "3. Percorso Private Spa VIP", "4. Vendita Linea Cosmetica", "5. Turni Operatori"]
-    },
-    {
-        "bit": 5, "code": "06", "short": "06 SKA", "name": "S.K.A. & ROOMS", "artifact": "ALPHA SLIDING BULKHEAD DOOR", "staff_allowed": True,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #382B19 0%, #15161C 78%)",
-        "kpi": "CAMERE PRONTE: 58/60 | SEGNALAZIONI: 0", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Stato Pulizia Camere", "2. Ticket Manutenzione", "3. Presidio Brigata Piani", "4. Dotazioni & Biancheria", "5. Ispezione Governante"]
-    },
-    {
-        "bit": 6, "code": "07", "short": "07 ACQUISTO", "name": "PUNTO ACQUISTO & ROP", "artifact": "EAGLE CARGO POD 96H", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #13392E 0%, #12171D 78%)",
-        "kpi": "ROP: SCORTA OK | SCUDO AUTONOMIA: 96H", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Calcolatore Punto Riordino (ROP)", "2. Scudo Dispensa 96 Ore", "3. Lead Time Fornitori", "4. Controllo Fatture XML", "5. Lista Ordini Urgenti"]
-    },
-    {
-        "bit": 7, "code": "08", "short": "08 HACCP", "name": "HACCP & REGISTRO ASL", "artifact": "LIFE SUPPORT BIOSENSOR", "staff_allowed": True,
-        "border": "#06B6D4", "glow": "rgba(6, 182, 212, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #123440 0%, #12171E 78%)",
-        "kpi": "CELLE FRIGO: 21/21 OK | FIRME PIN: 6", "url": "https://ska-boschetto.streamlit.app",
-        "subs": ["1. Temperature Celle (-18°C / +4°C)", "2. Firma Digitale con PIN", "3. Lotti & Sgocciolato", "4. Sanificazione Cucina", "5. Scarica Stampa ASL (.HTML)"]
-    },
-    {
-        "bit": 8, "code": "09", "short": "09 GOPPAR", "name": "OPEX / CAPEX & P.IVA", "artifact": "ALPHA LASER DEFENSE PYLON", "staff_allowed": False,
-        "border": "#F59E0B", "glow": "rgba(245, 158, 11, 0.38)", "bg_grad": "radial-gradient(circle at 50% 42%, #3B2816 0%, #14161D 78%)",
-        "kpi": "MOL NETTO OGGI: € 4.820 | GOP: +34%", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. Split Multi-P.IVA Casa Madre", "2. OPEX vs CAPEX Real-Time", "3. Incidenza Costo Brigate", "4. Cashflow Consolidato", "5. Ponte Dati Revisore"]
-    },
-    {
-        "bit": 9, "code": "10", "short": "10 BAR DDT", "name": "BAR & DDT SENTINEL", "artifact": "X5-7 MAIN COMPUTER CONSOLE", "staff_allowed": False,
-        "border": "#10B981", "glow": "rgba(16, 185, 129, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F3D33 0%, #10171D 78%)",
-        "kpi": "RAGGI-X SCONTRINO | CONTABILITÀ PARALLELA A-O | +1KG CAFFÈ", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scanner & Voci Scontrino", "2. 🎹 Contabilità Rapida (A-O)", "3. 🏁 Chiusura Cassa / Turno", "4. ❄️ Frigo Bar 1-Click", "5. 📅 Bilancio & Calendario"]
-    },
-    {
-        "bit": 10, "code": "11", "short": "11 VAMPIRE", "name": "BANK VAMPIRE SCANNER", "artifact": "KOENIG LASER STUN GUN", "staff_allowed": False,
-        "border": "#EF4444", "glow": "rgba(239, 68, 68, 0.42)", "bg_grad": "radial-gradient(circle at 50% 42%, #421820 0%, #151319 78%)",
-        "kpi": "AUTOPSIA CONTO | POS REALE & SDD ALERT", "url": "https://bemask-lazers.streamlit.app",
-        "subs": ["1. 📸 Scanner E/C & POS Reale", "2. Vero Tasso POS Effettivo", "3. Impatto Costi su Caffetteria", "4. Anti-Doppio Addebito SDD", "5. 📅 Bilancio & Calendario"]
-    },
-    {
-        "bit": 11, "code": "12", "short": "12 TUBE", "name": "TRAVEL TUBE SHIELD", "artifact": "ALPHA HIGH-SPEED ESCAPE POD", "staff_allowed": False,
-        "border": "#38BDF8", "glow": "rgba(56, 189, 248, 0.45)", "bg_grad": "radial-gradient(circle at 50% 42%, #0F344C 0%, #10151D 78%)",
-        "kpi": "FONDO CASSA | MULTI-POS vs RT | SEMANTICA A-O", "url": "https://bemask-travel-tube.streamlit.app",
-        "subs": ["1. 🛡️ Pareggio Cassa & POS", "2. 🧠 Motore Semantico A-O", "3. ⚡ Giustificativo 3-Sec", "4. 🖨️ Distinta Ispettiva .TXT", "5. 📅 Bilancio & Calendario"]
-    }
-]
-
-WEATHER_5_DAYS = [
-    {"day": "LUN 09/11 · 19°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 8%", "hum": "UR: 54%", "wind": "VENTO: 7 KT NW", "directive": "☀️ SPINTA DEHORS, APERITIVI & LIDO", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MAR 10/11 · 17°C", "icon": "🌤️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 14%", "hum": "UR: 61%", "wind": "VENTO: 11 KT W", "directive": "🌤️ REGIME STANDARD ESTERNO/INTERNO", "border": "#F59E0B", "text_col": "#F59E0B"},
-    {"day": "MER 11/11 · 17°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 91%", "hum": "UR: 88%", "wind": "VENTO: 29 KT SW", "directive": "⚡ FALLBACK SPA, SALA INTERNA & S2", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "GIO 12/11 · 20°C", "icon": "⛈️", "status": "SOLAR STORM", "rain": "PIOGGIA: 94%", "hum": "UR: 92%", "wind": "VENTO: 33 KT S", "directive": "🚨 SCUDO 96H & CHIUSURA OMBRELLONI", "border": "#EF4444", "text_col": "#EF4444"},
-    {"day": "VEN 13/11 · 21°C", "icon": "☀️", "status": "NOMINAL ORBIT", "rain": "PIOGGIA: 22%", "hum": "UR: 58%", "wind": "VENTO: 9 KT NE", "directive": "🛸 RIAPERTURA COMPLETA SETTORI ESTERNI", "border": "#38BDF8", "text_col": "#38BDF8"},
-]
-
-# ==============================================================================
-# 6. CSS MONUMENTALE + INPUT 100% TRASPARENTI + INDICATORE TELEMETRICO ISTANTANEO
-# ==============================================================================
-st.markdown("""
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@600;700;800;900&family=Share+Tech+Mono&display=swap');
-
-html, body, [data-testid="stAppViewContainer"], .stApp, .main, .block-container {
-    overflow-x: hidden !important;
-    max-width: 100vw !important;
-    box-sizing: border-box !important;
-}
-
-.stApp {
-    background-color: #101319;
-    background-image:
-        radial-gradient(circle at 50% 32%, rgba(245, 158, 11, 0.07) 0%, rgba(16, 19, 25, 0.96) 72%),
-        url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='420' viewBox='0 0 900 420'><g opacity='0.045' stroke='%23F59E0B' stroke-width='2' fill='none'><rect x='220' y='90' width='460' height='60'/><path d='M220 150 L300 90 L380 150 L460 90 L540 150 L620 90 L680 150'/><polygon points='450,110 610,210 560,340 340,340 290,210'/><polygon points='435,175 325,220 360,275 435,250' fill='%23F59E0B'/><polygon points='465,175 575,220 540,275 465,250' fill='%23F59E0B'/><rect x='140' y='180' width='120' height='110'/><rect x='640' y='180' width='120' height='110'/></g></svg>");
-    background-repeat: no-repeat;
-    background-position: center 140px;
-    background-attachment: fixed;
-    color: #F8FAFC;
-    font-family: 'Orbitron', sans-serif;
-}
-header[data-testid="stHeader"] { background: transparent; }
-.block-container { padding-top: 0.6rem; padding-left: 1rem !important; padding-right: 1rem !important; max-width: 97% !important; }
-
-div[data-baseweb="input"] > div:focus-within {
-    border-color: #10B981 !important;
-    box-shadow: 0 0 10px rgba(16, 185, 129, 0.45) !important;
-}
-
-/* Indicatore nativo Streamlit in alto a destra armonizzato Moonbase Alpha */
-[data-testid="stStatusWidget"] {
-    background-color: rgba(16, 19, 25, 0.92) !important;
-    border: 1px solid #F59E0B !important;
-    border-radius: 3px !important;
-    padding: 3px 10px !important;
-    color: #F59E0B !important;
-    font-family: 'Share Tech Mono', monospace !important;
-}
-
-/* --- MONOLITE QUADRATO LUMINESCENTE 1:1 (SOGLIA ZERO CHIUSA) --- */
-@keyframes monolithPulse {
-    0%, 100% {
-        box-shadow: 0 0 42px rgba(245, 158, 11, 0.38), 0 0 86px rgba(56, 189, 248, 0.18), inset 0 0 34px rgba(245, 158, 11, 0.22);
-        border-color: #F59E0B;
-    }
-    50% {
-        box-shadow: 0 0 60px rgba(56, 189, 248, 0.50), 0 0 115px rgba(16, 185, 129, 0.22), inset 0 0 44px rgba(56, 189, 248, 0.30);
-        border-color: #38BDF8;
-    }
-}
-@keyframes hudPhase1 {
-    0%, 3%    { opacity: 0; transform: translateY(5px); }
-    7%, 30%   { opacity: 1; transform: translateY(0px); }
-    34%, 100% { opacity: 0; transform: translateY(-5px); }
-}
-@keyframes hudPhase2 {
-    0%, 33%   { opacity: 0; transform: translateY(5px); }
-    37%, 64%  { opacity: 1; transform: translateY(0px); }
-    68%, 100% { opacity: 0; transform: translateY(-5px); }
-}
-@keyframes hudPhase3 {
-    0%, 67%   { opacity: 0; transform: translateY(5px); }
-    71%, 96%  { opacity: 1; transform: translateY(0px); }
-    100%      { opacity: 0; transform: translateY(-5px); }
-}
-@keyframes eagleFloat {
-    0%, 100%  { transform: translate(0px, 0px); }
-    50%       { transform: translate(-4px, -6px); }
-}
-@keyframes telemetryScan {
-    0%   { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.45), 0 0 18px rgba(245, 158, 11, 0.45); }
-    50%  { box-shadow: inset 0 0 42px rgba(245, 158, 11, 0.75), 0 0 36px rgba(56, 189, 248, 0.75); }
-    100% { box-shadow: inset 0 0 18px rgba(56, 189, 248, 0.45), 0 0 18px rgba(245, 158, 11, 0.45); }
-}
-
-.soglia-wrap {
-    width: 486px;
-    max-width: 92vw;
-    margin: 18px auto 10px auto;
-}
-.soglia-monolith {
-    position: relative;
-    width: 486px;
-    height: 486px;
-    max-width: 92vw;
-    max-height: 92vw;
-    background: radial-gradient(circle at 72% 30%, rgba(56, 189, 248, 0.20) 0%, #07090E 66%);
-    border: 2px solid #F59E0B;
-    border-radius: 4px;
-    overflow: hidden;
-    animation: monolithPulse 5s ease-in-out infinite;
-    pointer-events: none;
-}
-.soglia-monolith video {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: 1;
-}
-.soglia-vignette {
-    position: absolute;
-    inset: 0;
-    background:
-        linear-gradient(135deg, rgba(7,9,14,0.82) 0%, rgba(7,9,14,0.18) 48%, rgba(7,9,14,0.05) 100%),
-        linear-gradient(180deg, rgba(7,9,14,0.35) 0%, rgba(7,9,14,0.05) 54%, rgba(7,9,14,0.92) 100%);
-    z-index: 2;
-}
-
-.soglia-top-zone {
-    position: absolute;
-    top: 16px;
-    left: 18px;
-    right: 18px;
-    z-index: 3;
-}
-.soglia-alpha-3of5 {
-    width: 60%;
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 26px;
-    font-weight: 900;
-    color: #FFFFFF;
-    line-height: 1;
-    text-shadow: 0 0 16px rgba(245, 158, 11, 0.55);
-}
-.soglia-alpha-3of5 .dot-sep {
-    color: #F59E0B;
-    font-size: 22px;
-}
-.soglia-list-2of5 {
-    width: 40%;
-    margin-top: 8px;
-    padding-top: 7px;
-    border-top: 1.5px solid rgba(245, 158, 11, 0.55);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    text-align: left;
-}
-.soglia-list-row {
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 13.5px;
-    font-weight: 700;
-    color: #F8FAFC;
-    letter-spacing: 0.9px;
-    line-height: 1.22;
-    white-space: nowrap;
-    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
-}
-.soglia-list-row .row-dot {
-    color: #94A3B8;
-    margin: 0 4px;
-}
-
-.soglia-hud-bottom {
-    position: absolute;
-    bottom: 34px;
-    left: 16px;
-    right: 16px;
-    min-height: 52px;
-    z-index: 3;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    text-align: center;
-}
-.hud-seq {
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    opacity: 0;
-}
-.hud-seq-1 { animation: hudPhase1 10s infinite; }
-.hud-seq-2 { animation: hudPhase2 10s infinite; }
-.hud-seq-3 { animation: hudPhase3 10s infinite; }
-
-.soglia-inner-footer {
-    position: absolute;
-    bottom: 8px;
-    left: 14px;
-    right: 14px;
-    z-index: 3;
-    border-top: 1px solid rgba(245, 158, 11, 0.32);
-    padding-top: 5px;
-    text-align: center;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 9px;
-    color: #CBD5E1;
-    letter-spacing: 0.65px;
-    white-space: nowrap;
-}
-
-div[class*="st-key-soglia_pad_click"] {
-    width: 486px !important;
-    max-width: 92vw !important;
-    margin: -496px auto 10px auto !important;
-    position: relative;
-    z-index: 15;
-}
-div[class*="st-key-soglia_pad_click"] > div > button {
-    height: 486px !important;
-    width: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    box-shadow: none !important;
-    cursor: pointer !important;
-}
-div[class*="st-key-soglia_pad_click"] > div > button:hover {
-    background: rgba(255, 255, 255, 0.02) !important;
-    border: 1.5px solid rgba(56, 189, 248, 0.80) !important;
-    box-shadow: 0 0 44px rgba(56, 189, 248, 0.38) !important;
-}
-div[class*="st-key-soglia_pad_click"] > div > button:active::after,
-div[class*="st-key-soglia_pad_click"] > div > button:focus::after {
-    content: "◈ APERTURA SOGLIA A.L.P.H.A. ◈";
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(10, 14, 22, 0.92);
-    border: 1.5px solid #F59E0B;
-    color: #F59E0B;
-    font-family: 'Orbitron', sans-serif;
-    font-size: 12px;
-    font-weight: 900;
-    letter-spacing: 2px;
-    padding: 10px 18px;
-    border-radius: 3px;
-    box-shadow: 0 0 28px rgba(245, 158, 11, 0.65);
-}
-
-/* --- MOSAICO A 6 TESSERE NEON FLUO (QUADRATO SCOMPOSTO 2x3) --- */
-.gate6-tile {
-    height: 156px;
-    border-radius: 3px;
-    position: relative;
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    align-items: center;
-    text-align: center;
-    padding: 10px 8px;
-    margin-bottom: 10px;
-    pointer-events: none;
-    transition: all 0.20s ease;
-}
-.gate6-tile-input {
-    justify-content: flex-start !important;
-    padding-top: 8px !important;
-}
-.gate6-vignette {
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(180deg, rgba(9,12,18,0.18) 0%, rgba(9,12,18,0.44) 54%, rgba(9,12,18,0.90) 100%);
-    z-index: 1;
-}
-.gate6-tile-input .gate6-vignette {
-    background: linear-gradient(180deg, rgba(7,10,16,0.76) 0%, rgba(7,10,16,0.16) 52%, rgba(7,10,16,0.38) 100%) !important;
-}
-.gate6-content {
-    position: relative;
-    z-index: 2;
-    width: 100%;
-}
-.gate6-code {
-    font-size: 9.5px;
-    font-weight: 800;
-    letter-spacing: 1.5px;
-}
-.gate6-name {
-    font-size: 12.5px;
-    font-weight: 900;
-    color: #FFFFFF;
-    letter-spacing: 1px;
-    margin-top: 2px;
-    text-shadow: 0 2px 8px rgba(0,0,0,0.98);
-}
-.gate6-art {
-    font-size: 8.5px;
-    font-weight: 700;
-    color: #E2E8F0;
-    font-family: 'Share Tech Mono', monospace;
-    letter-spacing: 0.8px;
-    margin-top: 2px;
-    text-shadow: 0 1px 6px rgba(0,0,0,0.98);
-}
-
-/* Tessere cliccabili 01, 04, 05, 06 + INDICATORE TELEMETRICO ISTANTANEO */
-div[class*="st-key-gate6_btn_"] {
-    margin-top: -166px !important;
-    margin-bottom: 10px !important;
-    position: relative;
-    z-index: 12;
-}
-div[class*="st-key-gate6_btn_"] > div > button {
-    height: 156px !important;
-    width: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    box-shadow: none !important;
-    cursor: pointer !important;
-    position: relative !important;
-}
-div[class*="st-key-gate6_btn_"] > div > button:hover {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1.5px solid rgba(245, 158, 11, 0.88) !important;
-    box-shadow: 0 0 28px rgba(245, 158, 11, 0.42) !important;
-}
-div[class*="st-key-gate6_btn_"] > div > button:active,
-div[class*="st-key-gate6_btn_"] > div > button:focus {
-    background: rgba(7, 10, 16, 0.55) !important;
-    border: 2px solid #38BDF8 !important;
-    animation: telemetryScan 0.9s infinite !important;
-}
-div[class*="st-key-gate6_btn_"] > div > button:active::after,
-div[class*="st-key-gate6_btn_"] > div > button:focus::after {
-    content: "◈ AGGANCIO TELEMETRIA...";
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(8, 12, 20, 0.92);
-    border: 1px solid #38BDF8;
-    color: #38BDF8;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 10.5px;
-    font-weight: 700;
-    letter-spacing: 1.4px;
-    padding: 5px 10px;
-    border-radius: 3px;
-    white-space: nowrap;
-}
-
-/* --- INPUT 02 E 03: SFONDO ASSOLUTAMENTE TRASPARENTE + SOLI PUNTINI COLORATI --- */
-div[class*="st-key-gate6_in_"] {
-    margin-top: -64px !important;
-    margin-bottom: 24px !important;
-    padding: 0 16px !important;
-    position: relative;
-    z-index: 16;
-}
-div[class*="st-key-gate6_in_"] div[data-baseweb="input"],
-div[class*="st-key-gate6_in_"] div[data-baseweb="base-input"],
-div[class*="st-key-gate6_in_"] div[data-baseweb="input"] > div {
-    background: transparent !important;
-    background-color: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-    min-height: 40px !important;
-}
-/* Rimozione totale icona occhiello e pulsanti accessori */
-div[class*="st-key-gate6_in_"] button {
-    display: none !important;
-}
-div[class*="st-key-gate6_in_"] input {
-    background: transparent !important;
-    background-color: transparent !important;
-    text-align: center !important;
-    font-family: 'Share Tech Mono', monospace !important;
-    font-size: 24px !important;
-    font-weight: 900 !important;
-    padding: 2px 0px !important;
-}
-
-/* TESSERA 02: 4 PUNTINI VERDE SMERALDO (#10B981) */
-div[class*="st-key-gate6_in_pin"] input {
-    color: #10B981 !important;
-    -webkit-text-fill-color: #10B981 !important;
-    caret-color: #10B981 !important;
-    letter-spacing: 10px !important;
-    text-shadow: 0 0 12px rgba(16, 185, 129, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
-}
-div[class*="st-key-gate6_in_pin"] input::placeholder {
-    color: #10B981 !important;
-    -webkit-text-fill-color: #10B981 !important;
-    opacity: 1 !important;
-    letter-spacing: 10px !important;
-    text-shadow: 0 0 12px rgba(16, 185, 129, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
-}
-div[class*="st-key-gate6_in_pin"] input:focus::placeholder {
-    opacity: 0.25 !important;
-}
-
-/* TESSERA 03: 6 PUNTINI BLU ELETTRICO (#38BDF8) */
-div[class*="st-key-gate6_in_2fa"] input {
-    color: #38BDF8 !important;
-    -webkit-text-fill-color: #38BDF8 !important;
-    caret-color: #38BDF8 !important;
-    letter-spacing: 8px !important;
-    text-shadow: 0 0 12px rgba(56, 189, 248, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
-}
-div[class*="st-key-gate6_in_2fa"] input::placeholder {
-    color: #38BDF8 !important;
-    -webkit-text-fill-color: #38BDF8 !important;
-    opacity: 1 !important;
-    letter-spacing: 8px !important;
-    text-shadow: 0 0 12px rgba(56, 189, 248, 0.95), 0 2px 6px rgba(0, 0, 0, 0.95) !important;
-}
-div[class*="st-key-gate6_in_2fa"] input:focus::placeholder {
-    opacity: 0.25 !important;
-}
-
-.koenig-strip {
-    background-color: #1A1E26; border: 1px solid #323946; border-left: 5px solid #F59E0B;
-    padding: 8px 14px; margin-bottom: 8px; border-radius: 2px;
-}
-.badge-amber { background-color: #F59E0B; color: #0B0E14; font-weight: 900; font-size: 10px; padding: 3px 8px; margin-right: 6px; display: inline-block; margin-bottom: 3px; }
-.badge-white { background-color: #F1F5F9; color: #0F172A; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-red { background-color: #7F1D1D; border: 1px solid #EF4444; color: #FCA5A5; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-.badge-green { background-color: #064E3B; border: 1px solid #10B981; color: #6EE7B7; font-weight: 800; font-size: 10px; padding: 2px 8px; margin-right: 6px; font-family: 'Share Tech Mono', monospace; display: inline-block; margin-bottom: 3px; }
-
-.mission-bar {
-    background: linear-gradient(90deg, #161C24 0%, #1E2836 50%, #161C24 100%);
-    border: 1px solid #3A4B5E; border-left: 5px solid #F59E0B;
-    padding: 10px 16px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 10px;
-}
-.mission-title { font-size: 18px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.4px; }
-.mission-sub { font-size: 10px; color: #38BDF8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 2px; }
-.nixie-group { display: flex; align-items: center; gap: 10px; }
-.nixie-label { font-size: 10px; color: #94A3B8; font-weight: 700; letter-spacing: 1px; }
-.nixie-digits {
-    background-color: #0D1015; border: 1px solid #F59E0B; color: #F59E0B;
-    font-family: 'Share Tech Mono', monospace; font-size: 17px; font-weight: 900;
-    padding: 3px 10px; letter-spacing: 3px; border-radius: 2px;
-    box-shadow: inset 0 0 8px rgba(245, 158, 11, 0.4);
-}
-
-.weather-card {
-    background-color: #151922; border: 1px solid #2B3340;
-    padding: 9px 11px; border-radius: 3px; margin-bottom: 8px;
-}
-.w-header { display: flex; justify-content: space-between; align-items: center; }
-.w-day { font-size: 10px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.5px; }
-.w-icon { font-size: 17px; line-height: 1; }
-.w-status { font-size: 10px; font-weight: 900; margin-top: 3px; letter-spacing: 0.7px; }
-.w-telemetry {
-    display: flex; justify-content: space-between; margin-top: 5px; padding-top: 4px;
-    border-top: 1px dashed #2E3846; font-family: 'Share Tech Mono', monospace;
-    font-size: 9px; color: #E2E8F0; font-weight: 700;
-}
-.w-directive { margin-top: 4px; font-family: 'Share Tech Mono', monospace; font-size: 9px; color: #94A3B8; }
-
-.alpha-tile {
-    height: 220px; border-radius: 3px; padding: 15px;
-    display: flex; flex-direction: column; justify-content: center; align-items: center;
-    text-align: center; position: relative; transition: all 0.22s ease;
-    margin-bottom: 14px; pointer-events: none;
-}
-.tile-code { font-size: 11px; font-weight: 800; color: #F59E0B; margin-top: 9px; letter-spacing: 1.5px; }
-.tile-name { font-size: 14px; font-weight: 900; color: #FFFFFF; letter-spacing: 1.1px; margin-top: 3px; }
-.tile-artifact { font-size: 9px; font-weight: 700; color: #94A3B8; font-family: 'Share Tech Mono', monospace; letter-spacing: 0.9px; margin-top: 4px; }
-
-/* Clic sui 12 quadrati della Plancia + Indicatore Telemetrico Istantaneo */
-div[class*="st-key-blum_click_"] {
-    margin-top: -234px !important;
-    margin-bottom: 14px !important;
-    position: relative;
-    z-index: 10;
-}
-div[class*="st-key-blum_click_"] > div > button {
-    height: 220px !important;
-    width: 100% !important;
-    background: transparent !important;
-    border: none !important;
-    color: transparent !important;
-    box-shadow: none !important;
-    position: relative !important;
-}
-div[class*="st-key-blum_click_"] > div > button:hover {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border: 1.5px solid rgba(245, 158, 11, 0.75) !important;
-    box-shadow: 0 0 32px rgba(245, 158, 11, 0.4) !important;
-}
-div[class*="st-key-blum_click_"] > div > button:active,
-div[class*="st-key-blum_click_"] > div > button:focus {
-    background: rgba(10, 14, 22, 0.60) !important;
-    border: 2px solid #38BDF8 !important;
-    animation: telemetryScan 0.9s infinite !important;
-}
-div[class*="st-key-blum_click_"] > div > button:active::after,
-div[class*="st-key-blum_click_"] > div > button:focus::after {
-    content: "◈ APERTURA SETTORE IN RAM...";
-    position: absolute;
-    top: 50%; left: 50%;
-    transform: translate(-50%, -50%);
-    background: rgba(8, 12, 20, 0.94);
-    border: 1.5px solid #F59E0B;
-    color: #F59E0B;
-    font-family: 'Share Tech Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
-    letter-spacing: 1.5px;
-    padding: 6px 12px;
-    border-radius: 3px;
-    white-space: nowrap;
-}
-
-div.stButton > button {
-    background-color: #1A212B !important; color: #F8FAFC !important;
-    border: 1px solid #2F3E50 !important; border-radius: 3px !important;
-    font-family: 'Orbitron', sans-serif !important; font-size: 10px !important;
-    font-weight: 800 !important; letter-spacing: 0.8px !important;
-    min-height: 40px !important;
-    transition: all 0.2s ease !important;
-}
-div.stButton > button:hover {
-    border-color: #F59E0B !important; color: #F59E0B !important;
-    box-shadow: 0 0 12px rgba(245, 158, 11, 0.3) !important;
-}
-
-.ems-panel { background-color: #161A22; border: 2px solid #F59E0B; padding: 12px; border-radius: 3px; margin-bottom: 10px; }
-.commlock-panel { background-color: #161A22; border: 1px solid #F59E0B; padding: 14px; border-radius: 3px; text-align: center; margin-top: 8px; }
-.blum-stage { background: radial-gradient(circle at 50% 20%, #1A2432 0%, #0E1218 85%); padding: 18px; border-radius: 4px; margin-bottom: 12px; }
-
-.kpi-custom-box {
-    background-color: #141A23; border: 1px solid #2B394A; border-left: 4px solid #F59E0B;
-    padding: 14px; border-radius: 3px; margin-top: 6px; margin-bottom: 8px;
-}
-.kpi-custom-title { font-size: 10px; font-weight: 800; color: #94A3B8; letter-spacing: 1.1px; margin-bottom: 6px; font-family: 'Share Tech Mono', monospace; }
-.kpi-custom-value { font-size: 23px; font-weight: 900; color: #FFFFFF; letter-spacing: 0.9px; line-height: 1.2; }
-.kpi-custom-sub { font-size: 11px; font-weight: 700; margin-top: 6px; font-family: 'Share Tech Mono', monospace; }
-
-.xray-desk {
-    background: linear-gradient(135deg, #0D1622 0%, #132232 100%);
-    border: 2px solid #10B981; border-left: 6px solid #F59E0B;
-    padding: 16px; border-radius: 4px; margin-top: 10px; margin-bottom: 14px;
-    box-shadow: 0 0 25px rgba(16, 185, 129, 0.22);
-}
-
-@media (max-width: 768px) {
-    .mission-title { font-size: 14px !important; }
-    .kpi-custom-value { font-size: 19px !important; }
-    .blum-stage { padding: 12px !important; }
-    .soglia-wrap { width: 340px !important; }
-    .soglia-monolith { width: 340px !important; height: 340px !important; }
-    .soglia-alpha-3of5 { font-size: 19px !important; }
-    .soglia-alpha-3of5 .dot-sep { font-size: 16px !important; }
-    .soglia-list-row { font-size: 10.5px !important; letter-spacing: 0.4px !important; }
-    .soglia-inner-footer { font-size: 7.2px !important; letter-spacing: 0.2px !important; }
-    div[class*="st-key-soglia_pad_click"] {
-        width: 340px !important;
-        margin: -350px auto 8px auto !important;
-    }
-    div[class*="st-key-soglia_pad_click"] > div > button {
-        height: 340px !important;
-    }
-}
-</style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# DOSSIER ARCHITETTO & GENESI (ENRICO BRAGLIA — INTATTO AL 100%)
-# ==============================================================================
-def render_architect_dossier_content():
-    st.markdown("""
-    <div style="background:linear-gradient(135deg, #0B0E14 0%, #161C26 100%); border:1.5px solid #F59E0B; border-left:6px solid #F59E0B; padding:18px; border-radius:4px; margin-bottom:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-            <span class="badge-amber">ORIGIN SEAL // INTELLECTUAL PROPERTY</span>
-            <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#38BDF8;">
-                3-AXIS FRACTAL CORE // ZERO-TRUST RAM ARCHITECTURE
-            </span>
-        </div>
-        <div style="font-size:21px; font-weight:900; color:#FFFFFF; letter-spacing:1.5px; margin-top:8px;">
-            ENRICO BRAGLIA — SYSTEM ARCHITECT & CREATOR
-        </div>
-        <div style="font-size:11px; color:#F59E0B; font-family:'Share Tech Mono', monospace; letter-spacing:1px; margin-top:3px;">
-            30+ YEARS HOSPITALITY DIRECTION · REVENUE INTELLIGENCE · BEMASK MEDIA & AI LAB
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    v_col, m_col = st.columns([1.25, 1.55])
-
-    with v_col:
-        if os.path.exists("architect_manifesto..mp4"):
-            st.video("architect_manifesto..mp4", autoplay=True, loop=True, muted=False)
-        elif os.path.exists("architect_manifesto.mp4"):
-            st.video("architect_manifesto.mp4", autoplay=True, loop=True, muted=False)
-        else:
-            st.markdown("""
-            <div style="background:#090C12; border:1px solid #2B394A; border-radius:4px; padding:22px 14px; text-align:center;">
-                <svg width="150" height="150" viewBox="0 0 160 160" xmlns="http://www.w3.org/2000/svg">
-                    <g stroke="#38BDF8" stroke-width="1.2" opacity="0.35">
-                        <polygon points="80,18 138,50 138,114 80,146 22,114 22,50" fill="none"/>
-                        <line x1="80" y1="18" x2="80" y2="146"/>
-                        <line x1="22" y1="50" x2="138" y2="114"/>
-                        <line x1="138" y1="50" x2="22" y2="114"/>
-                    </g>
-                    <g stroke="#F59E0B" stroke-width="2.5">
-                        <line x1="80" y1="32" x2="80" y2="132"/>
-                        <line x1="34" y1="56" x2="126" y2="108"/>
-                        <line x1="126" y1="56" x2="34" y2="108"/>
-                    </g>
-                    <circle cx="80" cy="82" r="14" fill="#0B0E14" stroke="#10B981" stroke-width="3">
-                        <animate attributeName="r" values="12;16;12" dur="2.4s" repeatCount="indefinite"/>
-                    </circle>
-                    <circle cx="80" cy="82" r="5" fill="#F59E0B"/>
-                </svg>
-                <div style="font-size:11px; font-weight:800; color:#F59E0B; letter-spacing:1.2px; margin-top:8px;">
-                    27TH CUBE // 3-AXIS CORE ACTIVE
-                </div>
-                <div style="font-size:10px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:4px;">
-                    Carica 'architect_manifesto.mp4' nel repo per attivare il Mini-Video Manifesto
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-
-        vcard_data = "MECARD:N:Braglia,Enrico;ORG:BEMASK Sovereign Architecture;NOTE:Creator & Hospitality Revenue Architect;;"
-        st.markdown(f"""
-        <div style="background:#0D1118; border:1px solid #263244; padding:10px; border-radius:4px; margin-top:10px; display:flex; align-items:center; gap:12px;">
-            <img src="https://api.qrserver.com/v1/create-qr-code/?size=110x110&color=F59E0B&bgcolor=0D1118&data={vcard_data}" width="72" style="border:1px solid #F59E0B; padding:3px;" />
-            <div style="font-family:'Share Tech Mono', monospace; font-size:10px; color:#CBD5E1; line-height:1.4;">
-                <strong style="color:#F59E0B;">VERIFICA DIRETTA CREATORE</strong><br>
-                Inquadra per salvare il contatto ufficiale dell'Architetto del sistema.<br>
-                <span style="color:#10B981;">ID: EB-BEMASK-2026-ALPHA</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    with m_col:
-        st.markdown("""
-        <div style="font-family:'Share Tech Mono', monospace; font-size:12.5px; color:#E2E8F0; line-height:1.65; background:#111620; border:1px solid #243042; padding:16px; border-radius:4px;">
-            <div style="color:#F59E0B; font-weight:900; font-family:'Orbitron', sans-serif; font-size:12px; margin-bottom:8px;">
-                PERCHÉ QUESTA ARCHITETTURA È DIVERSA
-            </div>
-            <p style="margin-bottom:10px;">
-                I software gestionali tradizionali nascono in laboratorio da chi non ha mai chiuso una cassa a fine turno, difeso il RevPAR di un hotel o scoperto un rincaro occulto tra una bolla fornitore e un estratto conto POS.
-            </p>
-            <p style="margin-bottom:10px;">
-                <strong>BEMASK Sovereign Zero</strong> nasce dall'incontro tra <strong>oltre 30 anni di Direzione Alberghiera, Revenue Management e F&B sul campo</strong>, basi di elettronica industriale e orchestrazione avanzata con l'Intelligenza Artificiale.
-            </p>
-            <div style="color:#38BDF8; font-weight:900; font-family:'Orbitron', sans-serif; font-size:11px; margin-top:12px; margin-bottom:6px;">
-                LA LEGGE DEL CUBO E LA MITOSI COMPUTAZIONALE
-            </div>
-            <ul style="padding-left:18px; margin-bottom:10px; color:#CBD5E1;">
-                <li><strong>Il Perno Centrale (3 Assi X·Y·Z):</strong> ogni gesto fisico sul campo (<em>Materia</em>) si traduce all'istante in controllo di cassa e margine (<em>Energia</em>) sincronizzato col contesto operativo e meteo (<em>Tempo</em>).</li>
-                <li><strong>Micro-Moduli Leggeri:</strong> invece di un monolite pesante, una flotta di pod autonomi da 1 secondo su smartphone — per reparti diretti, gestioni in concessione o singole P.IVA.</li>
-                <li><strong>Sovranità in RAM (0 Byte su Cloud):</strong> nessun dato sensibile resta sui server. I numeri appartengono solo a chi governa l'azienda.</li>
-            </ul>
-            <div style="border-top:1px dashed #334155; padding-top:8px; margin-top:8px; font-size:11px; color:#10B981;">
-                ◈ Conceived, Directed & Engineered by <strong>Enrico Braglia</strong> // Co-orchestrated via AI Synthesis
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-
-if hasattr(st, "dialog"):
-    @st.dialog("◈ ARCHITECT & GENESIS // BEMASK SOVEREIGN ZERO", width="large")
-    def open_architect_modal():
-        render_architect_dossier_content()
-else:
-    def open_architect_modal():
-        st.session_state["show_arch_fallback"] = not st.session_state.get("show_arch_fallback", False)
-
-# ==============================================================================
-# 7. SOGLIA ZERO + SCOMPOSIZIONE LEGGERA IN 6 TESSERE (1x CSS SPRITE IN RAM)
-# ==============================================================================
+# --- 3. SOGLIA ZERO + GRIGLIA A 6 TESSERE (PUNTINI 100% TRASPARENTI) ---
 STAFF_PINS = {
     "1024": "OPERATORE BAR / CUCINA (SOLO HACCP & SKA)",
     "2048": "GOVERNANTE AI PIANI (SOLO CAMERE & SKA)",
     "3096": "BAGNINO LIDO (SOLO BEACH & POOL)"
 }
 
-GATE_FALLBACK_SVGS = {
-    "01": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><line x1="16" y1="10" x2="74" y2="10" stroke="#94A3B8" stroke-width="3"/><rect x="38" y="10" width="14" height="28" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/><path d="M52 16L64 26L52 36" stroke="#F59E0B" stroke-width="2"/><polygon points="22,48 68,48 74,56 16,56" fill="#334155" stroke="#F59E0B" stroke-width="2"/></svg>',
-    "02": '<svg width="56" height="36" viewBox="0 0 90 58" fill="none" xmlns="http://www.w3.org/2000/svg"><polygon points="16,32 54,10 78,24 54,48" fill="#1E293B" stroke="#38BDF8" stroke-width="2.2"/><polygon points="30,28 50,16 56,26 38,34" fill="#F59E0B"/></svg>',
-    "03": '<svg width="56" height="36" viewBox="0 0 96 58" fill="none" xmlns="http://www.w3.org/2000/svg"><circle cx="34" cy="20" r="9" fill="#1E293B" stroke="#10B981" stroke-width="2"/><circle cx="34" cy="40" r="9" fill="#1E293B" stroke="#10B981" stroke-width="2"/><polygon points="44,14 88,8 88,28 44,24" fill="rgba(56,189,248,0.65)"/><polygon points="44,34 88,30 88,50 44,46" fill="rgba(16,185,129,0.65)"/></svg>',
-    "04": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="14" y="8" width="62" height="48" rx="3" fill="#161426" stroke="#A855F7" stroke-width="2.2"/><rect x="30" y="14" width="30" height="36" rx="2" fill="#2B244D" stroke="#E2E8F0" stroke-width="1.8"/><circle cx="53" cy="32" r="3" fill="#F59E0B"/></svg>',
-    "05": '<svg width="56" height="40" viewBox="0 0 90 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="12" y="18" width="66" height="28" fill="#1E1620" stroke="#F43F5E" stroke-width="2"/><path d="M12 46L28 18L45 46L62 18L78 46" stroke="#CBD5E1" stroke-width="1.8"/><circle cx="36" cy="32" r="3" fill="#F59E0B"/><circle cx="54" cy="32" r="3" fill="#F59E0B"/></svg>',
-    "06": '<svg width="58" height="40" viewBox="0 0 96 64" fill="none" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="26" width="18" height="18" rx="2" fill="#334155" stroke="#94A3B8" stroke-width="1.6"/><rect x="68" y="26" width="18" height="18" rx="2" fill="#334155" stroke="#94A3B8" stroke-width="1.6"/><polygon points="48,12 68,30 48,48 28,30" fill="#E2E8F0" stroke="#EF4444" stroke-width="2.2"/><polygon points="45,24 34,30 45,35" fill="#F59E0B"/><polygon points="51,24 62,30 51,35" fill="#F59E0B"/></svg>',
-}
-
-@st.cache_data(show_spinner=False)
-def load_soglia_eagle_video_b64():
-    base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
-    explicit_names = [
-        "eagle_loop.mp4", "eagle_loop.mp4.mp4", "eagle_loop..mp4",
-        "soglia_zero.mp4", "alpha_loop.mp4"
-    ]
-    for name in explicit_names:
-        for p in [name, os.path.join(base_dir, name)]:
-            if os.path.exists(p):
-                try:
-                    with open(p, "rb") as vf:
-                        return base64.b64encode(vf.read()).decode("utf-8")
-                except Exception:
-                    pass
-
-    all_mp4 = glob.glob("*.mp4") + glob.glob(os.path.join(base_dir, "*.mp4"))
-    for p in sorted(set(all_mp4)):
-        low = os.path.basename(p).lower()
-        if "manifesto" not in low and any(k in low for k in ["eagle", "loop", "soglia"]):
-            try:
-                with open(p, "rb") as vf:
-                    return base64.b64encode(vf.read()).decode("utf-8")
-            except Exception:
-                pass
-    return None
-
-@st.cache_data(show_spinner=False)
-def load_eagle_grid_sprite_uri():
-    """Rileva eagle_grid e la comprime in RAM una sola volta (~140 KB invece di 20+ MB ripetuti 6 volte)."""
-    base_dir = os.path.dirname(os.path.abspath(__file__)) if "__file__" in globals() else "."
-    candidates = []
-    for ext in ["jpg", "jpeg", "png", "webp"]:
-        candidates.extend(glob.glob(f"*.{ext}"))
-        candidates.extend(glob.glob(os.path.join(base_dir, f"*.{ext}")))
-
-    prioritized = []
-    others = []
-    for p in sorted(set(candidates)):
-        low = os.path.basename(p).lower()
-        if any(k in low for k in ["grid", "6", "tiles", "mosaic", "parts", "watermarked", "eagle_6"]):
-            prioritized.append(p)
-        elif "eagle" in low:
-            others.append(p)
-
-    for target in (prioritized + others):
-        try:
-            with open(target, "rb") as f:
-                raw_bytes = f.read()
-            if Image is not None:
-                try:
-                    img = Image.open(io.BytesIO(raw_bytes)).convert("RGB")
-                    if img.width > 960:
-                        ratio = 960.0 / float(img.width)
-                        img = img.resize((960, int(img.height * ratio)), Image.Resampling.LANCZOS)
-                    buf = io.BytesIO()
-                    img.save(buf, format="JPEG", quality=84, optimize=True)
-                    b64_opt = base64.b64encode(buf.getvalue()).decode("utf-8")
-                    return f"data:image/jpeg;base64,{b64_opt}"
-                except Exception:
-                    pass
-            b64 = base64.b64encode(raw_bytes).decode("utf-8")
-            mime = "image/png" if target.lower().endswith(".png") else ("image/webp" if target.lower().endswith(".webp") else "image/jpeg")
-            return f"data:{mime};base64,{b64}"
-        except Exception:
-            continue
-    return None
-
-def build_gate6_tile_html(code, title, subtitle, border_hex, glow_rgba, fallback_grad, bg_pos, has_sprite, is_input=False):
-    cls_extra = " gate6-tile-input" if is_input else ""
-    sprite_cls = " gate6-has-sprite" if has_sprite else ""
-    if has_sprite:
-        bg_css = f"background-position: {bg_pos};"
-        icon_block = ""
-    else:
-        bg_css = f"background: {fallback_grad};"
-        svg_inline = "" if is_input else f"<div style='margin-bottom:4px;'>{GATE_FALLBACK_SVGS.get(code, '')}</div>"
-        icon_block = svg_inline
-
-    raw = f"""
-<div class="gate6-tile{cls_extra}{sprite_cls}" style="{bg_css} border: 1.5px solid {border_hex}; border-left: 5px solid {border_hex}; box-shadow: inset 0 0 26px {glow_rgba}, 0 0 16px {glow_rgba};">
-<div class="gate6-vignette"></div>
-<div class="gate6-content">
-{icon_block}
-<div class="gate6-code" style="color:{border_hex};">{code}</div>
-<div class="gate6-name">{title}</div>
-<div class="gate6-art">{subtitle}</div>
-</div>
-</div>
-"""
-    return "\n".join(line.strip() for line in raw.splitlines() if line.strip())
-
-def build_soglia_monolith_html():
-    video_b64 = load_soglia_eagle_video_b64()
-    if video_b64:
-        visual_core = f'<video autoplay loop muted playsinline src="data:video/mp4;base64,{video_b64}"></video>'
-    else:
-        visual_core = (
-            '<svg viewBox="0 0 500 500" width="100%" height="100%" style="position:absolute;inset:0;z-index:1;" xmlns="http://www.w3.org/2000/svg">'
-            '<defs>'
-            '<radialGradient id="plasmaGlow" cx="50%" cy="50%" r="50%">'
-            '<stop offset="0%" stop-color="#38BDF8" stop-opacity="0.95"/>'
-            '<stop offset="45%" stop-color="#10B981" stop-opacity="0.35"/>'
-            '<stop offset="100%" stop-color="#07090E" stop-opacity="0"/>'
-            '</radialGradient>'
-            '<linearGradient id="moonSurf" x1="0%" y1="0%" x2="100%" y2="100%">'
-            '<stop offset="0%" stop-color="#1E293B"/>'
-            '<stop offset="100%" stop-color="#090D14"/>'
-            '</linearGradient>'
-            '</defs>'
-            '<circle cx="410" cy="70" r="1.4" fill="#38BDF8" opacity="0.8"/>'
-            '<circle cx="440" cy="210" r="1.2" fill="#E2E8F0" opacity="0.5"/>'
-            '<ellipse cx="220" cy="520" rx="430" ry="195" fill="url(#moonSurf)" stroke="#10B981" stroke-width="1.2" opacity="0.9"/>'
-            '<ellipse cx="220" cy="520" rx="360" ry="150" fill="none" stroke="#38BDF8" stroke-width="0.7" stroke-dasharray="6 5" opacity="0.45"/>'
-            '<ellipse cx="220" cy="520" rx="280" ry="108" fill="none" stroke="#10B981" stroke-width="0.7" stroke-dasharray="4 4" opacity="0.40"/>'
-            '<line x1="40" y1="380" x2="390" y2="470" stroke="#10B981" stroke-width="0.6" opacity="0.35"/>'
-            '<line x1="150" y1="330" x2="290" y2="495" stroke="#38BDF8" stroke-width="0.6" opacity="0.35"/>'
-            '<g style="animation: eagleFloat 5s ease-in-out infinite;">'
-            '<circle cx="388" cy="146" r="56" fill="url(#plasmaGlow)">'
-            '<animate attributeName="r" values="48;64;48" dur="2.2s" repeatCount="indefinite"/>'
-            '</circle>'
-            '<circle cx="366" cy="142" r="9" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>'
-            '<circle cx="385" cy="154" r="9" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>'
-            '<circle cx="378" cy="132" r="8" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>'
-            '<circle cx="396" cy="144" r="8" fill="#1E293B" stroke="#38BDF8" stroke-width="2"/>'
-            '<polygon points="185,222 225,198 252,216 212,242" fill="#334155" stroke="#94A3B8" stroke-width="1.5"/>'
-            '<polygon points="248,274 292,248 316,268 272,296" fill="#1E293B" stroke="#CBD5E1" stroke-width="1.5"/>'
-            '<polygon points="182,252 356,142 384,162 212,276" fill="#1E293B" stroke="#94A3B8" stroke-width="2"/>'
-            '<path d="M196 258 L224 226 L246 244 L274 196 L296 212 L324 166 L350 180 L368 148" stroke="#E2E8F0" stroke-width="1.6" fill="none"/>'
-            '<line x1="215" y1="268" x2="365" y2="172" stroke="#F59E0B" stroke-width="1.6"/>'
-            '<polygon points="122,306 168,244 216,278 166,322" fill="#E2E8F0" stroke="#F59E0B" stroke-width="2"/>'
-            '<polygon points="142,292 166,266 178,276 154,298" fill="#F59E0B"/>'
-            '<polygon points="160,304 186,282 198,290 172,312" fill="#F59E0B"/>'
-            '</g>'
-            '</svg>'
-        )
-
-    raw_html = f"""
-<div class="soglia-wrap">
-<div class="soglia-monolith">
-{visual_core}
-<div class="soglia-vignette"></div>
-<div class="soglia-top-zone">
-<div class="soglia-alpha-3of5">
-<span>A</span><span class="dot-sep">.</span><span>L</span><span class="dot-sep">.</span><span>P</span><span class="dot-sep">.</span><span>H</span><span class="dot-sep">.</span><span>A</span><span class="dot-sep">.</span>
-</div>
-<div class="soglia-list-2of5">
-<div class="soglia-list-row"><span style="color:#F59E0B;">A</span><span class="row-dot">·</span>ANALYTICS</div>
-<div class="soglia-list-row"><span style="color:#38BDF8;">L</span><span class="row-dot">·</span>LINEARITY</div>
-<div class="soglia-list-row"><span style="color:#10B981;">P</span><span class="row-dot">·</span>POWER</div>
-<div class="soglia-list-row"><span style="color:#F59E0B;">H</span><span class="row-dot">·</span>HYPER-SCALE</div>
-<div class="soglia-list-row"><span style="color:#38BDF8;">A</span><span class="row-dot">·</span>AUTOMATION</div>
-</div>
-</div>
-<div class="soglia-hud-bottom">
-<div class="hud-seq hud-seq-1">
-<div style="font-size:10.5px; color:#38BDF8; font-family:'Share Tech Mono', monospace; letter-spacing:2px;">SOVEREIGN ZERO · ECOSYSTEM</div>
-<div style="font-size:19px; font-weight:900; color:#FFFFFF; letter-spacing:2.2px; margin-top:3px;">BEMASK · A.L.P.H.A.</div>
-</div>
-<div class="hud-seq hud-seq-2">
-<div style="font-size:10.5px; color:#F59E0B; font-family:'Share Tech Mono', monospace; letter-spacing:1.6px;">◈ ORBITAL TELEMETRY · 3-AXIS RAM ◈</div>
-<div style="font-size:15px; font-weight:900; color:#FFFFFF; letter-spacing:1.6px; margin-top:4px;">ARCHITECT · ENRICO BRAGLIA</div>
-</div>
-<div class="hud-seq hud-seq-3">
-<div style="font-size:10.5px; color:#10B981; font-family:'Share Tech Mono', monospace; letter-spacing:1.8px;">◈ ARCHITECT · ENRICO BRAGLIA ◈</div>
-<div style="font-size:13.5px; font-weight:900; color:#FFFFFF; letter-spacing:1.6px; margin-top:4px;">BEMASK · A.L.P.H.A. · COMMAND</div>
-</div>
-</div>
-<div class="soglia-inner-footer">
-◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · <strong style="color:#FFFFFF;">ENRICO BRAGLIA</strong> · <span style="color:#38BDF8;">ZERO-TRUST RAM</span> ◈
-</div>
-</div>
-</div>
-"""
-    return "\n".join(line.strip() for line in raw_html.splitlines() if line.strip())
-
 if not st.session_state["auth_unlocked"]:
     s_left, s_center, s_right = st.columns([0.95, 1.65, 0.95])
     with s_center:
         if not st.session_state["gate_open"]:
-            # --- STATO 1: GRANDE QUADRATO UNICO LUMINESCENTE ---
             st.markdown(build_soglia_monolith_html(), unsafe_allow_html=True)
             if st.button(" ", key="soglia_pad_click", use_container_width=True):
                 st.session_state["gate_open"] = True
@@ -1330,7 +312,6 @@ if not st.session_state["auth_unlocked"]:
                 st.session_state["pending_synth"] = "commlock"
                 st.rerun()
         else:
-            # --- STATO 2: SCOMPOSIZIONE LEGGERA IN 6 TESSERE (SPRITE CARICATA 1 SOLA VOLTA) ---
             st.markdown("<div style='height:14px;'></div>", unsafe_allow_html=True)
             sprite_uri = load_eagle_grid_sprite_uri()
             has_sprite = bool(sprite_uri)
@@ -1340,18 +321,9 @@ if not st.session_state["auth_unlocked"]:
                     unsafe_allow_html=True
                 )
 
-            # RIGA 1: [01 ACCESSO RAPIDO - Ammortizzatori] | [02 PIN (4 puntini smeraldo)]
             r1_c1, r1_c2 = st.columns(2, gap="small")
             with r1_c1:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "01", "ACCESSO RAPIDO", "LANDING GEAR · 1-CLICK",
-                        "#F59E0B", "rgba(245, 158, 11, 0.40)",
-                        "radial-gradient(circle at 50% 40%, #3D2B14 0%, #12151C 80%)",
-                        "0% 0%", has_sprite, is_input=False
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("01", "ACCESSO RAPIDO", "LANDING GEAR · 1-CLICK", "#F59E0B", "rgba(245,158,11,0.40)", "radial-gradient(circle at 50% 40%, #3D2B14 0%, #12151C 80%)", "0% 0%", has_sprite, False), unsafe_allow_html=True)
                 if st.button(" ", key="gate6_btn_fast", use_container_width=True):
                     st.session_state["pending_synth"] = "commlock"
                     st.session_state["auth_unlocked"] = True
@@ -1362,47 +334,21 @@ if not st.session_state["auth_unlocked"]:
                     st.rerun()
 
             with r1_c2:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "02", "PIN OPERATORE", "COMMAND BEAK · CABIN",
-                        "#38BDF8", "rgba(56, 189, 248, 0.40)",
-                        "radial-gradient(circle at 50% 40%, #12334A 0%, #11161F 80%)",
-                        "100% 0%", has_sprite, is_input=True
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("02", "PIN OPERATORE", "COMMAND BEAK · CABIN", "#38BDF8", "rgba(56,189,248,0.40)", "radial-gradient(circle at 50% 40%, #12334A 0%, #11161F 80%)", "100% 0%", has_sprite, True), unsafe_allow_html=True)
                 in_pin = st.text_input("PIN", type="password", placeholder="••••", label_visibility="collapsed", key="gate6_in_pin")
 
-            # RIGA 2: [03 2FA (6 puntini blu elettrico)] | [04 SBLOCCA PLANCIA - Porta Stagna]
             r2_c1, r2_c2 = st.columns(2, gap="small")
             with r2_c1:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "03", "2FA · 6 CIFRE", "PLASMA THRUSTERS",
-                        "#10B981", "rgba(16, 185, 129, 0.42)",
-                        "radial-gradient(circle at 50% 40%, #0F3A30 0%, #10171D 80%)",
-                        "0% 50%", has_sprite, is_input=True
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("03", "2FA · 6 CIFRE", "PLASMA THRUSTERS", "#10B981", "rgba(16,185,129,0.42)", "radial-gradient(circle at 50% 40%, #0F3A30 0%, #10171D 80%)", "0% 50%", has_sprite, True), unsafe_allow_html=True)
                 in_2fa = st.text_input("2FA", type="password", placeholder="••••••", label_visibility="collapsed", key="gate6_in_2fa")
 
             with r2_c2:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "04", "SBLOCCA PLANCIA", "MAIN AIRLOCK DOOR",
-                        "#A855F7", "rgba(168, 85, 247, 0.42)",
-                        "radial-gradient(circle at 50% 40%, #2B224C 0%, #131420 80%)",
-                        "100% 50%", has_sprite, is_input=False
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("04", "SBLOCCA PLANCIA", "MAIN AIRLOCK DOOR", "#A855F7", "rgba(168,85,247,0.42)", "radial-gradient(circle at 50% 40%, #2B224C 0%, #131420 80%)", "100% 50%", has_sprite, False), unsafe_allow_html=True)
                 if st.button(" ", key="gate6_btn_unlock", use_container_width=True):
                     master_pin = get_master_pin()
                     secret_2fa = get_totp_secret()
                     ora_try = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
                     pin_clean = str(in_pin).strip()
-
                     if pin_clean == master_pin:
                         if verify_2fa_code(in_2fa, secret_2fa):
                             st.session_state["pending_synth"] = "commlock"
@@ -1415,9 +361,7 @@ if not st.session_state["auth_unlocked"]:
                             st.rerun()
                         else:
                             st.session_state["pending_synth"] = "klaxon"
-                            st.session_state["breach_log"].append(
-                                f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: PIN Titolare senza 2FA valido ('{in_2fa}')"
-                            )
+                            st.session_state["breach_log"].append(f"⚠️ [{ora_try}] TENTATIVO INTRUSIONE: PIN Titolare senza 2FA valido ('{in_2fa}')")
                             st.session_state["gate_alert"] = "🚨 CODICE 2FA MANCANTE O SCADUTO"
                             st.rerun()
                     elif pin_clean in STAFF_PINS:
@@ -1431,38 +375,19 @@ if not st.session_state["auth_unlocked"]:
                         st.rerun()
                     else:
                         st.session_state["pending_synth"] = "klaxon"
-                        st.session_state["breach_log"].append(
-                            f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO ('{pin_clean}')"
-                        )
+                        st.session_state["breach_log"].append(f"⚠️ [{ora_try}] PIN SCONOSCIUTO RIFIUTATO ('{pin_clean}')")
                         st.session_state["gate_alert"] = "🚨 INSERISCI PIN NELLA CASELLA 02"
                         st.rerun()
 
-            # RIGA 3: [05 ARCHITECT DOSSIER - Traliccio] | [06 CHIUDI - Vista Frontale]
             r3_c1, r3_c2 = st.columns(2, gap="small")
             with r3_c1:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "05", "ARCHITECT DOSSIER", "FORWARD SPINE TRUSS",
-                        "#F43F5E", "rgba(244, 63, 94, 0.42)",
-                        "radial-gradient(circle at 50% 40%, #3F1C2A 0%, #15131B 80%)",
-                        "0% 100%", has_sprite, is_input=False
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("05", "ARCHITECT DOSSIER", "FORWARD SPINE TRUSS", "#F43F5E", "rgba(244,63,94,0.42)", "radial-gradient(circle at 50% 40%, #3F1C2A 0%, #15131B 80%)", "0% 100%", has_sprite, False), unsafe_allow_html=True)
                 if st.button(" ", key="gate6_btn_arch", use_container_width=True):
                     play_ems_synth("commlock")
                     open_architect_modal()
 
             with r3_c2:
-                st.markdown(
-                    build_gate6_tile_html(
-                        "06", "CHIUDI", "FRONTAL EAGLE VIEW",
-                        "#EF4444", "rgba(239, 68, 68, 0.42)",
-                        "radial-gradient(circle at 50% 40%, #40181E 0%, #151318 80%)",
-                        "100% 100%", has_sprite, is_input=False
-                    ),
-                    unsafe_allow_html=True
-                )
+                st.markdown(build_gate6_tile_html("06", "CHIUDI", "FRONTAL EAGLE VIEW", "#EF4444", "rgba(239,68,68,0.42)", "radial-gradient(circle at 50% 40%, #40181E 0%, #151318 80%)", "100% 100%", has_sprite, False), unsafe_allow_html=True)
                 if st.button(" ", key="gate6_btn_close", use_container_width=True):
                     st.session_state["gate_open"] = False
                     st.session_state["gate_alert"] = ""
@@ -1480,17 +405,14 @@ if not st.session_state["auth_unlocked"]:
             if st.session_state.get("show_arch_fallback", False):
                 render_architect_dossier_content()
     st.stop()
-
-# ==============================================================================
-# 8. FILTRO RUOLO ANTI-TALPA (12 BIT = 4096 COMBINAZIONI)
-# ==============================================================================
+    # --- 4. FILTRO RUOLO & REGIA PLANCIA (12 BIT = 4096 STATI) ---
 is_commander = (st.session_state["auth_role"] == "COMMANDER")
 bits = st.session_state["active_bits_12"]
 
 if is_commander:
     active_base = [v for i, v in enumerate(BASE_VECTORS) if bits[i]]
     if not active_base:
-        apply_multiverse_preset([True] + [False]*11)
+        apply_multiverse_preset([True] + [False] * 11)
         active_base = [BASE_VECTORS[0]]
     all_squares = active_base + st.session_state["custom_squares"]
 else:
@@ -1502,23 +424,26 @@ binary_state_num = sum((1 << i) for i, b in enumerate(bits) if b)
 binary_str = "".join(["1" if b else "0" for b in bits])
 ora_attuale = datetime.now().strftime("%H:%M")
 
-# --- 9. TOP KOENIG BAR + DOSSIER ARCHITETTO ENRICO BRAGLIA ---
+MESI_IT = ["GEN", "FEB", "MAR", "APR", "MAG", "GIU", "LUG", "AGO", "SET", "OTT", "NOV", "DIC"]
+GIORNI_IT = ["LUNEDÌ", "MARTEDÌ", "MERCOLEDÌ", "GIOVEDÌ", "VENERDÌ", "SABATO", "DOMENICA"]
+oggi_dt = datetime.now()
+data_estesa_it = f"{GIORNI_IT[oggi_dt.weekday()]} {oggi_dt.day:02d} {MESI_IT[oggi_dt.month - 1]} {oggi_dt.year}"
+
 breach_count = len(st.session_state["breach_log"])
 breach_badge = f'<span class="badge-red">🚨 {breach_count} INTRUSIONI</span>' if breach_count > 0 else '<span class="badge-green">🛡️ ZERO INTRUSIONI</span>'
 
 top_c1, top_c_arch, top_c2, top_c3 = st.columns([2.65, 1.15, 0.8, 0.7])
 with top_c1:
     st.markdown(f"""
-    <div class="koenig-strip">
+    <div class="alpha-top-strip">
         <div>
-            <span class="badge-amber">MOONBASE ALPHA</span>
+            <span class="badge-amber">A.L.P.H.A.</span>
             <span style="font-size:12px; font-weight:900; letter-spacing:1px; color:#FFFFFF;">
-                MAIN MISSION // {st.session_state['auth_user']}
+                {st.session_state['auth_user']}
             </span>
         </div>
         <div style="margin-top:5px;">
             <span class="badge-white">{n_sectors} SECTORS X 5 MODULES</span>
-            <span class="badge-amber">ARCHITECT: E. BRAGLIA</span>
             {breach_badge}
             <span class="badge-white">1 → 2¹² (#{binary_state_num}/4096)</span>
         </div>
@@ -1530,7 +455,10 @@ with top_c_arch:
         open_architect_modal()
 with top_c2:
     if st.button("🏠 PAGINA ZERO\n(HOME PLANCIA)", use_container_width=True):
+        era_in_modulo = st.session_state["blum_sector"] is not None
         return_to_page_zero()
+        if not era_in_modulo:
+            st.toast("🏠 Matrice Principale attiva (Pagina Zero)")
         st.rerun()
 with top_c3:
     if st.button("🔒 BLOCCA\nSESSIONE", use_container_width=True):
@@ -1546,10 +474,10 @@ if st.session_state.get("show_arch_fallback", False):
 st.markdown(f"""
 <div class="mission-bar">
     <div style="display:flex; align-items:center; gap:16px;">
-        <div>{EAGLE_HERO_SVG}</div>
+        <div>{HERO_CRAFT_SVG}</div>
         <div>
-            <div class="mission-title">BEMASK - A.L.P.H.A. MAIN MISSION</div>
-            <div class="mission-sub">ARCHITECT: ENRICO BRAGLIA | DATE: {datetime.now().strftime('%a %d/%m/%Y').upper()} | {total_micro_modules} MICRO-MODULES | BIN: {binary_str}</div>
+            <div class="mission-title">{data_estesa_it}</div>
+            <div class="mission-sub">{total_micro_modules} MICRO-MODULES ATTIVI | STATO BINARIO: {binary_str}</div>
         </div>
     </div>
     <div class="nixie-group">
@@ -1564,51 +492,40 @@ st.markdown(f"""
 if st.session_state["unsaved_ops_count"] >= 3:
     al_c1, al_c2 = st.columns([3.2, 1.2])
     with al_c1:
-        st.warning(f"⚠️ CHECKPOINT MEMORIA VOLATILE: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nella Contabilità in RAM. Scarica una copia di sicurezza sul dispositivo prima di chiudere il turno!")
+        st.warning(f"⚠️ CHECKPOINT RAM: Hai {st.session_state['unsaved_ops_count']} nuove registrazioni nella Contabilità. Scarica una copia sul dispositivo!")
     with al_c2:
         cal_json = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
         if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json, file_name=f"alpha_contabilita_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
             st.session_state["unsaved_ops_count"] = 0
             st.rerun()
 
-with st.expander("🌤️ RADAR METEO TELEMETRICO 5 GIORNI (SANDRA BENES / MAYA)", expanded=False):
+with st.expander("🌤️ RADAR METEO TELEMETRICO · 5 DAYS", expanded=False):
     w_cols = st.columns(5)
     for idx, w in enumerate(WEATHER_5_DAYS):
         with w_cols[idx]:
             st.markdown(f"""
             <div class="weather-card" style="border-left: 4px solid {w['border']}; border-top: 1px solid {w['border']};">
-                <div class="w-header">
-                    <span class="w-day">{w['day']}</span>
-                    <span class="w-icon">{w['icon']}</span>
-                </div>
+                <div class="w-header"><span class="w-day">{w['day']}</span><span class="w-icon">{w['icon']}</span></div>
                 <div class="w-status" style="color:{w['text_col']};">{w['status']}</div>
-                <div class="w-telemetry">
-                    <span style="color:{w['text_col']};">{w['rain']}</span>
-                    <span>{w['hum']}</span>
-                    <span style="color:#38BDF8;">{w['wind']}</span>
-                </div>
+                <div class="w-telemetry"><span style="color:{w['text_col']};">{w['rain']}</span><span>{w['hum']}</span><span style="color:#38BDF8;">{w['wind']}</span></div>
                 <div class="w-directive">{w['directive']}</div>
             </div>
             """, unsafe_allow_html=True)
 
-# ==============================================================================
-# 10. PANNELLI DEL COMANDANTE (SCALABILITÀ MULTIVERSO 1 -> 2^12 + CASSAFORTE 2FA)
-# ==============================================================================
 if is_commander:
     sec_col1, sec_col2 = st.columns([1.45, 1.0])
     with sec_col1:
-        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi — Resta Aperto)", expanded=st.session_state["keep_multiverse_open"]):
+        with st.expander("🎛️ SCALABILITÀ MULTIVERSO 1 → 2¹² (Configura i 12 Moduli Attivi)", expanded=st.session_state["keep_multiverse_open"]):
             st.caption(f"Stato Binario Attivo: `#{binary_state_num} / 4096` (`{binary_str}`) — **{n_sectors} Settori Attivi ({total_micro_modules} Micro-Moduli)**")
             sw_cols = st.columns(6)
             for i, vec in enumerate(BASE_VECTORS):
                 with sw_cols[i % 6]:
                     st.toggle(vec["short"], key=f"bit_sw_{i}", on_change=on_single_bit_toggle, args=(i,))
-
             p1, p2, p3, p4 = st.columns(4)
             p1.button("🍸 PACCHETTO BAR (02+10+11+12)", on_click=apply_multiverse_preset, args=([False, True, False, False, False, False, False, False, False, True, True, True],), use_container_width=True)
-            p2.button("🛸 GRIGLIA 3x3 PERFETTA (9 SETTORI)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, True, True, True],), use_container_width=True)
+            p2.button("🛸 GRIGLIA 3x3 (9 SETTORI)", on_click=apply_multiverse_preset, args=([True, True, True, True, True, True, False, False, False, True, True, True],), use_container_width=True)
             p3.button("🔥 FULL MULTIVERSE 2¹² (TUTTI 12)", on_click=apply_multiverse_preset, args=([True] * 12,), use_container_width=True)
-            p4.button("⚡ SOLO 12 TRAVEL TUBE", on_click=apply_multiverse_preset, args=([False]*11 + [True],), use_container_width=True)
+            p4.button("⚡ SOLO 12 TRAVEL TUBE", on_click=apply_multiverse_preset, args=([False] * 11 + [True],), use_container_width=True)
 
     with sec_col2:
         with st.expander(f"🛡️ CASSAFORTE 2FA & CHIAVE AI OCR ({breach_count} Allerte)", expanded=(breach_count > 0)):
@@ -1618,7 +535,7 @@ if is_commander:
             with q1:
                 st.markdown(f"""
                 <div style="text-align:center; background:#0B0E14; border:1px solid #10B981; padding:8px; border-radius:4px;">
-                    <div style="font-size:9px; color:#10B981; margin-bottom:4px;">INQUADRA CON GOOGLE AUTH</div>
+                    <div style="font-size:9px; color:#10B981; margin-bottom:4px;">GOOGLE AUTH QR</div>
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=130x130&color=10B981&bgcolor=0B0E14&data={otp_uri}" width="105" />
                 </div>
                 """, unsafe_allow_html=True)
@@ -1629,9 +546,7 @@ if is_commander:
                 if v_key and len(v_key.strip()) > 15:
                     st.session_state["custom_gemini_key"] = v_key.strip()
 
-# ==============================================================================
-# TAVOLO DI SMISTAMENTO SCONTRINO IN RAM (CON AUTO-SEMANTICA A-O)
-# ==============================================================================
+# --- 5. TAVOLO SCONTRINI IN RAM & CONTABILITÀ PARALLELA ---
 def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
     raw_bytes = stream_obj.getvalue()
     ram_kb = len(raw_bytes) / 1024.0
@@ -1656,7 +571,7 @@ def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
     st.markdown(f"""
     <div class="xray-desk">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
-            <span class="badge-amber">👁️ CONTENUTO INTERNO SCONTRINO & IMPUTAZIONE SEMANTICA PARALLELA (IN RAM)</span>
+            <span class="badge-amber">👁️ IMPUTAZIONE SEMANTICA PARALLELA IN RAM</span>
             <span style="font-family:'Share Tech Mono', monospace; font-size:11px; color:#10B981;">
                 HASH: #{ram_hash} | {ram_kb:.1f} KB IN RAM | 0 BYTE SU DISCO
             </span>
@@ -1666,22 +581,16 @@ def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
 
     desk_left, desk_right = st.columns([1.15, 1.85])
     with desk_left:
-        st.image(raw_bytes, caption="📸 Lastra Scontrino in RAM", use_container_width=True)
-
+        st.image(raw_bytes, caption="📸 Lastra in RAM", use_container_width=True)
     with desk_right:
         k_c1, k_c2 = st.columns([1.6, 1.4])
         with k_c1:
-            typed_k = st.text_input(
-                "🔑 Chiave AI Vision (AIzaSy...):",
-                value=st.session_state.get("custom_gemini_key", ""),
-                key=f"api_key_box_{module_tag}",
-                placeholder="Incolla chiave AIzaSy..."
-            )
+            typed_k = st.text_input("🔑 Chiave AI Vision (AIzaSy...):", value=st.session_state.get("custom_gemini_key", ""), key=f"api_key_box_{module_tag}", placeholder="Incolla chiave AIzaSy...")
             if typed_k and len(typed_k.strip()) > 15:
                 st.session_state["custom_gemini_key"] = typed_k.strip()
         with k_c2:
             st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-            if st.button("🤖 LEGGI E CLASSIFICA VOCI CON AI", key=f"btn_ai_{module_tag}", use_container_width=True):
+            if st.button("🤖 LEGGI E CLASSIFICA CON AI", key=f"btn_ai_{module_tag}", use_container_width=True):
                 parsed_ocr, err_msg = scan_receipt_in_ram_with_ai(raw_bytes, get_gemini_api_key())
                 if parsed_ocr:
                     st.session_state["ocr_esercente"] = parsed_ocr.get("esercente", "Scontrino / Bolla")
@@ -1699,49 +608,33 @@ def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
         with es_c2:
             st.session_state["ocr_metodo"] = st.selectbox("💳 Pagamento:", ["CARTA DI CREDITO / POS", "CONTANTI DA CASSETTO", "BONIFICO / SDD"], index=0, key=f"met_{module_tag}")
 
-        st.markdown("###### 🧾 TABELLA VOCI DELLO SCONTRINO (Smistamento Semantico `A–O`):")
         df_items = pd.DataFrame(st.session_state["ocr_items_df"])
         if "conto" not in df_items.columns:
             df_items["conto"] = conto_opts[0]
-
         edited_items = st.data_editor(
-            df_items,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
+            df_items, num_rows="dynamic", use_container_width=True, hide_index=True,
             column_config={
-                "voce": st.column_config.TextColumn("PRODOTTO / VOCE SCONTRINO", width="medium"),
+                "voce": st.column_config.TextColumn("PRODOTTO / VOCE", width="medium"),
                 "qta": st.column_config.NumberColumn("Q.TÀ", min_value=1, max_value=999, step=1, width="small"),
                 "prezzo": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10, width="small"),
-                "conto": st.column_config.SelectboxColumn("CONTO PARALLELO (A-O)", options=conto_opts, width="medium")
+                "conto": st.column_config.SelectboxColumn("CONTO (A-O)", options=conto_opts, width="medium")
             },
             key=f"items_ed_{module_tag}"
         )
-
         totale_scontrino = sum(float(r.get("prezzo", 0.0) or 0.0) for _, r in edited_items.iterrows()) if not edited_items.empty else 0.0
-
-        st.markdown(f"""
-        <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
-            <div class="kpi-custom-title">TOTALE VOCI SCONTRINO ({st.session_state['ocr_metodo']})</div>
-            <div class="kpi-custom-value" style="font-size:22px;">€ {totale_scontrino:.2f}</div>
-        </div>
-        """, unsafe_allow_html=True)
+        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;"><div class="kpi-custom-title">TOTALE ({st.session_state['ocr_metodo']})</div><div class="kpi-custom-value" style="font-size:22px;">€ {totale_scontrino:.2f}</div></div>""", unsafe_allow_html=True)
 
         b_imp1, b_imp2 = st.columns(2)
         with b_imp1:
-            if st.button("⚡ IMPUTA SINGOLE VOCI SUI CONTI (A-O) E SVUOTA RAM", key=f"split_save_{module_tag}", use_container_width=True):
+            if st.button("⚡ IMPUTA SINGOLE VOCI (A-O) E SVUOTA RAM", key=f"split_save_{module_tag}", use_container_width=True):
                 for _, r in edited_items.iterrows():
-                    v_nome = str(r.get("voce", "Voce")).strip()
-                    v_qta = int(r.get("qta", 1) or 1)
                     v_prz = float(r.get("prezzo", 0.0) or 0.0)
-                    v_cnt = str(r.get("conto", conto_opts[0]))
                     if v_prz > 0:
-                        add_calendar_event("VOCE SCONTRINO", f"{st.session_state['ocr_esercente']}: {v_qta}x {v_nome} [{st.session_state['ocr_metodo']}]", -v_prz, 1, "OK", conto=v_cnt)
+                        add_calendar_event("VOCE SCONTRINO", f"{st.session_state['ocr_esercente']}: {int(r.get('qta', 1) or 1)}x {r.get('voce', 'Voce')} [{st.session_state['ocr_metodo']}]", -v_prz, 1, "OK", conto=str(r.get("conto", conto_opts[0])))
                 st.session_state["ram_clear_counter"] += 1
                 play_ems_synth("commlock")
-                st.toast(f"✅ Voci imputate nei conti A-O (€ {totale_scontrino:.2f})!")
+                st.toast(f"✅ Voci imputate (€ {totale_scontrino:.2f})!")
                 st.rerun()
-
         with b_imp2:
             if st.button(f"📦 REGISTRA SCONTRINO UNICO (€ {totale_scontrino:.2f})", key=f"single_save_{module_tag}", use_container_width=True):
                 riep = " + ".join([f"{int(r.get('qta',1) or 1)}x {r.get('voce','')} (€{float(r.get('prezzo',0) or 0):.2f})" for _, r in edited_items.iterrows()])
@@ -1749,14 +642,11 @@ def render_receipt_parallel_accounting_desk(stream_obj, module_tag="DDT"):
                 add_calendar_event(f"SCONTRINO ({module_tag})", f"{st.session_state['ocr_esercente']}: {riep}"[:140], -totale_scontrino, 1, "OK", conto=primo_conto)
                 st.session_state["ram_clear_counter"] += 1
                 play_ems_synth("commlock")
-                st.toast(f"✅ Scontrino unico da € {totale_scontrino:.2f} registrato!")
+                st.toast(f"✅ Scontrino unico (€ {totale_scontrino:.2f}) registrato!")
                 st.rerun()
 
-# ==============================================================================
-# CONTABILITÀ PARALLELA & CALENDARIO STORICO
-# ==============================================================================
 def render_alpha_chrono_calendar():
-    st.markdown("##### 📅 CONTABILITÀ PARALLELA IN RAM & CALENDARIO STORICO (GIORNO · SETTIMANA · MESE)")
+    st.markdown("##### 📅 CONTABILITÀ PARALLELA IN RAM & CALENDARIO STORICO")
     cal_top1, cal_top2, cal_top3 = st.columns([1.6, 1.2, 1.2])
     with cal_top1:
         cal_view = st.radio("Vista Contabile:", ["GIORNO (Movimenti & Modifica)", "BILANCIO PER CONTO (A-O)", "MESE (Riepilogo Giorni)"], horizontal=True)
@@ -1764,9 +654,9 @@ def render_alpha_chrono_calendar():
         cal_json_str = json.dumps(st.session_state["chrono_ledger"], indent=2, ensure_ascii=False)
         if st.download_button("💾 SALVA CONTABILITÀ (.JSON)", cal_json_str, file_name=f"contabilita_alpha_{datetime.now().strftime('%Y_%m')}.json", mime="application/json", use_container_width=True):
             st.session_state["unsaved_ops_count"] = 0
-            st.toast("✅ Contabilità salvata sul tuo dispositivo!")
+            st.toast("✅ Contabilità salvata sul dispositivo!")
     with cal_top3:
-        up_cal = st.file_uploader("📂 Ricarica Contabilità (.json)", type=["json"], label_visibility="collapsed")
+        up_cal = st.file_uploader("📂 Ricarica (.json)", type=["json"], label_visibility="collapsed")
         if up_cal is not None:
             try:
                 loaded_list = json.loads(up_cal.getvalue().decode("utf-8"))
@@ -1788,34 +678,23 @@ def render_alpha_chrono_calendar():
     saldo_netto = tot_entrate + tot_uscite
 
     c_m1, c_m2, c_m3 = st.columns(3)
-    with c_m1:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI & RESA TEORICA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
-    with c_m2:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">TOTALE COSTI IMPUTATI (A-O & BOLLE)</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
-    with c_m3:
-        st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">UTILE / SALDO CONTABILITÀ PARALLELA</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
+    c_m1.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981;"><div class="kpi-custom-title">INCASSI & RESA CAFFÈ</div><div class="kpi-custom-value">+ € {tot_entrate:.2f}</div></div>""", unsafe_allow_html=True)
+    c_m2.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">COSTI IMPUTATI (A-O)</div><div class="kpi-custom-value">€ {tot_uscite:.2f}</div></div>""", unsafe_allow_html=True)
+    c_m3.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">SALDO CONTABILITÀ PARALLELA</div><div class="kpi-custom-value">€ {saldo_netto:+.2f}</div></div>""", unsafe_allow_html=True)
 
     if cal_view.startswith("BILANCIO"):
-        st.markdown("###### 📊 SPACCATO CONTABILITÀ PARALLELA PER SINGOLA VOCE / CENTRO DI COSTO (A → O):")
-        grp_c = df_cal.groupby("conto", as_index=False).agg(Numero_Voci=("amount", "count"), Totale_Euro=("amount", "sum"))
-        st.dataframe(grp_c, use_container_width=True, hide_index=True)
-
+        st.dataframe(df_cal.groupby("conto", as_index=False).agg(Numero_Voci=("amount", "count"), Totale_Euro=("amount", "sum")), use_container_width=True, hide_index=True)
     elif cal_view.startswith("MESE"):
-        grp_m = df_cal.groupby("date", as_index=False).agg(Operazioni=("type", "count"), Saldo_Giorno=("amount", "sum"), Giorni_Coperti=("days_span", "max"))
-        st.dataframe(grp_m, use_container_width=True, hide_index=True)
-
+        st.dataframe(df_cal.groupby("date", as_index=False).agg(Operazioni=("type", "count"), Saldo_Giorno=("amount", "sum"), Giorni_Coperti=("days_span", "max")), use_container_width=True, hide_index=True)
     else:
         edited_df = st.data_editor(
-            df_cal,
-            num_rows="dynamic",
-            use_container_width=True,
-            hide_index=True,
+            df_cal, num_rows="dynamic", use_container_width=True, hide_index=True,
             column_config={
                 "date": st.column_config.TextColumn("DATA"),
                 "time": st.column_config.TextColumn("ORA"),
-                "conto": st.column_config.SelectboxColumn("CONTO IMPUTATO (A-O)", options=get_conto_options(), width="medium"),
+                "conto": st.column_config.SelectboxColumn("CONTO (A-O)", options=get_conto_options(), width="medium"),
                 "type": st.column_config.TextColumn("TIPO"),
-                "desc": st.column_config.TextColumn("DETTAGLIO VOCE SCONTRINO / NOTA", width="large"),
+                "desc": st.column_config.TextColumn("DETTAGLIO", width="large"),
                 "amount": st.column_config.NumberColumn("IMPORTO (€)", format="€ %.2f", step=0.10),
                 "days_span": st.column_config.NumberColumn("GG", min_value=1, max_value=30),
                 "status": st.column_config.SelectboxColumn("STATO", options=["OK", "ALERT"])
@@ -1826,16 +705,14 @@ def render_alpha_chrono_calendar():
             st.session_state["chrono_ledger"] = edited_df.to_dict("records")
             st.rerun()
 
-# ==============================================================================
-# 11. CORPO PRINCIPALE: PAGINA ZERO (12 QUADRATI) vs INGRESSO MODULO SPECIFICO
-# ==============================================================================
+# --- 6. CORPO PRINCIPALE: MATRICE 12 SETTORI vs MODULO ATTIVO ---
 col_left, col_right = st.columns([3.25, 1.15])
 rc_id = st.session_state["ram_clear_counter"]
 
 with col_left:
     if st.session_state["blum_sector"] is not None:
         sec_obj = next((s for s in all_squares if s["code"] == st.session_state["blum_sector"]), all_squares[0])
-        svg_blum = SVG_ICONS.get(sec_obj["code"], SVG_ICONS["01"])
+        svg_blum = SECTOR_SVGS.get(sec_obj["code"], SECTOR_SVGS["01"])
 
         if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (MATRICE INIZIALE A.L.P.H.A.)", key="exit_blum_top", use_container_width=True):
             return_to_page_zero()
@@ -1846,15 +723,9 @@ with col_left:
             <div style="display:flex; align-items:center; gap:16px;">
                 <div>{svg_blum}</div>
                 <div>
-                    <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono'; letter-spacing:1.3px;">
-                        {sec_obj['artifact']} // SETTORE {sec_obj['code']} // CONTABILITÀ PARALLELA RAM
-                    </div>
-                    <div style="font-size:22px; font-weight:900; color:#FFFFFF; letter-spacing:1.3px; margin-top:2px;">
-                        {sec_obj['name']}
-                    </div>
-                    <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono'; margin-top:4px;">
-                        {sec_obj['kpi']} | SOTTOMENU ATTIVO: {st.session_state['selected_sub']}
-                    </div>
+                    <div style="font-size:11px; color:{sec_obj['border']}; font-family:'Share Tech Mono'; letter-spacing:1.3px;">{sec_obj['artifact']} // SETTORE {sec_obj['code']}</div>
+                    <div style="font-size:22px; font-weight:900; color:#FFFFFF; letter-spacing:1.3px; margin-top:2px;">{sec_obj['name']}</div>
+                    <div style="font-size:11px; color:#38BDF8; font-family:'Share Tech Mono'; margin-top:4px;">{sec_obj['kpi']} | {st.session_state['selected_sub']}</div>
                 </div>
             </div>
         </div>
@@ -1878,29 +749,17 @@ with col_left:
             if "5." in curr_sub:
                 render_alpha_chrono_calendar()
             else:
-                st.markdown("##### 🛸 ALPHA TRAVEL TUBE // SALVACULO CASSA, MULTI-POS vs RT & MOTORE SEMANTICO")
-                st.info("Il **Travel Tube (Settore 12)** opera come Pod autonomo ad alta velocità dedicato all'allineamento Fondo Cassa mattina, rilevamento collisioni Storico POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
-                st.link_button("🚀 LANCIA POD AUTONOMO TRAVEL TUBE (bemask-travel-tube.streamlit.app)", sec_obj["url"], use_container_width=True)
+                st.info("Il **Travel Tube (Settore 12)** opera come Pod autonomo dedicato al pareggio Fondo Cassa, rilevamento collisioni Multi-POS vs Registratore Telematico (RT) e classificazione semantica A–O.")
+                st.link_button("🚀 LANCIA POD AUTONOMO TRAVEL TUBE", sec_obj["url"], use_container_width=True)
 
         elif sec_obj["code"] == "10":
             if "5." in curr_sub:
                 render_alpha_chrono_calendar()
-
             elif "2." in curr_sub:
-                st.markdown("##### 🎹 CONTABILITÀ PARALLELA RAPIDA (CONTI A → O) // TIMBRA USCITA PER CATEGORIA")
-                with st.expander("⚙️ Personalizza i nomi dei Conti A-O della tua Contabilità Parallela", expanded=False):
-                    cfg_cols = st.columns(4)
-                    keys_list = list(st.session_state["bar_ao_labels"].keys())
-                    for idx_k, k_let in enumerate(keys_list):
-                        with cfg_cols[idx_k % 4]:
-                            st.session_state["bar_ao_labels"][k_let] = st.text_input(f"Conto {k_let}", st.session_state["bar_ao_labels"][k_let], key=f"cfg_ao_{k_let}")
-
+                st.markdown("##### 🎹 CONTABILITÀ PARALLELA RAPIDA (CONTI A → O)")
                 imp_col1, imp_col2 = st.columns([1.4, 2.6])
-                with imp_col1:
-                    uscita_euro = st.number_input("💶 Importo Spesa / Uscita (€)", min_value=0.50, max_value=5000.0, value=19.80, step=0.50, format="%.2f")
-                with imp_col2:
-                    nota_opz = st.text_input("📝 Nota veloce (Opzionale):", placeholder="Es. Ghiaccio, Latte, Acconto...")
-
+                uscita_euro = imp_col1.number_input("💶 Importo Spesa (€)", 0.50, 5000.0, 19.80, step=0.50, format="%.2f")
+                nota_opz = imp_col2.text_input("📝 Nota veloce:", placeholder="Es. Ghiaccio, Latte, Acconto...")
                 ao_keys = list(st.session_state["bar_ao_labels"].keys())
                 row1 = st.columns(4)
                 for i, k_let in enumerate(ao_keys):
@@ -1911,28 +770,20 @@ with col_left:
                         play_ems_synth("commlock")
                         st.toast(f"✅ Imputato su [{k_let}] {lbl}: -€ {uscita_euro:.2f}")
                         st.rerun()
-
             elif "3." in curr_sub:
                 st.markdown("##### 🏁 CONTROLLO CASSA MULTI-TURNO & CHIUSURA A FISARMONICA")
                 ch1, ch2, ch3 = st.columns(3)
-                tipo_punto = ch1.selectbox("Tipo Controllo Cassetto", [
-                    "⏱️ PARZIALE / CAMBIO TURNO (Mattina -> Pomeriggio)",
-                    "💶 ALLEGGERIMENTO CONTANTI TITOLARE",
-                    "🏁 CHIUSURA FINE GIORNATA / CUMULATIVA"
-                ])
-                giorni_coperti = ch2.selectbox("Quanti giorni copre questo conto?", [1, 2, 3, 4, 5, 6, 7], index=0)
-                incasso_contato = ch3.number_input("Totale Contanti + POS Rilevato (€)", 0.0, 100000.0, 680.0, step=10.0)
-
+                tipo_punto = ch1.selectbox("Tipo Controllo", ["⏱️ PARZIALE / CAMBIO TURNO", "💶 ALLEGGERIMENTO CONTANTI TITOLARE", "🏁 CHIUSURA FINE GIORNATA / CUMULATIVA"])
+                giorni_coperti = ch2.selectbox("Giorni coperti", [1, 2, 3, 4, 5, 6, 7], index=0)
+                incasso_contato = ch3.number_input("Totale Contanti + POS (€)", 0.0, 100000.0, 680.0, step=10.0)
                 media_giorno = incasso_contato / giorni_coperti
                 if st.button("📅 TIMBRA PUNTO CASSA NELLA CONTABILITÀ PARALLELA", use_container_width=True):
                     segno = -incasso_contato if "ALLEGGERIMENTO" in tipo_punto else incasso_contato
                     conto_dest = "[O] PRELIEVO TITOLARE" if "ALLEGGERIMENTO" in tipo_punto else "[INCASSO] CASSA / POS"
                     add_calendar_event("PUNTO CASSA", f"{tipo_punto} ({giorni_coperti} gg — Media €{media_giorno:.2f}/gg)", segno, giorni_coperti, "OK", conto=conto_dest)
                     play_ems_synth("commlock")
-                    st.success(f"Registrato! Media giornaliera calcolata su {giorni_coperti} gg: € {media_giorno:.2f}/giorno.")
-
+                    st.success(f"Registrato! Media giornaliera: € {media_giorno:.2f}/giorno.")
             else:
-                st.markdown("##### 📸 SCANNER SCONTRINI / BOLLE CON SCOMPOSIZIONE VOCI PER CONTABILITÀ PARALLELA")
                 cf1, cf2, cf3 = st.columns([1.3, 1.3, 1.4])
                 with cf1:
                     if st.button("☕ +1 KG CAFFÈ APERTO (TIMBRA ORA)", use_container_width=True):
@@ -1940,170 +791,59 @@ with col_left:
                         resa_sacchetto = st.session_state["bar_tazzine_per_kg"] * st.session_state["bank_prezzo_caffe"]
                         add_calendar_event("CAFFÈ (+1 KG)", f"Aperto sacchetto 1 Kg (~{st.session_state['bar_tazzine_per_kg']} caffè attesi)", resa_sacchetto, 1, "OK", conto="[A] MATERIE PRIME / CAFFÈ")
                         play_ems_synth("commlock")
-                        st.toast(f"☕ +1 Kg registrato! (+€ {resa_sacchetto:.2f} attesi)")
                         st.rerun()
                 with cf2:
-                    st.session_state["bar_kg_caffe_aperti"] = st.number_input("Totale Kg Caffè Aperti nel Periodo", 0.5, 500.0, st.session_state["bar_kg_caffe_aperti"], step=0.5)
+                    st.session_state["bar_kg_caffe_aperti"] = st.number_input("Kg Caffè Aperti", 0.5, 500.0, st.session_state["bar_kg_caffe_aperti"], step=0.5)
                 with cf3:
                     tazzine_attese = int(st.session_state["bar_kg_caffe_aperti"] * st.session_state["bar_tazzine_per_kg"])
                     incasso_caffe_atteso = tazzine_attese * st.session_state["bank_prezzo_caffe"]
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B; padding:10px 14px; margin-top:0;">
-                        <div class="kpi-custom-title">RESA TEORICA DAI KG DI CAFFÈ APERTI</div>
-                        <div class="kpi-custom-value" style="font-size:20px;">€ {incasso_caffe_atteso:.2f} ({tazzine_attese} caffè)</div>
-                    </div>
-                    """, unsafe_allow_html=True)
+                    st.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B; padding:10px 14px; margin-top:0;"><div class="kpi-custom-title">RESA TEORICA CAFFÈ</div><div class="kpi-custom-value" style="font-size:20px;">€ {incasso_caffe_atteso:.2f} ({tazzine_attese} taz.)</div></div>""", unsafe_allow_html=True)
 
                 cam_col1, cam_col2, cam_col3 = st.columns([1.4, 2.0, 1.0])
-                with cam_col1:
-                    use_cam_ddt = st.toggle("📸 ATTIVA FOTOCAMERA BANCONE", value=False, key="tog_cam_ddt")
-                with cam_col2:
-                    ddt_file = st.file_uploader("📂 Oppure carica Foto Scontrino/CSV/XML da dispositivo", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
+                use_cam_ddt = cam_col1.toggle("📸 FOTOCAMERA BANCONE", value=False, key="tog_cam_ddt")
+                ddt_file = cam_col2.file_uploader("📂 Carica Foto Scontrino/CSV/XML", type=["jpg", "jpeg", "png", "csv", "xml", "txt"], key=f"up_ddt_{rc_id}")
                 with cam_col3:
                     st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔥 SVUOTA RAM ORA", key="purge_ddt", use_container_width=True):
+                    if st.button("🔥 SVUOTA RAM", key="purge_ddt", use_container_width=True):
                         st.session_state["ram_clear_counter"] += 1
                         play_ems_synth("burst")
                         st.rerun()
-
-                cam_ddt_shot = st.camera_input("Inquadra lo Scontrino o la Bolla", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
+                cam_ddt_shot = st.camera_input("Inquadra Scontrino o Bolla", key=f"cam_ddt_{rc_id}") if use_cam_ddt else None
                 active_ddt_stream = cam_ddt_shot if cam_ddt_shot is not None else ddt_file
-
                 if active_ddt_stream is not None:
                     render_receipt_parallel_accounting_desk(active_ddt_stream, module_tag="DDT")
-
-                st.markdown("---")
-                d0, d1, d2, d3, d4 = st.columns([1.2, 1, 1, 1, 1])
-                st.session_state["ddt_codice_art"] = d0.text_input("Cod. Articolo Bolla", st.session_state["ddt_codice_art"])
-                st.session_state["ddt_prezzo_fattura"] = d1.number_input("Prezzo Bolla (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_fattura"], step=0.10)
-                st.session_state["ddt_prezzo_pattuito"] = d2.number_input("Pattuito (€/Bott.)", 1.0, 200.0, st.session_state["ddt_prezzo_pattuito"], step=0.10)
-                st.session_state["ddt_litri_bottiglia"] = d3.selectbox("Formato (Litri)", [0.70, 0.75, 1.0, 1.5], index=2)
-                st.session_state["ddt_omaggio_finto_iva"] = d4.number_input("IVA Finto Omaggio (€)", 0.0, 100.0, st.session_state["ddt_omaggio_finto_iva"], step=0.25)
-
-                dna_litro_reale = st.session_state["ddt_prezzo_fattura"] / st.session_state["ddt_litri_bottiglia"]
-                scostamento_bott = st.session_state["ddt_prezzo_fattura"] - st.session_state["ddt_prezzo_pattuito"]
-
-                k1, k2, k3 = st.columns(3)
-                with k1:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
-                        <div class="kpi-custom-title">PREZZO REALE AL LITRO ({st.session_state['ddt_codice_art']})</div>
-                        <div class="kpi-custom-value">€ {dna_litro_reale:.2f} / L</div>
-                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scostamento_bott:.2f} € vs pattuito</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with k2:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
-                        <div class="kpi-custom-title">CONTROLLO OMAGGI IN FATTURA (IVA)</div>
-                        <div class="kpi-custom-value">€ {st.session_state['ddt_omaggio_finto_iva']:.2f}</div>
-                        <div class="kpi-custom-sub" style="color:#F59E0B;">● Anomalia Bolla 190677/9</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with k3:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#10B981;">
-                        <div class="kpi-custom-title">FRIGO BAR 1-CLICK (HACCP)</div>
-                        <div class="kpi-custom-value">+3.8 °C OK</div>
-                        <div class="kpi-custom-sub" style="color:#10B981;">✔ Firmato PIN #{st.session_state['pin_code']}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                if st.button("📅 IMPUTA QUESTA BOLLA SU [B] BEVANDE / ALCOLICI", use_container_width=True):
-                    add_calendar_event("BOLLA DDT", f"Art. {st.session_state['ddt_codice_art']} (€{dna_litro_reale:.2f}/L | Scost. {scostamento_bott:+.2f}€)", -st.session_state["ddt_prezzo_fattura"], 1, "ALERT" if scostamento_bott > 0 else "OK", conto="[B] BEVANDE / ALCOLICI")
-                    play_ems_synth("commlock")
-                    st.toast("✅ Bolla registrata nella Contabilità Parallela!")
-                    st.rerun()
 
         elif sec_obj["code"] == "11":
             if "5." in curr_sub:
                 render_alpha_chrono_calendar()
             else:
-                st.markdown("##### 🔫 BANK VAMPIRE SCANNER // ANALISI COSTI BANCARI & VERO TASSO POS (RAM-ONLY)")
-                ec_col1, ec_col2, ec_col3 = st.columns([1.4, 2.0, 1.0])
-                with ec_col1:
-                    use_cam_bank = st.toggle("📸 FOTOGRAFA ESTRATTO CONTO", value=False, key="tog_cam_bank")
-                with ec_col2:
-                    bank_file = st.file_uploader("📂 Oppure leggi Foto/CSV Estratto Conto (Solo RAM)", type=["csv", "txt", "jpg", "jpeg", "png"], key=f"up_bank_{rc_id}")
-                with ec_col3:
-                    st.markdown("<div style='height:24px;'></div>", unsafe_allow_html=True)
-                    if st.button("🔥 DISTRUGGI DATI RAM", key="purge_bank", use_container_width=True):
-                        st.session_state["ram_clear_counter"] += 1
-                        play_ems_synth("burst")
-                        st.rerun()
-
-                cam_bank_shot = st.camera_input("Inquadra il riepilogo spese dell'Estratto Conto", key=f"cam_bank_{rc_id}") if use_cam_bank else None
-                sdd_alert_txt = "0 DOPPI ADDEBITI"
-                sdd_sub_txt = "✔ Controllo flussi SDD attivo"
-                sdd_col = "#10B981"
-
-                active_bank_stream = cam_bank_shot if cam_bank_shot is not None else bank_file
-                if active_bank_stream is not None:
-                    render_receipt_parallel_accounting_desk(active_bank_stream, module_tag="BANK")
-
                 b1, b2, b3, b4 = st.columns(4)
                 st.session_state["bank_transato_pos"] = b1.number_input("Transato POS Mensile (€)", 500.0, 500000.0, st.session_state["bank_transato_pos"], step=500.0)
                 st.session_state["bank_comm_dichiarata"] = b2.number_input("Comm. POS Dichiarata (%)", 0.10, 5.0, st.session_state["bank_comm_dichiarata"], step=0.05)
                 st.session_state["bank_costi_occulti"] = b3.number_input("Spese Tenuta / Canoni / SDD (€)", 0.0, 5000.0, st.session_state["bank_costi_occulti"], step=10.0)
                 st.session_state["bank_prezzo_caffe"] = b4.number_input("Prezzo Tazzina Caffè (€)", 0.80, 3.0, st.session_state["bank_prezzo_caffe"], step=0.10)
-
-                costo_pos_base = st.session_state["bank_transato_pos"] * (st.session_state["bank_comm_dichiarata"] / 100.0)
-                prelievo_totale_banca = costo_pos_base + st.session_state["bank_costi_occulti"]
+                prelievo_totale_banca = (st.session_state["bank_transato_pos"] * (st.session_state["bank_comm_dichiarata"] / 100.0)) + st.session_state["bank_costi_occulti"]
                 vero_tasso_pos = (prelievo_totale_banca / st.session_state["bank_transato_pos"]) * 100.0
                 caffe_pareggio = round(prelievo_totale_banca / st.session_state["bank_prezzo_caffe"])
-                scost_pos = vero_tasso_pos - st.session_state["bank_comm_dichiarata"]
-
-                v1, v2, v3 = st.columns(3)
-                with v1:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#EF4444;">
-                        <div class="kpi-custom-title">VERO TASSO POS EFFETTIVO</div>
-                        <div class="kpi-custom-value">{vero_tasso_pos:.2f} %</div>
-                        <div class="kpi-custom-sub" style="color:#EF4444;">▲ +{scost_pos:.2f}% incidenza oneri accessori</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with v2:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:#F59E0B;">
-                        <div class="kpi-custom-title">CAFFÈ NECESSARI PER COPRIRE I COSTI BANCARI</div>
-                        <div class="kpi-custom-value">{caffe_pareggio} Tazzine/mese</div>
-                        <div class="kpi-custom-sub" style="color:#10B981;">● Corrispettivo di € {prelievo_totale_banca:.2f} in oneri e commissioni</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-                with v3:
-                    st.markdown(f"""
-                    <div class="kpi-custom-box" style="border-left-color:{sdd_col};">
-                        <div class="kpi-custom-title">SENTINELLA DOPPIO SDD</div>
-                        <div class="kpi-custom-value">{sdd_alert_txt}</div>
-                        <div class="kpi-custom-sub" style="color:{sdd_col};">{sdd_sub_txt}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
+                v1, v2 = st.columns(2)
+                v1.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#EF4444;"><div class="kpi-custom-title">VERO TASSO POS EFFETTIVO</div><div class="kpi-custom-value">{vero_tasso_pos:.2f} %</div></div>""", unsafe_allow_html=True)
+                v2.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#F59E0B;"><div class="kpi-custom-title">CAFFÈ PER PAREGGIO COSTI BANCA</div><div class="kpi-custom-value">{caffe_pareggio} Tazzine/mese</div></div>""", unsafe_allow_html=True)
                 if st.button("📅 IMPUTA ONERI BANCARI NELLA CONTABILITÀ DEL MESE", use_container_width=True):
-                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine per pareggio)", -prelievo_totale_banca, 30, "ALERT", conto="[BANCA] ONERI & COMMISSIONI")
+                    add_calendar_event("ONERI BANCA", f"Vero Tasso POS {vero_tasso_pos:.2f}% ({caffe_pareggio} tazzine)", -prelievo_totale_banca, 30, "ALERT", conto="[BANCA] ONERI & COMMISSIONI")
                     play_ems_synth("commlock")
-                    st.toast("✅ Oneri bancari imputati nella Contabilità Parallela!")
                     st.rerun()
 
         else:
-            st.markdown(f"##### ⚡ TELEMETRIA ESECUTIVA // {sec_obj['name']} — {curr_sub}")
             c1, c2, c3, c4 = st.columns([1.2, 1.2, 1.2, 1.4])
             st.session_state["rop_cons_gg"] = c1.number_input("Consumo Giorno (u.)", 1, 1000, st.session_state["rop_cons_gg"])
             st.session_state["rop_lead_gg"] = c2.number_input("Lead Time (gg)", 1, 30, st.session_state["rop_lead_gg"])
             st.session_state["rop_stock"] = c3.number_input("Giacenza Casa", 0, 5000, st.session_state["rop_stock"])
             rop_val = (st.session_state["rop_cons_gg"] * st.session_state["rop_lead_gg"]) + (st.session_state["bocche_96h"] * 4)
-            with c4:
-                st.markdown(f"""
-                <div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;">
-                    <div class="kpi-custom-title">PUNTO ACQUISTO (ROP 96H)</div>
-                    <div class="kpi-custom-value" style="font-size:20px;">{rop_val} u.</div>
-                    <div class="kpi-custom-sub" style="color:#10B981;">Margine: {st.session_state['rop_stock'] - rop_val:+} u.</div>
-                </div>
-                """, unsafe_allow_html=True)
+            c4.markdown(f"""<div class="kpi-custom-box" style="border-left-color:#10B981; padding:10px 14px;"><div class="kpi-custom-title">PUNTO ACQUISTO (ROP 96H)</div><div class="kpi-custom-value" style="font-size:20px;">{rop_val} u.</div></div>""", unsafe_allow_html=True)
             st.link_button(f"🚀 APRI CONSOLLE ESTERNA DEDICATA ({sec_obj['name']})", sec_obj["url"], use_container_width=True)
 
         st.markdown("<div style='height:12px;'></div>", unsafe_allow_html=True)
-        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO (HOME PLANCIA)", key="exit_blum_bottom", use_container_width=True):
+        if st.button("🏠 ◀ ESCI DAL MODULO E TORNA ALLA PAGINA ZERO", key="exit_blum_bottom", use_container_width=True):
             return_to_page_zero()
             st.rerun()
 
@@ -2115,16 +855,14 @@ with col_left:
                 if r + c < n_sectors:
                     sq = all_squares[r + c]
                     code = sq["code"]
-                    svg_icon = SVG_ICONS.get(code, SVG_ICONS["01"])
-                    artifact_lbl = sq.get("artifact", "MOONBASE ALPHA NODE")
-
+                    svg_icon = SECTOR_SVGS.get(code, SECTOR_SVGS["01"])
                     with row_cols[c]:
                         st.markdown(f"""
                         <div class="alpha-tile" style="background: {sq['bg_grad']}; border: 1.5px solid {sq['border']}; border-left: 5px solid {sq['border']}; box-shadow: inset 0 0 28px {sq['glow']};">
                             <div>{svg_icon}</div>
                             <div class="tile-code">{code}</div>
                             <div class="tile-name">{sq['name']}</div>
-                            <div class="tile-artifact">{artifact_lbl}</div>
+                            <div class="tile-artifact">{sq.get('artifact', 'ALPHA NODE')}</div>
                         </div>
                         """, unsafe_allow_html=True)
                         if st.button(" ", key=f"blum_click_{code}", use_container_width=True):
@@ -2132,7 +870,6 @@ with col_left:
                             st.session_state["selected_sub"] = sq["subs"][0]
                             st.rerun()
 
-# --- COLONNA DESTRA COMPLETA AL 100% (EMS-1975 SYNTH + KLAXON + DATA WAFER + QR) ---
 with col_right:
     st.markdown("""
     <div class="ems-panel">
@@ -2162,7 +899,6 @@ with col_right:
 
     module_options = ["00 ALPHA MAIN MISSION", "DW DATA WAFER PAD"] + [f"{s['code']} {s['name']}" for s in all_squares]
     chosen_mod = st.selectbox("SELEZIONA NODO TELEPORT", module_options, label_visibility="collapsed")
-
     target_url = "https://alpha-main-mission.streamlit.app"
     if chosen_mod.startswith("DW"):
         target_url = "https://bemask-data-wafer.streamlit.app"
@@ -2174,22 +910,15 @@ with col_right:
 
     st.markdown(f"""
     <div class="commlock-panel">
-        <div style="font-size:11px; font-weight:900; color:#FFFFFF; text-align:left; letter-spacing:1px; margin-bottom:10px;">
-            COMMLOCK // QR<br>TELEPORT
-        </div>
+        <div style="font-size:11px; font-weight:900; color:#FFFFFF; text-align:left; letter-spacing:1px; margin-bottom:10px;">COMMLOCK // QR<br>TELEPORT</div>
         <div style="background:#0B0E14; border:2px solid #F59E0B; padding:10px; display:inline-block; border-radius:3px;">
             <img src="https://api.qrserver.com/v1/create-qr-code/?size=170x170&color=F59E0B&bgcolor=0B0E14&data={target_url}" width="145" />
         </div>
-        <div style="font-size:10px; font-weight:900; color:#F59E0B; margin-top:10px; letter-spacing:0.8px;">
-            {chosen_mod}
-        </div>
-        <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">
-            alpha-main-mission.streamlit.app
-        </div>
+        <div style="font-size:10px; font-weight:900; color:#F59E0B; margin-top:10px; letter-spacing:0.8px;">{chosen_mod}</div>
+        <div style="font-size:9px; color:#94A3B8; font-family:'Share Tech Mono', monospace; margin-top:2px;">alpha-main-mission.streamlit.app</div>
     </div>
     """, unsafe_allow_html=True)
 
-# --- 12. PUNZONE METALLICO DI PROPRIETÀ INTELLETTUALE ---
 st.markdown("""
 <div style="margin-top:28px; padding:12px; border-top:1px solid #263040; text-align:center; font-family:'Share Tech Mono', monospace; font-size:10.5px; color:#64748B; letter-spacing:1.1px;">
     ◈ <strong style="color:#F59E0B;">BEMASK SOVEREIGN ARCHITECTURE</strong> · CONCEIVED, DIRECTED & ENGINEERED BY <strong style="color:#E2E8F0;">ENRICO BRAGLIA</strong> · 3-AXIS FRACTAL CORE · ZERO-TRUST VOLATILE RAM ◈
